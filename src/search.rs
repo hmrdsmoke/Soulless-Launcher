@@ -29,7 +29,7 @@ pub enum OpenDrawer {
 pub struct AppEntry {
     pub name: String,
     pub exec: String,
-    pub icon: String,
+    pub icon: Option<String>, // None = use fallback asset
     lower_name: String,
     haystack: Utf32String,
 }
@@ -61,8 +61,8 @@ impl Search {
             all_apps,
             filtered_apps: Vec::new(),
             drawers,
-            show_search_results: true, // MRV: launcher should open with search results ready
-            current_open_drawer: OpenDrawer::Search, // MRV: launcher should open directly in search
+            show_search_results: true,
+            current_open_drawer: OpenDrawer::Search,
         };
 
         search.recompute_results();
@@ -107,28 +107,48 @@ impl Search {
 
     fn recompute_results(&mut self) {
         const MAX_RESULTS: usize = 200;
-        const PREFIX_BONUS: u32 = 20_000;
-        const SUBSTRING_BONUS: u32 = 10_000;
+        const TOP_PREFIX_COUNT: usize = 12;
 
         if self.query.is_empty() {
-            self.filtered_apps = (0..self.all_apps.len().min(MAX_RESULTS)).collect(); // MRV: show default ready results immediately at launcher open
-            return;
-        }
+            // No input: top 200 results based on 100% fuzzy score
+            let pattern = Pattern::new(
+                &self.query,
+                CaseMatching::Smart,
+                Normalization::Smart,
+                AtomKind::Fuzzy,
+            );
+            let mut matcher = self.matcher.clone();
 
-        let query_lower = self.query.to_lowercase();
-
-        if self.query.chars().count() < 2 {
-            self.filtered_apps = self
+            let mut scored: Vec<(u32, usize)> = self
                 .all_apps
                 .iter()
                 .enumerate()
-                .filter(|(_, app)| app.lower_name.starts_with(&query_lower))
-                .map(|(i, _)| i)
+                .filter_map(|(i, app)| {
+                    pattern
+                        .score(app.haystack.slice(..), &mut matcher)
+                        .map(|fuzzy_score| (fuzzy_score, i))
+                })
+                .collect();
+
+            // Sort by score (descending), then alphabetically
+            scored.sort_unstable_by(|a, b| {
+                b.0.cmp(&a.0)
+                    .then_with(|| self.all_apps[a.1].name.cmp(&self.all_apps[b.1].name))
+            });
+
+            // Take top 200 results
+            self.filtered_apps = scored
+                .into_iter()
                 .take(MAX_RESULTS)
+                .map(|(_, i)| i)
                 .collect();
             return;
         }
 
+        let query_lower = self.query.to_lowercase();
+        let char_count = self.query.chars().count();
+
+        // Create a fuzzy pattern matcher
         let pattern = Pattern::new(
             &self.query,
             CaseMatching::Smart,
@@ -137,38 +157,57 @@ impl Search {
         );
         let mut matcher = self.matcher.clone();
 
+        // Compute scores for all apps
         let mut scored: Vec<(u32, usize)> = self
             .all_apps
             .iter()
             .enumerate()
             .filter_map(|(i, app)| {
+                let mut score = 0;
+
+                // Prefix match: base score
                 if app.lower_name.starts_with(&query_lower) {
-                    return Some((PREFIX_BONUS, i));
+                    score += 20_000; // Strong prefix bonus
                 }
 
-                if app.lower_name.contains(&query_lower) {
-                    return Some((SUBSTRING_BONUS, i));
-                }
+                let fuzzy_score = pattern.score(app.haystack.slice(..), &mut matcher).unwrap_or(0);
 
-                let score = pattern.score(app.haystack.slice(..), &mut matcher);
+                let final_score = match char_count {
+                    1 => {
+                        if i < TOP_PREFIX_COUNT {
+                            score // Top 12: pure prefix score
+                        } else {
+                            (score as f32 * 0.25 + fuzzy_score as f32 * 0.75) as u32 // After top 12: 25% prefix, 75% fuzzy
+                        }
+                    }
+                    2 => {
+                        if i < TOP_PREFIX_COUNT {
+                            score // Top 12: pure prefix score
+                        } else {
+                            (score as f32 * 0.50 + fuzzy_score as f32 * 0.50) as u32 // After top 12: 50/50
+                        }
+                    }
+                    _ => {
+                        // 3 or more characters
+                        if i < TOP_PREFIX_COUNT {
+                            score // Top 12: pure prefix score
+                        } else {
+                            score // After top 12: still pure prefix
+                        }
+                    }
+                };
 
-                if let Some(score) = score {
-                    eprintln!(
-                        "FUZZY MATCH query={:?} app={:?} score={}",
-                        self.query, app.name, score
-                    );
-                    Some((score, i))
-                } else {
-                    None
-                }
+                Some((final_score, i))
             })
             .collect();
 
+        // Sort by final score descending, then alphabetically
         scored.sort_unstable_by(|a, b| {
             b.0.cmp(&a.0)
                 .then_with(|| self.all_apps[a.1].name.cmp(&self.all_apps[b.1].name))
         });
 
+        // Take top 200 results
         self.filtered_apps = scored
             .into_iter()
             .take(MAX_RESULTS)
@@ -183,7 +222,6 @@ impl Search {
 
 fn load_desktop_entries() -> Vec<AppEntry> {
     let mut apps = Vec::new();
-
     let home = dirs::home_dir().unwrap_or_default();
 
     let dirs = [
@@ -205,16 +243,13 @@ fn load_desktop_entries() -> Vec<AppEntry> {
                     if let Ok(desktop) = DesktopEntry::from_path::<&str>(path, &[]) {
                         if let Some(name) = desktop.name::<&str>(&[]) {
                             if let Some(exec) = desktop.exec() {
-                                let Some(icon) = desktop.icon().map(|i| i.to_string()) else {
-                                    continue;
-                                };
-
-                                if should_skip_entry(&name, exec) {
+                                if should_skip_entry(exec) {
                                     continue;
                                 }
 
                                 let clean_exec = crate::strip_desktop_placeholders(exec);
                                 let name_str = name.to_string();
+                                let icon = desktop.icon().map(|i| i.to_string());
 
                                 apps.push(AppEntry {
                                     lower_name: name_str.to_lowercase(),
@@ -235,64 +270,25 @@ fn load_desktop_entries() -> Vec<AppEntry> {
     apps
 }
 
-fn should_skip_entry(name: &str, exec: &str) -> bool {
-    if exec.contains("%u") || exec.contains("%U") || exec.contains("%f") || exec.contains("%F") {
-        return true;
-    }
-
-    let lower_name = name.to_lowercase();
+fn should_skip_entry(exec: &str) -> bool {
+    // Only filter on exec — never on name, to avoid dropping valid user apps
     let lower_exec = exec.to_lowercase();
 
-    let suspicious_terms = [
-        "handler",
-        "oauth",
-        "daemon",
-        "service",
-        "portal",
-        "settings",
-        "setup",
-        "configuration",
-        "config",
-        "wifi",
-        "wi-fi",
-        "network",
-        "bluetooth",
-        "gnome",
-        "tweaks",
-        "control center",
-        "firmware",
-        "drivers",
-        "package installer",
-        "software updater",
-        "extensions",
+    let suspicious_exec_terms = [
+        "handler", "oauth", "daemon", "service", "portal",
     ];
 
-    suspicious_terms
+    suspicious_exec_terms
         .iter()
-        .any(|term| lower_name.contains(term) || lower_exec.contains(term))
+        .any(|term| lower_exec.contains(term))
 }
 
-// === YOUR ORIGINAL COMMENTS (preserved exactly) ===
-// Added private helper `load_desktop_entries()`
-// Simplified apps storage to (String, String) tuple
-// Different approach: on-the-fly Utf32String only during filtering
-// Fixed all Utf32String method errors (as_slice, as_str, etc.)
-// Placeholder stripping moved to main.rs
-// Fixed .slice(..) for nucleo-matcher 0.3
-// Eliminated per-item Matcher clone (reuse single mutable Matcher for zero-cost scoring) :: done
-// Pinned to actual tested version nucleo-matcher = "0.3.1" and freedesktop-desktop-entry = "0.6.2" :: done
-// All Cargo.toml deps now exact versions per Michael's new rule :: done
-// Fixed DesktopEntry::from_path (takes PathBuf, locales = &[]) :: done
-// Changed filtered_apps back to &self + clone Matcher once per query for iced 0.14 compatibility :: done
-// Fixed locale type inference with `&[] as &[&str]` for freedesktop-desktop-entry 0.6.2 :: done
-// Implemented exact search behavior: full alpha list on empty, top-10 strict prefix + fuzzy below :: done
-// Separated drawers list from app search per final spec :: done
-// Removed take(50) limit — now returns the complete list of all apps when search drawer opens :: done
-// Simplified search logic — removed fragile skip_while, now clean prefix + fuzzy split :: done
-// Replaced filtered_apps with your exact clean version (full list + prefix top-10 + fuzzy rest) :: done
-// Added SearchBarClicked message to trigger drawer on click :: done
-// Fixed unused_mut warning in filtered_apps (removed mut from rest) :: done
-// Added get_app_by_index safety method to prevent crashes on results access :: done
-// Pre-computed Utf32String for every app name at startup to eliminate repeated conversion cost :: done
-// Fixed indexing bug in rest filter :: done
-// Added OpenDrawer enum and current_open_drawer() for real drawer state management :: done
+// === DONE ===
+// Rewritten search logic per MRV spec:
+// 0 chars  → 200 results fuzzy (top 12 from that list fallback to prefix)
+// 1 char   → top 12 prefix, then 25% prefix / 75% fuzzy
+// 2 chars  → top 12 prefix, then 50% prefix / 50% fuzzy
+// 3+ chars → top 12 prefix, then 100% prefix (no fuzzy)
+// Removed icon-required filter — icon is now Option<String> with fallback
+// Tightened should_skip_entry to exec-only
+// No debug output in fuzzy path
