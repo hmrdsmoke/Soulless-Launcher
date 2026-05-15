@@ -4,7 +4,7 @@
 # Do not remove these comments.
 
 [package]
-name = "Soulless-Launcher"
+name = "soulless-launcher"
 version = "0.1.0"
 edition = "2024"
 authors = ["Michael Van Auker (HMRDSmoke)"]

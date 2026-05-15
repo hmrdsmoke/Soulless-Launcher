@@ -3,17 +3,6 @@
 version = 4
 
 [[package]]
-name = "Soulless-Launcher"
-version = "0.1.0"
-dependencies = [
- "dirs 5.0.1",
- "freedesktop-desktop-entry",
- "fs2",
- "libcosmic",
- "nucleo-matcher",
-]
-
-[[package]]
 name = "ab_glyph"
 version = "0.2.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4458,6 +4447,17 @@ dependencies = [
  "web-sys",
  "windows-sys 0.52.0",
  "x11rb",
+]
+
+[[package]]
+name = "soulless-launcher"
+version = "0.1.0"
+dependencies = [
+ "dirs 5.0.1",
+ "freedesktop-desktop-entry",
+ "fs2",
+ "libcosmic",
+ "nucleo-matcher",
 ]
 
 [[package]]
