@@ -5,8 +5,7 @@ debug/
 release/
 
 # Cargo
-Cargo.lock          # You usually want this ignored in personal projects
-                    # (uncomment if you want to commit the lockfile)
+Cargo.lock
 
 # Editor / IDE files
 .vscode/
@@ -15,6 +14,11 @@ Cargo.lock          # You usually want this ignored in personal projects
 *.swo
 *.swn
 *~
+
+# profiling
+flamegraph.svg
+perf.data
+perf.data.old
 
 # OS generated files
 .DS_Store

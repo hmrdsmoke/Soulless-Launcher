@@ -43,9 +43,12 @@ cosmic = { git = "https://github.com/pop-os/libcosmic", branch = "master", packa
 # once_cell = "1.19" :: MRV
 
 [profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+strip = true
 # added profile.release :: MRV
-lto = "thin"
 # changed from 1to to lto :: MRV
 # added 1to = "thin" :: MRV
-opt-level = 3
 # opt-level = 3 :: MRV
