@@ -15,6 +15,7 @@ use std::path::PathBuf;
 mod drawers;
 mod position;
 mod search;
+mod indexer;
 
 use position::LauncherPosition;
 use search::Message as SearchMessage;
