@@ -4458,6 +4458,8 @@ dependencies = [
  "fs2",
  "libcosmic",
  "nucleo-matcher",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
