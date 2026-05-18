@@ -35,20 +35,20 @@ pub enum Message {
     RightClickDrawerApp(String, String),
     CloseContextMenu,
 
-    // Rename modal
-    OpenRenameDrawerModal(String),
-    RenameDrawerInputChanged(String),
-    CloseRenameDrawerModal,
-    ConfirmRenameDrawer,
-
     // App picker
     OpenAppPicker(String),
     AppPickerQueryChanged(String),
     AddAppToDrawer(String, String),
     RemoveAppFromDrawer(String, String),
     ClearDrawer(String),
-    RenameDrawer(String, String),
     CloseAppPicker,
+
+    // Drawer management
+    CreateDrawer,
+    DeleteDrawer(String),
+    MoveDrawerUp(String),
+    MoveDrawerDown(String),
+    RenameDrawer(String, String),
 }
 
 // ── Drawer state ──────────────────────────────────────────────────────────────
@@ -76,12 +76,6 @@ pub enum ContextMenu {
     },
 }
 
-#[derive(Debug, Clone)]
-pub struct RenameDrawerModal {
-    pub original_name: String,
-    pub input: String,
-}
-
 // ── Search model ──────────────────────────────────────────────────────────────
 
 pub struct Search {
@@ -102,8 +96,6 @@ pub struct Search {
     pub context_menu: Option<ContextMenu>,
 
     pub app_picker: Option<AppPicker>,
-
-    pub rename_drawer_modal: Option<RenameDrawerModal>,
 }
 
 pub struct AppPicker {
@@ -141,8 +133,6 @@ impl Search {
             context_menu: None,
 
             app_picker: None,
-
-            rename_drawer_modal: None,
         };
 
         search.recompute_results();
@@ -209,7 +199,7 @@ impl Search {
                 None
             }
 
-            // ── Context menu ──────────────────────────────────────────
+            // ── Context menus ────────────────────────────────────────
 
             Message::RightClickDrawerBackground(drawer) => {
                 self.context_menu =
@@ -245,73 +235,7 @@ impl Search {
                 None
             }
 
-            // ── Rename modal ──────────────────────────────────────────
-
-            Message::OpenRenameDrawerModal(drawer) => {
-                self.context_menu = None;
-
-                self.rename_drawer_modal =
-                    Some(RenameDrawerModal {
-                        original_name: drawer.clone(),
-                        input: drawer,
-                    });
-
-                None
-            }
-
-            Message::RenameDrawerInputChanged(value) => {
-                if let Some(modal) =
-                    &mut self.rename_drawer_modal
-                {
-                    modal.input = value;
-                }
-
-                None
-            }
-
-            Message::CloseRenameDrawerModal => {
-                self.rename_drawer_modal = None;
-
-                None
-            }
-
-            Message::ConfirmRenameDrawer => {
-                if let Some(modal) =
-                    self.rename_drawer_modal.take()
-                {
-                    let new_name =
-                        modal.input.trim();
-
-                    if !new_name.is_empty()
-                        && new_name
-                            != modal.original_name
-                    {
-                        self.drawer_state.rename_drawer(
-                            &modal.original_name,
-                            new_name,
-                        );
-
-                        save_drawer_state(
-                            &self.drawer_state
-                        );
-
-                        if self.current_open_drawer
-                            == OpenDrawer::Pinned(
-                                modal.original_name,
-                            )
-                        {
-                            self.current_open_drawer =
-                                OpenDrawer::Pinned(
-                                    new_name.to_string(),
-                                );
-                        }
-                    }
-                }
-
-                None
-            }
-
-            // ── App picker ────────────────────────────────────────────
+            // ── App picker ───────────────────────────────────────────
 
             Message::OpenAppPicker(drawer) => {
                 let mut picker = AppPicker {
@@ -358,15 +282,83 @@ impl Search {
                 None
             }
 
-            // ── Drawer mutations ──────────────────────────────────────
+            // ── Drawer management ────────────────────────────────────
+
+            Message::CreateDrawer => {
+    let mut index = 1;
+
+    loop {
+        let name =
+            format!("New Drawer {}", index);
+
+        let exists = self
+            .drawer_state
+            .drawers()
+            .iter()
+            .any(|d| d.name == name);
+
+        if !exists {
+            self.drawer_state.create_drawer(
+                name.clone(),
+                "📁".to_string(),
+            );
+
+            save_drawer_state(
+                &self.drawer_state,
+            );
+
+            break;
+        }
+
+        index += 1;
+    }
+
+    None
+}
+
+            Message::DeleteDrawer(name) => {
+                self.drawer_state
+                    .remove_drawer(&name);
+
+                save_drawer_state(&self.drawer_state);
+
+                self.current_open_drawer =
+                    OpenDrawer::Search;
+
+                self.context_menu = None;
+
+                None
+            }
+
+            Message::MoveDrawerUp(name) => {
+                self.drawer_state
+                    .move_drawer_up(&name);
+
+                save_drawer_state(&self.drawer_state);
+
+                self.context_menu = None;
+
+                None
+            }
+
+            Message::MoveDrawerDown(name) => {
+                self.drawer_state
+                    .move_drawer_down(&name);
+
+                save_drawer_state(&self.drawer_state);
+
+                self.context_menu = None;
+
+                None
+            }
+
+            // ── Drawer app mutations ────────────────────────────────
 
             Message::AddAppToDrawer(drawer, app_id) => {
                 self.drawer_state
                     .add_app(&drawer, app_id);
 
                 save_drawer_state(&self.drawer_state);
-
-                self.app_picker = None;
 
                 None
             }
@@ -383,7 +375,8 @@ impl Search {
             }
 
             Message::ClearDrawer(drawer) => {
-                self.drawer_state.clear_drawer(&drawer);
+                self.drawer_state
+                    .clear_drawer(&drawer);
 
                 save_drawer_state(&self.drawer_state);
 
@@ -393,17 +386,15 @@ impl Search {
             }
 
             Message::RenameDrawer(old, new) => {
-                self.drawer_state.rename_drawer(
-                    &old,
-                    &new,
-                );
+                self.drawer_state
+                    .rename_drawer(&old, &new);
 
                 save_drawer_state(&self.drawer_state);
 
                 self.context_menu = None;
 
                 if self.current_open_drawer
-                    == OpenDrawer::Pinned(old)
+                    == OpenDrawer::Pinned(old.clone())
                 {
                     self.current_open_drawer =
                         OpenDrawer::Pinned(new);

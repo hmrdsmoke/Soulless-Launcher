@@ -5,50 +5,129 @@
 // Do not remove these comments.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Drawer {
+    pub name: String,
+    pub icon: String,
+    pub apps: Vec<String>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrawerState {
-    pub drawers: HashMap<String, Vec<String>>,
+    pub drawers: Vec<Drawer>,
 }
 
 impl Default for DrawerState {
     fn default() -> Self {
-        let mut drawers = HashMap::new();
-
-        drawers.insert(
-            "Daily Apps".to_string(),
-            Vec::new(),
-        );
-
-        drawers.insert(
-            "Work".to_string(),
-            Vec::new(),
-        );
-
-        drawers.insert(
-            "Games".to_string(),
-            Vec::new(),
-        );
-
-        drawers.insert(
-            "Utilities".to_string(),
-            Vec::new(),
-        );
-
-        Self { drawers }
+        Self {
+            drawers: vec![
+                Drawer {
+                    name: "Daily Apps".to_string(),
+                    icon: "⭐".to_string(),
+                    apps: Vec::new(),
+                },
+                Drawer {
+                    name: "Work".to_string(),
+                    icon: "💼".to_string(),
+                    apps: Vec::new(),
+                },
+                Drawer {
+                    name: "Games".to_string(),
+                    icon: "🎮".to_string(),
+                    apps: Vec::new(),
+                },
+                Drawer {
+                    name: "Utilities".to_string(),
+                    icon: "⚙".to_string(),
+                    apps: Vec::new(),
+                },
+            ],
+        }
     }
 }
 
 impl DrawerState {
-    pub fn add_drawer(&mut self, name: &str) {
-        self.drawers
-            .entry(name.to_string())
-            .or_default();
+    // ── Accessors ─────────────────────────────────────────────
+
+    pub fn drawers(&self) -> &[Drawer] {
+        &self.drawers
     }
 
-    pub fn remove_drawer(&mut self, name: &str) {
-        self.drawers.remove(name);
+    pub fn drawer_names(&self) -> Vec<String> {
+        self.drawers
+            .iter()
+            .map(|d| d.name.clone())
+            .collect()
+    }
+
+    pub fn drawer_count(&self) -> usize {
+        self.drawers.len()
+    }
+
+    pub fn apps_in_drawer(
+        &self,
+        drawer_name: &str,
+    ) -> &[String] {
+        self.drawers
+            .iter()
+            .find(|d| d.name == drawer_name)
+            .map(|d| d.apps.as_slice())
+            .unwrap_or(&[])
+    }
+
+    pub fn app_count(
+        &self,
+        drawer_name: &str,
+    ) -> usize {
+        self.drawers
+            .iter()
+            .find(|d| d.name == drawer_name)
+            .map(|d| d.apps.len())
+            .unwrap_or(0)
+    }
+
+    pub fn is_pinned(
+        &self,
+        drawer_name: &str,
+        app_id: &str,
+    ) -> bool {
+        self.drawers
+            .iter()
+            .find(|d| d.name == drawer_name)
+            .map(|d| {
+                d.apps.iter().any(|id| id == app_id)
+            })
+            .unwrap_or(false)
+    }
+
+    // ── Drawer Management ─────────────────────────────────────
+
+    pub fn create_drawer(
+        &mut self,
+        name: String,
+        icon: String,
+    ) {
+        if self
+            .drawers
+            .iter()
+            .any(|d| d.name == name)
+        {
+            return;
+        }
+
+        self.drawers.push(Drawer {
+            name,
+            icon,
+            apps: Vec::new(),
+        });
+    }
+
+    pub fn remove_drawer(
+        &mut self,
+        name: &str,
+    ) {
+        self.drawers.retain(|d| d.name != name);
     }
 
     pub fn rename_drawer(
@@ -60,117 +139,145 @@ impl DrawerState {
             return;
         }
 
-        if let Some(apps) =
-            self.drawers.remove(old)
+        if self
+            .drawers
+            .iter()
+            .any(|d| d.name == new)
         {
-            self.drawers
-                .insert(new.to_string(), apps);
+            return;
+        }
+
+        if let Some(drawer) = self
+            .drawers
+            .iter_mut()
+            .find(|d| d.name == old)
+        {
+            drawer.name = new.to_string();
         }
     }
 
+    pub fn set_drawer_icon(
+        &mut self,
+        drawer_name: &str,
+        icon: String,
+    ) {
+        if let Some(drawer) = self
+            .drawers
+            .iter_mut()
+            .find(|d| d.name == drawer_name)
+        {
+            drawer.icon = icon;
+        }
+    }
+
+    pub fn move_drawer_up(
+        &mut self,
+        name: &str,
+    ) {
+        if let Some(index) = self
+            .drawers
+            .iter()
+            .position(|d| d.name == name)
+        {
+            if index > 0 {
+                self.drawers.swap(index, index - 1);
+            }
+        }
+    }
+
+    pub fn move_drawer_down(
+        &mut self,
+        name: &str,
+    ) {
+        if let Some(index) = self
+            .drawers
+            .iter()
+            .position(|d| d.name == name)
+        {
+            if index + 1 < self.drawers.len() {
+                self.drawers.swap(index, index + 1);
+            }
+        }
+    }
+
+    // ── App Mutations ─────────────────────────────────────────
+
     pub fn toggle_app(
         &mut self,
-        drawer: &str,
+        drawer_name: &str,
         app_id: &str,
     ) {
-        let apps = self
+        if let Some(drawer) = self
             .drawers
-            .entry(drawer.to_string())
-            .or_default();
-
-        if let Some(index) =
-            apps.iter().position(|id| id == app_id)
+            .iter_mut()
+            .find(|d| d.name == drawer_name)
         {
-            apps.remove(index);
-        } else {
-            apps.push(app_id.to_string());
+            if let Some(index) = drawer
+                .apps
+                .iter()
+                .position(|id| id == app_id)
+            {
+                drawer.apps.remove(index);
+            } else {
+                drawer.apps.push(app_id.to_string());
+            }
         }
     }
 
     pub fn add_app(
         &mut self,
-        drawer: &str,
+        drawer_name: &str,
         app_id: String,
     ) {
-        let apps = self
+        if let Some(drawer) = self
             .drawers
-            .entry(drawer.to_string())
-            .or_default();
-
-        if !apps.contains(&app_id) {
-            apps.push(app_id);
+            .iter_mut()
+            .find(|d| d.name == drawer_name)
+        {
+            if !drawer.apps.contains(&app_id) {
+                drawer.apps.push(app_id);
+            }
         }
     }
 
     pub fn remove_app(
         &mut self,
-        drawer: &str,
+        drawer_name: &str,
         app_id: &str,
     ) {
-        if let Some(apps) =
-            self.drawers.get_mut(drawer)
+        if let Some(drawer) = self
+            .drawers
+            .iter_mut()
+            .find(|d| d.name == drawer_name)
         {
-            apps.retain(|id| id != app_id);
+            drawer.apps.retain(|id| id != app_id);
         }
-    }
-
-    pub fn is_pinned(
-        &self,
-        drawer: &str,
-        app_id: &str,
-    ) -> bool {
-        self.drawers
-            .get(drawer)
-            .map(|apps| {
-                apps.iter().any(|id| id == app_id)
-            })
-            .unwrap_or(false)
-    }
-
-    pub fn apps_in_drawer(
-        &self,
-        drawer: &str,
-    ) -> &[String] {
-        self.drawers
-            .get(drawer)
-            .map(|apps| apps.as_slice())
-            .unwrap_or(&[])
-    }
-
-    pub fn drawer_names(&self) -> Vec<String> {
-        let mut names: Vec<String> =
-            self.drawers.keys().cloned().collect();
-
-        names.sort();
-
-        names
-    }
-
-    pub fn drawer_count(&self) -> usize {
-        self.drawers.len()
-    }
-
-    pub fn app_count(
-        &self,
-        drawer: &str,
-    ) -> usize {
-        self.drawers
-            .get(drawer)
-            .map(|apps| apps.len())
-            .unwrap_or(0)
     }
 
     pub fn clear_drawer(
         &mut self,
-        drawer: &str,
+        drawer_name: &str,
     ) {
-        if let Some(apps) =
-            self.drawers.get_mut(drawer)
+        if let Some(drawer) = self
+            .drawers
+            .iter_mut()
+            .find(|d| d.name == drawer_name)
         {
-            apps.clear();
+            drawer.apps.clear();
         }
     }
 }
+
+// === DONE ===
+// Replaced HashMap architecture with ordered Vec<Drawer> model :: done
+// Added drawer icons :: done
+// Added ordered drawer support :: done
+// Added move up/down support :: done
+// Added create/delete drawer support :: done
+// Added rename drawer support :: done
+// Cleaner future animation architecture :: done
+// Persistence-compatible serde model :: done
+// Better long-term launcher scalability :: done
 
 // === DONE ===
 // Serialize/Deserialize derives present — ready for serde_json persistence :: done
