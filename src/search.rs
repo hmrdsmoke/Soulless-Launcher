@@ -31,8 +31,15 @@ pub enum Message {
 
     // Context menu
     RightClickDrawerBackground(String),
+    RightClickDrawerSidebar(String),
     RightClickDrawerApp(String, String),
     CloseContextMenu,
+
+    // Rename modal
+    OpenRenameDrawerModal(String),
+    RenameDrawerInputChanged(String),
+    CloseRenameDrawerModal,
+    ConfirmRenameDrawer,
 
     // App picker
     OpenAppPicker(String),
@@ -59,10 +66,20 @@ pub enum ContextMenu {
         drawer: String,
     },
 
+    DrawerSidebar {
+        drawer: String,
+    },
+
     DrawerApp {
         drawer: String,
         app_id: String,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct RenameDrawerModal {
+    pub original_name: String,
+    pub input: String,
 }
 
 // ── Search model ──────────────────────────────────────────────────────────────
@@ -85,6 +102,8 @@ pub struct Search {
     pub context_menu: Option<ContextMenu>,
 
     pub app_picker: Option<AppPicker>,
+
+    pub rename_drawer_modal: Option<RenameDrawerModal>,
 }
 
 pub struct AppPicker {
@@ -122,6 +141,8 @@ impl Search {
             context_menu: None,
 
             app_picker: None,
+
+            rename_drawer_modal: None,
         };
 
         search.recompute_results();
@@ -199,6 +220,15 @@ impl Search {
                 None
             }
 
+            Message::RightClickDrawerSidebar(drawer) => {
+                self.context_menu =
+                    Some(ContextMenu::DrawerSidebar {
+                        drawer,
+                    });
+
+                None
+            }
+
             Message::RightClickDrawerApp(drawer, app_id) => {
                 self.context_menu =
                     Some(ContextMenu::DrawerApp {
@@ -211,6 +241,72 @@ impl Search {
 
             Message::CloseContextMenu => {
                 self.context_menu = None;
+
+                None
+            }
+
+            // ── Rename modal ──────────────────────────────────────────
+
+            Message::OpenRenameDrawerModal(drawer) => {
+                self.context_menu = None;
+
+                self.rename_drawer_modal =
+                    Some(RenameDrawerModal {
+                        original_name: drawer.clone(),
+                        input: drawer,
+                    });
+
+                None
+            }
+
+            Message::RenameDrawerInputChanged(value) => {
+                if let Some(modal) =
+                    &mut self.rename_drawer_modal
+                {
+                    modal.input = value;
+                }
+
+                None
+            }
+
+            Message::CloseRenameDrawerModal => {
+                self.rename_drawer_modal = None;
+
+                None
+            }
+
+            Message::ConfirmRenameDrawer => {
+                if let Some(modal) =
+                    self.rename_drawer_modal.take()
+                {
+                    let new_name =
+                        modal.input.trim();
+
+                    if !new_name.is_empty()
+                        && new_name
+                            != modal.original_name
+                    {
+                        self.drawer_state.rename_drawer(
+                            &modal.original_name,
+                            new_name,
+                        );
+
+                        save_drawer_state(
+                            &self.drawer_state
+                        );
+
+                        if self.current_open_drawer
+                            == OpenDrawer::Pinned(
+                                modal.original_name,
+                            )
+                        {
+                            self.current_open_drawer =
+                                OpenDrawer::Pinned(
+                                    new_name.to_string(),
+                                );
+                        }
+                    }
+                }
 
                 None
             }
@@ -297,18 +393,10 @@ impl Search {
             }
 
             Message::RenameDrawer(old, new) => {
-                let apps: Vec<String> = self
-                    .drawer_state
-                    .apps_in_drawer(&old)
-                    .to_vec();
-
-                self.drawer_state.add_drawer(&new);
-
-                for app_id in apps {
-                    self.drawer_state.add_app(&new, app_id);
-                }
-
-                self.drawer_state.remove_drawer(&old);
+                self.drawer_state.rename_drawer(
+                    &old,
+                    &new,
+                );
 
                 save_drawer_state(&self.drawer_state);
 
@@ -545,11 +633,6 @@ fn save_drawer_state(state: &DrawerState) {
                 eprintln!(
                     "DRAWER save failed: {}",
                     e
-                );
-            } else {
-                eprintln!(
-                    "DRAWER saved -> {}",
-                    path.display()
                 );
             }
         }

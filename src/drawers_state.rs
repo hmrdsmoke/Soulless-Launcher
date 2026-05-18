@@ -16,10 +16,25 @@ impl Default for DrawerState {
     fn default() -> Self {
         let mut drawers = HashMap::new();
 
-        drawers.insert("Daily Apps".to_string(), Vec::new());
-        drawers.insert("Work".to_string(), Vec::new());
-        drawers.insert("Games".to_string(), Vec::new());
-        drawers.insert("Utilities".to_string(), Vec::new());
+        drawers.insert(
+            "Daily Apps".to_string(),
+            Vec::new(),
+        );
+
+        drawers.insert(
+            "Work".to_string(),
+            Vec::new(),
+        );
+
+        drawers.insert(
+            "Games".to_string(),
+            Vec::new(),
+        );
+
+        drawers.insert(
+            "Utilities".to_string(),
+            Vec::new(),
+        );
 
         Self { drawers }
     }
@@ -36,7 +51,28 @@ impl DrawerState {
         self.drawers.remove(name);
     }
 
-    pub fn toggle_app(&mut self, drawer: &str, app_id: &str) {
+    pub fn rename_drawer(
+        &mut self,
+        old: &str,
+        new: &str,
+    ) {
+        if old == new {
+            return;
+        }
+
+        if let Some(apps) =
+            self.drawers.remove(old)
+        {
+            self.drawers
+                .insert(new.to_string(), apps);
+        }
+    }
+
+    pub fn toggle_app(
+        &mut self,
+        drawer: &str,
+        app_id: &str,
+    ) {
         let apps = self
             .drawers
             .entry(drawer.to_string())
@@ -46,14 +82,16 @@ impl DrawerState {
             apps.iter().position(|id| id == app_id)
         {
             apps.remove(index);
-            eprintln!("UNPINNED app={} from drawer={}", app_id, drawer);
         } else {
             apps.push(app_id.to_string());
-            eprintln!("PINNED app={} into drawer={}", app_id, drawer);
         }
     }
 
-    pub fn add_app(&mut self, drawer: &str, app_id: String) {
+    pub fn add_app(
+        &mut self,
+        drawer: &str,
+        app_id: String,
+    ) {
         let apps = self
             .drawers
             .entry(drawer.to_string())
@@ -64,20 +102,35 @@ impl DrawerState {
         }
     }
 
-    pub fn remove_app(&mut self, drawer: &str, app_id: &str) {
-        if let Some(apps) = self.drawers.get_mut(drawer) {
+    pub fn remove_app(
+        &mut self,
+        drawer: &str,
+        app_id: &str,
+    ) {
+        if let Some(apps) =
+            self.drawers.get_mut(drawer)
+        {
             apps.retain(|id| id != app_id);
         }
     }
 
-    pub fn is_pinned(&self, drawer: &str, app_id: &str) -> bool {
+    pub fn is_pinned(
+        &self,
+        drawer: &str,
+        app_id: &str,
+    ) -> bool {
         self.drawers
             .get(drawer)
-            .map(|apps| apps.iter().any(|id| id == app_id))
+            .map(|apps| {
+                apps.iter().any(|id| id == app_id)
+            })
             .unwrap_or(false)
     }
 
-    pub fn apps_in_drawer(&self, drawer: &str) -> &[String] {
+    pub fn apps_in_drawer(
+        &self,
+        drawer: &str,
+    ) -> &[String] {
         self.drawers
             .get(drawer)
             .map(|apps| apps.as_slice())
@@ -87,7 +140,9 @@ impl DrawerState {
     pub fn drawer_names(&self) -> Vec<String> {
         let mut names: Vec<String> =
             self.drawers.keys().cloned().collect();
+
         names.sort();
+
         names
     }
 
@@ -95,15 +150,23 @@ impl DrawerState {
         self.drawers.len()
     }
 
-    pub fn app_count(&self, drawer: &str) -> usize {
+    pub fn app_count(
+        &self,
+        drawer: &str,
+    ) -> usize {
         self.drawers
             .get(drawer)
             .map(|apps| apps.len())
             .unwrap_or(0)
     }
 
-    pub fn clear_drawer(&mut self, drawer: &str) {
-        if let Some(apps) = self.drawers.get_mut(drawer) {
+    pub fn clear_drawer(
+        &mut self,
+        drawer: &str,
+    ) {
+        if let Some(apps) =
+            self.drawers.get_mut(drawer)
+        {
             apps.clear();
         }
     }
