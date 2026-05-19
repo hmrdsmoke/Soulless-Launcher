@@ -4,6 +4,7 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
+use crate::vault::Vault;
 use crate::drawers_state::DrawerState;
 use crate::indexer::{build_index, AppEntry};
 
@@ -49,6 +50,19 @@ pub enum Message {
     MoveDrawerUp(String),
     MoveDrawerDown(String),
     RenameDrawer(String, String),
+
+    // Vault
+    VaultPasswordChanged(String),
+    VaultConfirmChanged(String),
+
+    VaultSetupConfirm,
+    VaultUnlock,
+    VaultLock,
+
+    VaultOpenFile(String),
+    VaultRemoveFile(String),
+
+    VaultOpenFileMenu(String),
 }
 
 // ── Drawer state ──────────────────────────────────────────────────────────────
@@ -96,6 +110,8 @@ pub struct Search {
     pub context_menu: Option<ContextMenu>,
 
     pub app_picker: Option<AppPicker>,
+
+    pub vault: Vault,
 }
 
 pub struct AppPicker {
@@ -126,13 +142,16 @@ impl Search {
 
             show_search_results: true,
 
-            current_open_drawer: OpenDrawer::Search,
+            current_open_drawer:
+                OpenDrawer::Search,
 
             drawer_state,
 
             context_menu: None,
 
             app_picker: None,
+
+            vault: Vault::new(),
         };
 
         search.recompute_results();
@@ -145,7 +164,7 @@ impl Search {
         message: Message,
     ) -> Option<String> {
         match message {
-            // ── Search ────────────────────────────────────────────────
+            // ── Search ─────────────────────────────
 
             Message::QueryChanged(q) => {
                 self.query = q;
@@ -162,7 +181,9 @@ impl Search {
                 None
             }
 
-            Message::AppClicked(exec) => Some(exec),
+            Message::AppClicked(exec) => {
+                Some(exec)
+            }
 
             Message::DrawerClicked(name) => {
                 self.current_open_drawer =
@@ -199,27 +220,36 @@ impl Search {
                 None
             }
 
-            // ── Context menus ────────────────────────────────────────
+            // ── Context menus ─────────────────────
 
-            Message::RightClickDrawerBackground(drawer) => {
-                self.context_menu =
-                    Some(ContextMenu::DrawerBackground {
+            Message::RightClickDrawerBackground(
+                drawer,
+            ) => {
+                self.context_menu = Some(
+                    ContextMenu::DrawerBackground {
                         drawer,
-                    });
+                    },
+                );
 
                 None
             }
 
-            Message::RightClickDrawerSidebar(drawer) => {
-                self.context_menu =
-                    Some(ContextMenu::DrawerSidebar {
+            Message::RightClickDrawerSidebar(
+                drawer,
+            ) => {
+                self.context_menu = Some(
+                    ContextMenu::DrawerSidebar {
                         drawer,
-                    });
+                    },
+                );
 
                 None
             }
 
-            Message::RightClickDrawerApp(drawer, app_id) => {
+            Message::RightClickDrawerApp(
+                drawer,
+                app_id,
+            ) => {
                 self.context_menu =
                     Some(ContextMenu::DrawerApp {
                         drawer,
@@ -235,7 +265,7 @@ impl Search {
                 None
             }
 
-            // ── App picker ───────────────────────────────────────────
+            // ── App picker ────────────────────────
 
             Message::OpenAppPicker(drawer) => {
                 let mut picker = AppPicker {
@@ -247,9 +277,11 @@ impl Search {
                 };
 
                 picker.filtered =
-                    (0..self.all_apps.len()).collect();
+                    (0..self.all_apps.len())
+                        .collect();
 
-                self.app_picker = Some(picker);
+                self.app_picker =
+                    Some(picker);
 
                 self.context_menu = None;
 
@@ -257,17 +289,23 @@ impl Search {
             }
 
             Message::AppPickerQueryChanged(q) => {
-                if let Some(picker) = &mut self.app_picker {
+                if let Some(picker) =
+                    &mut self.app_picker
+                {
                     picker.query = q.clone();
 
-                    let q_lower = q.to_lowercase();
+                    let q_lower =
+                        q.to_lowercase();
 
                     picker.filtered = self
                         .all_apps
                         .iter()
                         .enumerate()
                         .filter(|(_, app)| {
-                            app.lower_name.contains(&q_lower)
+                            app.lower_name
+                                .contains(
+                                    &q_lower
+                                )
                         })
                         .map(|(i, _)| i)
                         .collect();
@@ -282,45 +320,53 @@ impl Search {
                 None
             }
 
-            // ── Drawer management ────────────────────────────────────
+            // ── Drawer management ─────────────────
 
             Message::CreateDrawer => {
-    let mut index = 1;
+                let mut index = 1;
 
-    loop {
-        let name =
-            format!("New Drawer {}", index);
+                loop {
+                    let name = format!(
+                        "New Drawer {}",
+                        index
+                    );
 
-        let exists = self
-            .drawer_state
-            .drawers()
-            .iter()
-            .any(|d| d.name == name);
+                    let exists = self
+                        .drawer_state
+                        .drawers()
+                        .iter()
+                        .any(|d| {
+                            d.name == name
+                        });
 
-        if !exists {
-            self.drawer_state.create_drawer(
-                name.clone(),
-                "📁".to_string(),
-            );
+                    if !exists {
+                        self.drawer_state
+                            .create_drawer(
+                                name.clone(),
+                                "📁"
+                                    .to_string(),
+                            );
 
-            save_drawer_state(
-                &self.drawer_state,
-            );
+                        save_drawer_state(
+                            &self.drawer_state,
+                        );
 
-            break;
-        }
+                        break;
+                    }
 
-        index += 1;
-    }
+                    index += 1;
+                }
 
-    None
-}
+                None
+            }
 
             Message::DeleteDrawer(name) => {
                 self.drawer_state
                     .remove_drawer(&name);
 
-                save_drawer_state(&self.drawer_state);
+                save_drawer_state(
+                    &self.drawer_state,
+                );
 
                 self.current_open_drawer =
                     OpenDrawer::Search;
@@ -334,7 +380,9 @@ impl Search {
                 self.drawer_state
                     .move_drawer_up(&name);
 
-                save_drawer_state(&self.drawer_state);
+                save_drawer_state(
+                    &self.drawer_state,
+                );
 
                 self.context_menu = None;
 
@@ -345,29 +393,74 @@ impl Search {
                 self.drawer_state
                     .move_drawer_down(&name);
 
-                save_drawer_state(&self.drawer_state);
+                save_drawer_state(
+                    &self.drawer_state,
+                );
 
                 self.context_menu = None;
 
                 None
             }
 
-            // ── Drawer app mutations ────────────────────────────────
-
-            Message::AddAppToDrawer(drawer, app_id) => {
+            Message::RenameDrawer(
+                old,
+                new,
+            ) => {
                 self.drawer_state
-                    .add_app(&drawer, app_id);
+                    .rename_drawer(
+                        &old,
+                        &new,
+                    );
 
-                save_drawer_state(&self.drawer_state);
+                save_drawer_state(
+                    &self.drawer_state,
+                );
+
+                self.context_menu = None;
+
+                if self.current_open_drawer
+                    == OpenDrawer::Pinned(
+                        old.clone(),
+                    )
+                {
+                    self.current_open_drawer =
+                        OpenDrawer::Pinned(new);
+                }
 
                 None
             }
 
-            Message::RemoveAppFromDrawer(drawer, app_id) => {
-                self.drawer_state
-                    .remove_app(&drawer, &app_id);
+            // ── Drawer apps ───────────────────────
 
-                save_drawer_state(&self.drawer_state);
+            Message::AddAppToDrawer(
+                drawer,
+                app_id,
+            ) => {
+                self.drawer_state.add_app(
+                    &drawer,
+                    app_id,
+                );
+
+                save_drawer_state(
+                    &self.drawer_state,
+                );
+
+                None
+            }
+
+            Message::RemoveAppFromDrawer(
+                drawer,
+                app_id,
+            ) => {
+                self.drawer_state
+                    .remove_app(
+                        &drawer,
+                        &app_id,
+                    );
+
+                save_drawer_state(
+                    &self.drawer_state,
+                );
 
                 self.context_menu = None;
 
@@ -376,42 +469,97 @@ impl Search {
 
             Message::ClearDrawer(drawer) => {
                 self.drawer_state
-                    .clear_drawer(&drawer);
+                    .clear_drawer(
+                        &drawer,
+                    );
 
-                save_drawer_state(&self.drawer_state);
+                save_drawer_state(
+                    &self.drawer_state,
+                );
 
                 self.context_menu = None;
 
                 None
             }
 
-            Message::RenameDrawer(old, new) => {
-                self.drawer_state
-                    .rename_drawer(&old, &new);
+            // ── Vault ─────────────────────────────
 
-                save_drawer_state(&self.drawer_state);
+            Message::VaultPasswordChanged(
+                value,
+            ) => {
+                self.vault.password_input =
+                    value;
+                self.vault.error = None;
 
-                self.context_menu = None;
+                None
+            }
 
-                if self.current_open_drawer
-                    == OpenDrawer::Pinned(old.clone())
+            Message::VaultConfirmChanged(
+                value,
+            ) => {
+                self.vault.confirm_input =
+                    value;
+                self.vault.error = None;
+
+                None
+            }
+
+            Message::VaultSetupConfirm => {
+                self.vault.finish_setup();
+
+                None
+            }
+
+            Message::VaultUnlock => {
+                self.vault.unlock();
+
+                None
+            }
+
+            Message::VaultLock => {
+                self.vault.lock();
+
+                None
+            }
+
+            Message::VaultOpenFile(id) => {
+                if let Err(e) =
+                    self.vault.open_file(&id)
                 {
-                    self.current_open_drawer =
-                        OpenDrawer::Pinned(new);
+                    self.vault.error = Some(e);
                 }
 
+                None
+            }
+
+            Message::VaultRemoveFile(id) => {
+                if let Err(e) =
+                    self.vault.remove_file(&id)
+                {
+                    self.vault.error = Some(e);
+                }
+
+                None
+            }
+
+            Message::VaultOpenFileMenu(_) => {
                 None
             }
         }
     }
 
-    // ── Accessors ─────────────────────────────────────────────────────
+    // ── Accessors ───────────────────────────────
 
-    pub fn filtered_apps(&self) -> &[usize] {
+    pub fn filtered_apps(
+        &self,
+    ) -> &[usize] {
         &self.filtered_apps
     }
 
-    pub fn app(&self, index: usize) -> Option<&AppEntry> {
+    pub fn app(
+        &self,
+        index: usize,
+    ) -> Option<&AppEntry> {
         self.all_apps.get(index)
     }
 
@@ -419,14 +567,16 @@ impl Search {
         &self,
         id: &str,
     ) -> Option<&AppEntry> {
-        self.all_apps.iter().find(|a| a.id == id)
+        self.all_apps
+            .iter()
+            .find(|a| a.id == id)
     }
 
     pub fn drawers(&self) -> Vec<String> {
         self.drawer_state.drawer_names()
     }
 
-    // ── Search internals ──────────────────────────────────────────────
+    // ── Search internals ────────────────────────
 
     fn recompute_results(&mut self) {
         const MAX_RESULTS: usize = 200;
@@ -434,34 +584,45 @@ impl Search {
 
         if self.query.is_empty() {
             self.filtered_apps =
-                (0..self.all_apps.len().min(MAX_RESULTS))
+                (0..self
+                    .all_apps
+                    .len()
+                    .min(MAX_RESULTS))
                     .collect();
 
             return;
         }
 
-        let query_lower = self.query.to_lowercase();
+        let query_lower =
+            self.query.to_lowercase();
 
-        let char_count = self.query.chars().count();
+        let char_count =
+            self.query.chars().count();
 
-        let prefix_indices: Vec<usize> = self
-            .all_apps
-            .iter()
-            .enumerate()
-            .filter(|(_, app)| {
-                app.lower_name.starts_with(&query_lower)
-            })
-            .map(|(i, _)| i)
-            .collect();
+        let prefix_indices: Vec<usize> =
+            self
+                .all_apps
+                .iter()
+                .enumerate()
+                .filter(|(_, app)| {
+                    app.lower_name
+                        .starts_with(
+                            &query_lower
+                        )
+                })
+                .map(|(i, _)| i)
+                .collect();
 
-        let top12: Vec<usize> = prefix_indices
-            .iter()
-            .copied()
-            .take(TOP_PREFIX_COUNT)
-            .collect();
+        let top12: Vec<usize> =
+            prefix_indices
+                .iter()
+                .copied()
+                .take(TOP_PREFIX_COUNT)
+                .collect();
 
         let remaining_budget =
-            MAX_RESULTS.saturating_sub(top12.len());
+            MAX_RESULTS
+                .saturating_sub(top12.len());
 
         match char_count {
             1 => {
@@ -469,69 +630,99 @@ impl Search {
                     remaining_budget / 2;
 
                 let fuzzy_budget =
-                    remaining_budget - prefix_budget;
+                    remaining_budget
+                        - prefix_budget;
 
-                let prefix_rest: Vec<usize> =
+                let prefix_rest:
+                    Vec<usize> =
                     prefix_indices
                         .iter()
                         .copied()
-                        .skip(TOP_PREFIX_COUNT)
-                        .take(prefix_budget)
+                        .skip(
+                            TOP_PREFIX_COUNT
+                        )
+                        .take(
+                            prefix_budget
+                        )
                         .collect();
 
-                let fuzzy = self.fuzzy_results(
-                    &query_lower,
-                    fuzzy_budget,
-                    &prefix_indices,
-                );
+                let fuzzy =
+                    self.fuzzy_results(
+                        &query_lower,
+                        fuzzy_budget,
+                        &prefix_indices,
+                    );
 
-                self.filtered_apps = top12
-                    .into_iter()
-                    .chain(prefix_rest)
-                    .chain(fuzzy)
-                    .take(MAX_RESULTS)
-                    .collect();
+                self.filtered_apps =
+                    top12
+                        .into_iter()
+                        .chain(
+                            prefix_rest
+                        )
+                        .chain(fuzzy)
+                        .take(
+                            MAX_RESULTS
+                        )
+                        .collect();
             }
 
             2 => {
                 let prefix_budget =
-                    (remaining_budget * 3) / 4;
+                    (remaining_budget * 3)
+                        / 4;
 
                 let fuzzy_budget =
-                    remaining_budget - prefix_budget;
+                    remaining_budget
+                        - prefix_budget;
 
-                let prefix_rest: Vec<usize> =
+                let prefix_rest:
+                    Vec<usize> =
                     prefix_indices
                         .iter()
                         .copied()
-                        .skip(TOP_PREFIX_COUNT)
-                        .take(prefix_budget)
+                        .skip(
+                            TOP_PREFIX_COUNT
+                        )
+                        .take(
+                            prefix_budget
+                        )
                         .collect();
 
-                let fuzzy = self.fuzzy_results(
-                    &query_lower,
-                    fuzzy_budget,
-                    &prefix_indices,
-                );
+                let fuzzy =
+                    self.fuzzy_results(
+                        &query_lower,
+                        fuzzy_budget,
+                        &prefix_indices,
+                    );
 
-                self.filtered_apps = top12
-                    .into_iter()
-                    .chain(prefix_rest)
-                    .chain(fuzzy)
-                    .take(MAX_RESULTS)
-                    .collect();
+                self.filtered_apps =
+                    top12
+                        .into_iter()
+                        .chain(
+                            prefix_rest
+                        )
+                        .chain(fuzzy)
+                        .take(
+                            MAX_RESULTS
+                        )
+                        .collect();
             }
 
             _ => {
-                self.filtered_apps = top12
-                    .into_iter()
-                    .chain(
-                        prefix_indices
-                            .into_iter()
-                            .skip(TOP_PREFIX_COUNT),
-                    )
-                    .take(MAX_RESULTS)
-                    .collect();
+                self.filtered_apps =
+                    top12
+                        .into_iter()
+                        .chain(
+                            prefix_indices
+                                .into_iter()
+                                .skip(
+                                    TOP_PREFIX_COUNT
+                                ),
+                        )
+                        .take(
+                            MAX_RESULTS
+                        )
+                        .collect();
             }
         }
     }
@@ -553,33 +744,50 @@ impl Search {
             AtomKind::Fuzzy,
         );
 
-        let mut matcher = self.matcher.clone();
+        let mut matcher =
+            self.matcher.clone();
 
-        let mut scored: Vec<(u32, usize)> = self
+        let mut scored:
+            Vec<(u32, usize)> = self
             .all_apps
             .iter()
             .enumerate()
             .filter(|(i, app)| {
                 !exclude.contains(i)
-                    && !app.lower_name.contains(query_lower)
+                    && !app
+                        .lower_name
+                        .contains(
+                            query_lower
+                        )
             })
             .filter_map(|(i, app)| {
                 pattern
                     .score(
-                        app.haystack.slice(..),
+                        app.haystack
+                            .slice(..),
                         &mut matcher,
                     )
-                    .map(|score| (score, i))
+                    .map(|score| {
+                        (score, i)
+                    })
             })
             .collect();
 
-        scored.sort_unstable_by(|a, b| {
-            b.0.cmp(&a.0).then_with(|| {
-                self.all_apps[a.1]
-                    .name
-                    .cmp(&self.all_apps[b.1].name)
-            })
-        });
+        scored.sort_unstable_by(
+            |a, b| {
+                b.0.cmp(&a.0)
+                    .then_with(|| {
+                        self.all_apps[a.1]
+                            .name
+                            .cmp(
+                                &self
+                                    .all_apps
+                                    [b.1]
+                                    .name,
+                            )
+                    })
+            },
+        );
 
         scored
             .into_iter()
@@ -636,6 +844,16 @@ fn save_drawer_state(state: &DrawerState) {
         }
     }
 }
+
+// === DONE ===
+// Fixed Vault::load() → Vault::new() :: done
+// Fixed vault.setup() → vault.finish_setup() :: done
+// Fixed vault.remove_entry() → vault.remove_file() :: done
+// Removed unused vault_ui import :: done
+// VaultOpenFile and VaultRemoveFile now handle errors into vault.error :: done
+// VaultPasswordChanged and VaultConfirmChanged clear vault.error on input :: done
+// All drawer management logic preserved unchanged :: done
+// Search logic preserved unchanged :: done
 
 // === DONE ===
 // Replaced hardcoded drawers vec with DrawerState :: done

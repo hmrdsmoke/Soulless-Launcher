@@ -20,6 +20,8 @@ mod drawers_state;
 mod indexer;
 mod position;
 mod search;
+mod vault;
+mod vault_ui;
 
 use position::LauncherPosition;
 use search::Message as SearchMessage;
