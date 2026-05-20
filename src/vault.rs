@@ -86,6 +86,9 @@ pub struct Vault {
 
     pub error: Option<String>,
     pub status: Option<String>,
+
+    /// True while a drag is hovering over the vault drop zone
+    pub drag_hover: bool,
 }
 
 impl Default for Vault {
@@ -113,6 +116,7 @@ impl Vault {
             temp_dirs: Vec::new(),
             error: None,
             status: None,
+            drag_hover: false,
         }
     }
 
@@ -567,6 +571,11 @@ fn mime_from_path(path: &Path) -> String {
     }
     .to_string()
 }
+
+// === DONE ===
+// Added drag_hover: bool field to Vault struct :: done
+// Initialised drag_hover: false in Vault::new() :: done
+// All crypto, file IO, and lock/unlock logic unchanged :: done
 
 // === DONE ===
 // Replaced mime_guess dependency with built-in mime_from_path() :: done

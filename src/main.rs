@@ -11,6 +11,7 @@ use cosmic::iced::{
     widget::container,
     window,
 };
+use cosmic::iced::clipboard::dnd::{DndEvent, OfferEvent};
 use fs2::FileExt;
 use std::fs::OpenOptions;
 use std::path::PathBuf;
@@ -54,8 +55,7 @@ impl Soulless {
         match message {
             Message::Search(msg) => {
                 if let Some(exec) = self.search.update(msg) {
-                    let clean_exec =
-                        strip_desktop_placeholders(&exec);
+                    let clean_exec = strip_desktop_placeholders(&exec);
 
                     if let Err(e) = std::process::Command::new("sh")
                         .arg("-c")
@@ -71,19 +71,77 @@ impl Soulless {
                 }
             }
 
+            // ── Keyboard ──────────────────────────────────────────────────────
             Message::WindowEvent(
                 cosmic::iced::Event::Keyboard(
                     keyboard::Event::KeyPressed { key, .. },
                 ),
             ) => {
-                if matches!(
-                    key,
-                    keyboard::Key::Named(Named::Escape)
-                ) {
+                if matches!(key, keyboard::Key::Named(Named::Escape)) {
                     cosmic::iced::exit()
                 } else {
                     Task::none()
                 }
+            }
+
+            // ── Drag-and-drop ─────────────────────────────────────────────────
+            // The dnd_destination widget can't be used here because it lives in
+            // cosmic::widget (cosmic::Theme) while our tree is cosmic::iced
+            // (cosmic::iced::Theme) — incompatible type bounds.
+            //
+            // Instead we handle raw Event::Dnd from the subscription, which has
+            // no widget-type constraints. We only act when the vault is unlocked.
+            Message::WindowEvent(cosmic::iced::Event::Dnd(dnd_event)) => {
+                use search::OpenDrawer;
+
+                // Ignore all DnD events unless vault is the active panel
+                if self.search.current_open_drawer != OpenDrawer::Vault {
+                    return Task::none();
+                }
+
+                match dnd_event {
+                    // Drag entered our window — light up the drop zone
+                    DndEvent::Offer(_, OfferEvent::Enter { .. }) => {
+                        self.search.update(SearchMessage::VaultDragHover(true));
+                    }
+
+                    // Drag left our window — reset the drop zone
+                    DndEvent::Offer(_, OfferEvent::Leave)
+                    | DndEvent::Offer(_, OfferEvent::LeaveDestination) => {
+                        self.search.update(SearchMessage::VaultDragHover(false));
+                    }
+
+                    // Data delivered — fires after the user releases the mouse.
+                    // mime_type will be "text/uri-list" for file drags.
+                    DndEvent::Offer(_, OfferEvent::Data { data, mime_type }) => {
+                        if mime_type == "text/uri-list" {
+                            let payload = String::from_utf8_lossy(&data);
+                            let paths: Vec<PathBuf> = payload
+                                .lines()
+                                .map(str::trim)
+                                .filter(|l| l.starts_with("file://"))
+                                .filter_map(|l| {
+                                    let raw = l.trim_start_matches("file://");
+                                    let decoded = percent_decode_uri(raw);
+                                    let p = PathBuf::from(decoded);
+                                    if p.exists() { Some(p) } else { None }
+                                })
+                                .collect();
+
+                            if !paths.is_empty() {
+                                self.search.update(
+                                    SearchMessage::VaultFilesDropped(paths),
+                                );
+                            }
+                        }
+                        // Reset hover regardless of mime type
+                        self.search.update(SearchMessage::VaultDragHover(false));
+                    }
+
+                    _ => {}
+                }
+
+                Task::none()
             }
 
             _ => Task::none(),
@@ -137,7 +195,6 @@ fn main() -> cosmic::iced::Result {
     .position(window::Position::Specific(
         position.window_position(),
     ))
-    // Tells the Wayland compositor: no server-side decorations
     .decorations(false)
     .transparent(true)
     .resizable(false)
@@ -189,6 +246,50 @@ fn ensure_single_instance() -> bool {
 
     false
 }
+
+// ── URI percent-decoding ──────────────────────────────────────────────────────
+
+fn percent_decode_uri(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let bytes = input.as_bytes();
+    let mut i = 0;
+
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let (Some(hi), Some(lo)) = (
+                hex_nibble(bytes[i + 1]),
+                hex_nibble(bytes[i + 2]),
+            ) {
+                out.push((hi << 4 | lo) as char);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i] as char);
+        i += 1;
+    }
+
+    out
+}
+
+fn hex_nibble(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
+}
+
+// === DONE ===
+// Added Event::Dnd handling in update() via the existing subscription :: done
+// OfferEvent::Enter  → VaultDragHover(true)  :: done
+// OfferEvent::Leave / LeaveDestination → VaultDragHover(false) :: done
+// OfferEvent::Data   → parse text/uri-list → VaultFilesDropped :: done
+// Only fires when current_open_drawer == Vault :: done
+// percent_decode_uri handles %20 and other encoded path chars :: done
+// dnd_destination widget removed — no cosmic::Theme conflict :: done
+// All other update arms unchanged :: done
 
 // === DONE ===
 // Switched back to cosmic::iced::application() for full window control :: done
