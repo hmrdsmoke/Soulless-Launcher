@@ -68,6 +68,11 @@ pub enum Message {
     VaultFilesDropped(Vec<std::path::PathBuf>),
     /// Fired on drag enter/leave to toggle the hover highlight
     VaultDragHover(bool),
+
+    /// Fired when an app is dragged over a sidebar drawer (Some) or leaves (None)
+    DrawerDragHover(Option<String>),
+    /// Fired when an app icon is dropped onto a drawer in the sidebar
+    AppDroppedOnDrawer(String, String), // (drawer_name, app_id)
 }
 
 // ── Drawer state ──────────────────────────────────────────────────────────────
@@ -117,6 +122,9 @@ pub struct Search {
     pub app_picker: Option<AppPicker>,
 
     pub vault: Vault,
+
+    /// Which sidebar drawer is currently being hovered by a drag
+    pub drag_hover_drawer: Option<String>,
 }
 
 pub struct AppPicker {
@@ -157,6 +165,8 @@ impl Search {
             app_picker: None,
 
             vault: Vault::new(),
+
+            drag_hover_drawer: None,
         };
 
         search.recompute_results();
@@ -556,6 +566,18 @@ impl Search {
                 None
             }
 
+            Message::DrawerDragHover(drawer) => {
+                self.drag_hover_drawer = drawer;
+                None
+            }
+
+            Message::AppDroppedOnDrawer(drawer, app_id) => {
+                self.drag_hover_drawer = None;
+                self.drawer_state.add_app(&drawer, app_id);
+                save_drawer_state(&self.drawer_state);
+                None
+            }
+
             Message::VaultFilesDropped(paths) => {
                 self.vault.error = None;
                 self.vault.status = None;
@@ -894,6 +916,45 @@ fn save_drawer_state(state: &DrawerState) {
         }
     }
 }
+
+// === DONE ===
+// Fixed Vault::load() → Vault::new() :: done
+// Fixed vault.setup() → vault.finish_setup() :: done
+// Fixed vault.remove_entry() → vault.remove_file() :: done
+// Removed unused vault_ui import :: done
+// VaultOpenFile and VaultRemoveFile now handle errors into vault.error :: done
+// VaultPasswordChanged and VaultConfirmChanged clear vault.error on input :: done
+// All drawer management logic preserved unchanged :: done
+// Search logic preserved unchanged :: done
+
+// === DONE ===
+// Replaced hardcoded drawers vec with DrawerState :: done
+// Added app_by_id() lookup for drawer rendering :: done
+// Added ContextMenu enum and app_picker state :: done
+// Added full message set for drawer mutations :: done
+// Added persistence: load on startup, save on every mutation :: done
+// Search logic unchanged :: done
+ 
+// === DONE ===
+// Removed duplicate local AppEntry — now uses crate::indexer::AppEntry :: done
+// Removed dead load_desktop_entries() — now uses crate::indexer::build_index() :: done
+// Fixed empty query: alphabetical slice, not broken fuzzy-on-empty :: done
+// Fixed tier logic: rank-based not raw storage index :: done
+// Tiered spec:
+//   0 chars  → first 200 alphabetical
+//   1 char   → top 12 prefix, then 50% prefix / 50% fuzzy
+//   2 chars  → top 12 prefix, then 75% prefix / 25% fuzzy
+//   3+ chars → top 12 prefix, 100% prefix, 0% fuzzy :: done
+
+// === DONE ===
+// Rewritten search logic per MRV spec:
+// 0 chars  → 200 results fuzzy (top 12 from that list fallback to prefix)
+// 1 char   → top 12 prefix, then 25% prefix / 75% fuzzy
+// 2 chars  → top 12 prefix, then 50% prefix / 50% fuzzy
+// 3+ chars → top 12 prefix, then 100% prefix (no fuzzy)
+// Removed icon-required filter — icon is now Option<String> with fallback
+// Tightened should_skip_entry to exec-only
+// No debug output in fuzzy path
 
 // === DONE ===
 // Added VaultFilesDropped(Vec<PathBuf>) message :: done

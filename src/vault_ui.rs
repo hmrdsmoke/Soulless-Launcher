@@ -14,6 +14,13 @@ use cosmic::iced::widget::{
 use cosmic::iced::alignment::{Horizontal, Vertical};
 use cosmic::iced::{Color, Element, Length, Theme};
 
+// dnd_destination lives in cosmic::widget and uses cosmic::Theme.
+// Themer bridges a cosmic::Theme subtree into our cosmic::iced::Theme tree:
+//   Themer::new(None, cosmic_element) → cosmic::iced::Element
+// None = inherit theme from parent, no override needed.
+use cosmic::widget::dnd_destination;
+use cosmic::iced::widget::Themer;
+
 pub fn view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
     match vault.lock_state {
         VaultLockState::Uninitialized => setup_view(vault),
@@ -177,9 +184,6 @@ fn files_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
         };
 
     // ── Drop zone ─────────────────────────────────────────────────────────────
-    // Visual-only hint — DnD events are handled via the subscription in main.rs
-    // using Event::Dnd, which avoids the cosmic::Theme / cosmic::iced::Theme
-    // type conflict that dnd_destination widget causes in this iced setup.
     let (drop_bg, drop_border_color) = if vault.drag_hover {
         (
             Color::from_rgba8(80, 120, 255, 0.12),
@@ -198,9 +202,49 @@ fn files_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
         "Drag files here to add them to your vault"
     };
 
-    let drop_hint = container(text(drop_label).size(13).center())
+    // Step 1: build inner visual as cosmic::Element
+    let drop_inner: cosmic::Element<'_, SearchMessage> =
+        cosmic::widget::container(
+            cosmic::widget::text(drop_label).size(13),
+        )
         .width(Length::Fill)
         .padding(16)
+        .into();
+
+    // Step 2: wrap with dnd_destination — still cosmic::Element.
+    // This registers the widget bounds with the Wayland compositor as a
+    // drop target, which is what makes Event::Dnd events actually arrive.
+    let drop_dest: cosmic::Element<'_, SearchMessage> = dnd_destination(
+        drop_inner,
+        vec![std::borrow::Cow::Borrowed("text/uri-list")],
+    )
+    .on_enter(|_x, _y, _mimes| SearchMessage::VaultDragHover(true))
+    .on_leave(|| SearchMessage::VaultDragHover(false))
+    .on_finish(|_mime, data, _action, _x, _y| {
+        let payload = String::from_utf8_lossy(&data);
+        let paths = payload
+            .lines()
+            .map(str::trim)
+            .filter(|l| l.starts_with("file://"))
+            .filter_map(|l| {
+                let raw = l.trim_start_matches("file://");
+                let decoded = percent_decode_uri(raw);
+                let p = std::path::PathBuf::from(decoded);
+                if p.exists() { Some(p) } else { None }
+            })
+            .collect::<Vec<_>>();
+        SearchMessage::VaultFilesDropped(paths)
+    })
+    .into();
+
+    // Step 3: Themer bridges cosmic::Theme → cosmic::iced::Theme.
+    // None = inherit theme from parent (no visual override).
+    // The outer iced container applies the hover styling on top.
+    let drop_zone: Element<'_, SearchMessage> =
+        container(
+            Themer::new(None::<cosmic::Theme>, drop_dest),
+        )
+        .width(Length::Fill)
         .style(move |_: &Theme| container::Style {
             background: Some(drop_bg.into()),
             border: cosmic::iced::Border {
@@ -209,7 +253,8 @@ fn files_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
                 radius: cosmic::iced::border::rounded(8).radius,
             },
             ..Default::default()
-        });
+        })
+        .into();
 
     // ── File list ─────────────────────────────────────────────────────────────
 
@@ -242,7 +287,7 @@ fn files_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
             header,
             status_bar,
             space::vertical().height(Length::Fixed(8.0)),
-            drop_hint,
+            drop_zone,
             space::vertical().height(Length::Fixed(12.0)),
             file_list,
         ]
@@ -331,6 +376,51 @@ fn format_size(bytes: u64) -> String {
         format!("{:.2} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
     }
 }
+
+// ── URI percent-decoding ──────────────────────────────────────────────────────
+
+fn percent_decode_uri(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let bytes = input.as_bytes();
+    let mut i = 0;
+
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let (Some(hi), Some(lo)) = (
+                hex_nibble(bytes[i + 1]),
+                hex_nibble(bytes[i + 2]),
+            ) {
+                out.push((hi << 4 | lo) as char);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i] as char);
+        i += 1;
+    }
+
+    out
+}
+
+fn hex_nibble(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
+}
+
+// === DONE ===
+// Themer bridges cosmic::Theme (dnd_destination) → cosmic::iced::Theme (our tree) :: done
+// Step 1: drop_inner as cosmic::Element via cosmic::widget::container :: done
+// Step 2: dnd_destination wraps drop_inner → cosmic::Element :: done
+// Step 3: Themer::new(None, drop_dest) → satisfies iced::Theme From bound :: done
+// Step 4: outer iced container applies hover styling + holds Themer :: done
+// on_enter → VaultDragHover(true), on_leave → VaultDragHover(false) :: done
+// on_finish → parse text/uri-list bytes → VaultFilesDropped :: done
+// dnd_destination registers the window as a drop target with compositor :: done
+// All other views unchanged :: done
 
 // === DONE ===
 // Reverted to pure cosmic::iced widget tree — no dnd_destination widget :: done
