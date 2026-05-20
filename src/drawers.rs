@@ -9,6 +9,7 @@ use std::convert::Infallible;
 use crate::drawers_state::Drawer;
 use crate::search::AppPicker;
 use crate::search::ContextMenu;
+use crate::search::DrawerEditModal;
 use crate::search::Message as SearchMessage;
 use crate::search::OpenDrawer;
 
@@ -171,7 +172,97 @@ pub fn view<'a>(
     .width(Length::Shrink)
     .height(Length::Fill);
 
-    if let Some(menu) = &search.context_menu {
+    if let Some(modal) = &search.drawer_edit {
+        let (title, placeholder, value) = match modal {
+            DrawerEditModal::Rename { input, .. } => (
+                "Rename Drawer",
+                "New name…",
+                input.as_str(),
+            ),
+            DrawerEditModal::SetIcon { input, .. } => (
+                "Set Icon",
+                "Paste an emoji…",
+                input.as_str(),
+            ),
+        };
+
+        let modal_widget = container(
+            column![
+                text(title).size(18),
+                space::vertical().height(Length::Fixed(12.0)),
+                text_input(placeholder, value)
+                    .on_input(SearchMessage::DrawerEditInputChanged)
+                    .on_submit(SearchMessage::DrawerEditConfirm)
+                    .padding(12)
+                    .size(16),
+                space::vertical().height(Length::Fixed(16.0)),
+                row![
+                    mouse_area(
+                        container(text("Save").size(14))
+                            .padding([8, 20])
+                            .style(|_: &Theme| container::Style {
+                                background: Some(
+                                    Color::from_rgb8(60, 120, 60).into()
+                                ),
+                                border: cosmic::iced::border::rounded(6),
+                                ..Default::default()
+                            })
+                    )
+                    .on_press(SearchMessage::DrawerEditConfirm),
+                    space::horizontal().width(Length::Fixed(12.0)),
+                    mouse_area(
+                        container(text("Cancel").size(14))
+                            .padding([8, 20])
+                            .style(|_: &Theme| container::Style {
+                                background: Some(
+                                    Color::from_rgb8(80, 80, 80).into()
+                                ),
+                                border: cosmic::iced::border::rounded(6),
+                                ..Default::default()
+                            })
+                    )
+                    .on_press(SearchMessage::DrawerEditCancel),
+                ]
+                .align_y(Vertical::Center),
+            ]
+            .spacing(4)
+        )
+        .width(Length::Fixed(320.0))
+        .padding(24)
+        .style(|_: &Theme| container::Style {
+            background: Some(Color::from_rgb8(40, 40, 50).into()),
+            border: cosmic::iced::border::rounded(10),
+            ..Default::default()
+        });
+
+        // Darken backdrop + center the modal
+        let backdrop = mouse_area(
+            container(
+                container(base)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .style(|_: &Theme| container::Style {
+                        background: Some(
+                            Color::from_rgba8(0, 0, 0, 0.5).into()
+                        ),
+                        ..Default::default()
+                    })
+            )
+            .width(Length::Fill)
+            .height(Length::Fill)
+        )
+        .on_press(SearchMessage::DrawerEditCancel);
+
+        column![
+            backdrop,
+            container(modal_widget)
+                .width(Length::Fill)
+                .height(Length::Shrink)
+                .center_x(Length::Fill)
+                .padding([80, 0, 0, 0]),
+        ]
+        .into()
+    } else if let Some(menu) = &search.context_menu {
         let menu_widget = context_menu_view(menu);
         let dismiss = mouse_area(
             container(base).width(Length::Fill).height(Length::Fill)
@@ -406,6 +497,9 @@ fn context_menu_view<'a>(menu: &'a ContextMenu) -> Element<'a, SearchMessage> {
 
         ContextMenu::DrawerSidebar { drawer } => container(
             column![
+                menu_item("✏ Rename", SearchMessage::OpenRenameDrawer(drawer.clone())),
+                menu_item("🎨 Set Icon", SearchMessage::OpenSetIconDrawer(drawer.clone())),
+                menu_divider(),
                 menu_item("⬆ Move Up", SearchMessage::MoveDrawerUp(drawer.clone())),
                 menu_item("⬇ Move Down", SearchMessage::MoveDrawerDown(drawer.clone())),
                 menu_divider(),
@@ -498,34 +592,42 @@ fn app_icon_button<'a>(
     let app_id = app.id.clone();
     let exec = app.exec.clone();
 
-    // Build the icon as a cosmic::Element (needed for dnd_source child)
+    // No mouse_area inside — dnd_source needs clean mouse events.
+    // If mouse_area is inside, it captures ButtonPressed first and
+    // the drag threshold check in dnd_source never triggers.
     let icon_content: cosmic::Element<'_, SearchMessage> =
-        cosmic::widget::mouse_area(
-            cosmic::widget::container(
-                cosmic::iced::widget::column![
-                    cosmic::iced::widget::image(&app.icon_path)
-                        .width(Length::Fixed(ICON_SIZE))
-                        .height(Length::Fixed(ICON_SIZE)),
-                    cosmic::iced::widget::text(truncate_label(&app.name, 12))
-                        .size(12),
-                ]
-                .spacing(4)
-                .align_x(Horizontal::Center),
-            )
-            .padding(6),
+        cosmic::widget::container(
+            cosmic::iced::widget::column![
+                cosmic::iced::widget::image(&app.icon_path)
+                    .width(Length::Fixed(ICON_SIZE))
+                    .height(Length::Fixed(ICON_SIZE)),
+                cosmic::iced::widget::text(truncate_label(&app.name, 12))
+                    .size(12),
+            ]
+            .spacing(4)
+            .align_x(Horizontal::Center),
         )
-        .on_press(SearchMessage::AppClicked(exec))
+        .padding(6)
         .into();
 
-    // Wrap in dnd_source — user can drag this onto a sidebar drawer button.
-    // drag_content returns an AppIdPayload which implements AsMimeTypes.
+    // dnd_source wraps bare icon — gets uncontested mouse events
     let src: cosmic::Element<'_, SearchMessage> =
         dnd_source(icon_content)
             .drag_content(move || AppIdPayload(app_id.clone()))
             .into();
 
     // Bridge cosmic::Theme → cosmic::iced::Theme
-    Themer::new(None::<cosmic::Theme>, src).into()
+    let bridged: Element<'_, SearchMessage> =
+        Themer::new(None::<cosmic::Theme>, src).into();
+
+    // mouse_area sits OUTSIDE the dnd_source.
+    // Click (press + release without moving) → AppClicked.
+    // Drag (press + move past threshold) → dnd_source takes over,
+    // compositor grabs the pointer, release never reaches mouse_area.
+    // The two gestures are naturally mutually exclusive.
+    mouse_area(bridged)
+        .on_press(SearchMessage::AppClicked(exec))
+        .into()
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -1,9 +1,3 @@
-// MIT License - see LICENSE file for full terms
-//
-// Copyright 2026 Michael Van Auker (HMRDSmoke)
-// This is my original work with contributions from Grok (xAI).
-// Do not remove these comments.
-
 use cosmic::iced::keyboard::key::Named;
 use cosmic::iced::{
     Element, Length, Subscription, Task, Theme,
@@ -35,10 +29,11 @@ pub enum Message {
     WindowEvent(cosmic::iced::Event),
 }
 
-// ── Application model ─────────────────────────────────────────────────────────
+// ── Application model ─────────────────────────────────────────
 
 struct Soulless {
     search: search::Search,
+    cursor_pos: Option<cosmic::iced::Point>,
 }
 
 impl Soulless {
@@ -46,6 +41,7 @@ impl Soulless {
         (
             Self {
                 search: search::Search::new(),
+                cursor_pos: None,
             },
             Task::none(),
         )
@@ -65,7 +61,7 @@ impl Soulless {
                         eprintln!("Failed to launch app: {}", e);
                     }
 
-                    cosmic::iced::exit()
+                    cosmic::iced::exit::<Message>()
                 } else {
                     Task::none()
                 }
@@ -78,41 +74,55 @@ impl Soulless {
                 ),
             ) => {
                 if matches!(key, keyboard::Key::Named(Named::Escape)) {
-                    cosmic::iced::exit()
-                } else {
-                    Task::none()
+                    return cosmic::iced::exit::<Message>();
                 }
+                Task::none()
+            }
+
+            // ── Track cursor position ────────────────────────────────────────
+            Message::WindowEvent(cosmic::iced::Event::Mouse(
+                cosmic::iced::mouse::Event::CursorMoved { position },
+            )) => {
+                self.cursor_pos = Some(position);
+                Task::none()
+            }
+
+            // ── Click outside → exit ──────────────────────────────────────────
+            Message::WindowEvent(cosmic::iced::Event::Mouse(
+                cosmic::iced::mouse::Event::ButtonPressed(_),
+            )) => {
+                // Exit if the click landed outside the window bounds.
+                // window_size() returns (width, height) as f32 via Size.
+                let size = LauncherPosition.window_size();
+                let outside = self.cursor_pos.map_or(false, |p| {
+                    p.x < 0.0 || p.y < 0.0
+                        || p.x > size.width
+                        || p.y > size.height
+                });
+                if outside {
+                    return cosmic::iced::exit::<Message>();
+                }
+                Task::none()
             }
 
             // ── Drag-and-drop ─────────────────────────────────────────────────
-            // The dnd_destination widget can't be used here because it lives in
-            // cosmic::widget (cosmic::Theme) while our tree is cosmic::iced
-            // (cosmic::iced::Theme) — incompatible type bounds.
-            //
-            // Instead we handle raw Event::Dnd from the subscription, which has
-            // no widget-type constraints. We only act when the vault is unlocked.
             Message::WindowEvent(cosmic::iced::Event::Dnd(dnd_event)) => {
                 use search::OpenDrawer;
 
-                // Ignore all DnD events unless vault is the active panel
                 if self.search.current_open_drawer != OpenDrawer::Vault {
                     return Task::none();
                 }
 
                 match dnd_event {
-                    // Drag entered our window — light up the drop zone
                     DndEvent::Offer(_, OfferEvent::Enter { .. }) => {
                         self.search.update(SearchMessage::VaultDragHover(true));
                     }
 
-                    // Drag left our window — reset the drop zone
                     DndEvent::Offer(_, OfferEvent::Leave)
                     | DndEvent::Offer(_, OfferEvent::LeaveDestination) => {
                         self.search.update(SearchMessage::VaultDragHover(false));
                     }
 
-                    // Data delivered — fires after the user releases the mouse.
-                    // mime_type will be "text/uri-list" for file drags.
                     DndEvent::Offer(_, OfferEvent::Data { data, mime_type }) => {
                         if mime_type == "text/uri-list" {
                             let payload = String::from_utf8_lossy(&data);
@@ -134,7 +144,6 @@ impl Soulless {
                                 );
                             }
                         }
-                        // Reset hover regardless of mime type
                         self.search.update(SearchMessage::VaultDragHover(false));
                     }
 
@@ -280,6 +289,10 @@ fn hex_nibble(b: u8) -> Option<u8> {
         _ => None,
     }
 }
+
+// === Done ===
+// Added superkey opens 
+// added press outside closes
 
 // === DONE ===
 // Added Event::Dnd handling in update() via the existing subscription :: done

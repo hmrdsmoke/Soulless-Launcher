@@ -73,6 +73,13 @@ pub enum Message {
     DrawerDragHover(Option<String>),
     /// Fired when an app icon is dropped onto a drawer in the sidebar
     AppDroppedOnDrawer(String, String), // (drawer_name, app_id)
+
+    // Drawer inline editing
+    OpenRenameDrawer(String),
+    OpenSetIconDrawer(String),
+    DrawerEditInputChanged(String),
+    DrawerEditConfirm,
+    DrawerEditCancel,
 }
 
 // ── Drawer state ──────────────────────────────────────────────────────────────
@@ -100,6 +107,14 @@ pub enum ContextMenu {
     },
 }
 
+// ── Drawer edit modal ─────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub enum DrawerEditModal {
+    Rename { drawer: String, input: String },
+    SetIcon { drawer: String, input: String },
+}
+
 // ── Search model ──────────────────────────────────────────────────────────────
 
 pub struct Search {
@@ -125,6 +140,9 @@ pub struct Search {
 
     /// Which sidebar drawer is currently being hovered by a drag
     pub drag_hover_drawer: Option<String>,
+
+    /// Active inline drawer rename/icon edit modal
+    pub drawer_edit: Option<DrawerEditModal>,
 }
 
 pub struct AppPicker {
@@ -167,6 +185,8 @@ impl Search {
             vault: Vault::new(),
 
             drag_hover_drawer: None,
+
+            drawer_edit: None,
         };
 
         search.recompute_results();
@@ -575,6 +595,70 @@ impl Search {
                 self.drag_hover_drawer = None;
                 self.drawer_state.add_app(&drawer, app_id);
                 save_drawer_state(&self.drawer_state);
+                None
+            }
+
+            // ── Drawer inline edit ───────────────────────────────────────
+            Message::OpenRenameDrawer(drawer) => {
+                self.drawer_edit = Some(DrawerEditModal::Rename {
+                    input: drawer.clone(),
+                    drawer,
+                });
+                self.context_menu = None;
+                None
+            }
+
+            Message::OpenSetIconDrawer(drawer) => {
+                let current_icon = self
+                    .drawer_state
+                    .drawers()
+                    .iter()
+                    .find(|d| d.name == drawer)
+                    .map(|d| d.icon.clone())
+                    .unwrap_or_default();
+                self.drawer_edit = Some(DrawerEditModal::SetIcon {
+                    input: current_icon,
+                    drawer,
+                });
+                self.context_menu = None;
+                None
+            }
+
+            Message::DrawerEditInputChanged(val) => {
+                match &mut self.drawer_edit {
+                    Some(DrawerEditModal::Rename { input, .. }) => *input = val,
+                    Some(DrawerEditModal::SetIcon { input, .. }) => *input = val,
+                    None => {}
+                }
+                None
+            }
+
+            Message::DrawerEditConfirm => {
+                match self.drawer_edit.take() {
+                    Some(DrawerEditModal::Rename { drawer, input }) => {
+                        let trimmed = input.trim().to_string();
+                        if !trimmed.is_empty() {
+                            self.drawer_state.rename_drawer(&drawer, &trimmed);
+                            save_drawer_state(&self.drawer_state);
+                            if self.current_open_drawer == OpenDrawer::Pinned(drawer) {
+                                self.current_open_drawer = OpenDrawer::Pinned(trimmed);
+                            }
+                        }
+                    }
+                    Some(DrawerEditModal::SetIcon { drawer, input }) => {
+                        let trimmed = input.trim().to_string();
+                        if !trimmed.is_empty() {
+                            self.drawer_state.set_drawer_icon(&drawer, trimmed);
+                            save_drawer_state(&self.drawer_state);
+                        }
+                    }
+                    None => {}
+                }
+                None
+            }
+
+            Message::DrawerEditCancel => {
+                self.drawer_edit = None;
                 None
             }
 
