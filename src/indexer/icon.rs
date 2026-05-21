@@ -10,6 +10,15 @@ use std::sync::{Arc, RwLock};
 
 pub const FALLBACK_ICON: &str = "assets/launcher.png";
 
+pub fn fallback_icon() -> String {
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join("assets/launcher.png")))
+        .filter(|p| p.exists())
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "/usr/share/icons/hicolor/48x48/apps/apport.png".to_string())
+}
+
 /// Shared icon cache type.
 pub type SharedIconCache = Arc<RwLock<IconCache>>;
 
@@ -41,7 +50,7 @@ impl IconCache {
     /// Results are kept in memory after first lookup.
     pub fn resolve(&mut self, icon_name: Option<&str>) -> String {
         let Some(icon_name) = icon_name else {
-            return FALLBACK_ICON.to_string();
+            return fallback_icon();
         };
 
         if let Some(path) = self.cache.get(icon_name) {
@@ -60,7 +69,7 @@ impl IconCache {
             })
             .unwrap_or_else(|| {
                 eprintln!("ICON MISS: {}", icon_name);
-                FALLBACK_ICON.to_string()
+                fallback_icon()
             });
 
         self.cache.insert(icon_name.to_string(), resolved.clone());
