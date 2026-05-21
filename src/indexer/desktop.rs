@@ -68,7 +68,7 @@ pub fn index(
                 continue;
             }
 
-            if should_skip_entry(exec) {
+            if should_skip_entry(exec, &name) {
                 continue;
             }
 
@@ -124,22 +124,26 @@ pub fn index(
     apps
 }
 
-fn should_skip_entry(
-    exec: &str,
-) -> bool {
+fn should_skip_entry(exec: &str, name: &str) -> bool {
     let lower_exec = exec.to_lowercase();
+    let lower_name = name.to_lowercase();
 
-    let suspicious = [
-        "handler",
-        "oauth",
-        "daemon",
-        "service",
-        "portal",
+    // Skip background services, handlers, and non-launchable entries
+    let exec_skip = [
+        "handler", "oauth", "daemon", "service", "portal",
+        "agent", "polkit", "pkexec", "gksu", "kdesu",
     ];
 
-    suspicious
-        .iter()
-        .any(|t| lower_exec.contains(t))
+    // Skip entries whose names indicate they are settings panels,
+    // system components, or duplicates of things already in the desktop index
+    let name_skip = [
+        "settings panel",
+        "control center module",
+        "system settings module",
+    ];
+
+    exec_skip.iter().any(|t| lower_exec.contains(t))
+        || name_skip.iter().any(|t| lower_name.contains(t))
 }
 
 fn strip_desktop_placeholders(

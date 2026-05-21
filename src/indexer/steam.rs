@@ -47,11 +47,13 @@ pub fn index() -> Vec<AppEntry> {
 
         let lower_name = game_name.to_lowercase();
 
+        let icon_path = resolve_steam_icon(&appid);
+
         apps.push(AppEntry {
             id: format!("steam:{}", appid),
             name: game_name.clone(),
             exec: format!("steam steam://rungameid/{}", appid),
-            icon_path: "steam".to_string(),
+            icon_path,
             source: AppSource::Steam,
             lower_name,
             haystack: Utf32String::from(game_name.as_str()),
@@ -63,6 +65,34 @@ pub fn index() -> Vec<AppEntry> {
     }
 
     apps
+}
+
+/// Resolves a Steam game icon from the librarycache folder.
+///
+/// Prefers header.jpg; falls back to the first jpg found in the folder.
+fn resolve_steam_icon(appid: &str) -> String {
+    let home = dirs::home_dir().unwrap_or_default();
+    let cache_dir = home
+        .join(".local/share/Steam/appcache/librarycache")
+        .join(appid);
+
+    // Prefer header.jpg — present on most games
+    let header = cache_dir.join("header.jpg");
+    if header.exists() {
+        return header.display().to_string();
+    }
+
+    // Fall back to first jpg found in folder
+    if let Ok(entries) = fs::read_dir(&cache_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("jpg") {
+                return path.display().to_string();
+            }
+        }
+    }
+
+    crate::indexer::icon::FALLBACK_ICON.to_string()
 }
 
 /// Extracts a quoted string value from a Steam .acf manifest field.

@@ -19,6 +19,8 @@ fs2 = "0.4.3"                               # pinned exact :: MRV
 cosmic = { git = "https://github.com/pop-os/libcosmic", branch = "master", package = "libcosmic", features = ["tokio", "wayland", "winit"] }
 serde_json = "1.0.149"                      # pinned exact :: MRV
 serde = { version = "1.0.228", features = ["derive"] }  # pinned exact :: MRV
+resvg = "0.44.0"
+tiny-skia = "0.11.4"
 
  # Vault security implemented commented out :: MRV
 argon2 = "0.5.3"
