@@ -589,43 +589,18 @@ fn search_results_view<'a>(
 fn app_icon_button<'a>(
     app: &'a crate::indexer::AppEntry,
 ) -> Element<'a, SearchMessage> {
-    let app_id = app.id.clone();
     let exec = app.exec.clone();
 
-    // No mouse_area inside — dnd_source needs clean mouse events.
-    // If mouse_area is inside, it captures ButtonPressed first and
-    // the drag threshold check in dnd_source never triggers.
-    let icon_content: cosmic::Element<'_, SearchMessage> =
-        cosmic::widget::container(
-            cosmic::iced::widget::column![
-                cosmic::iced::widget::image(&app.icon_path)
-                    .width(Length::Fixed(ICON_SIZE))
-                    .height(Length::Fixed(ICON_SIZE)),
-                cosmic::iced::widget::text(truncate_label(&app.name, 12))
-                    .size(12),
-            ]
-            .spacing(4)
-            .align_x(Horizontal::Center),
-        )
-        .padding(6)
-        .into();
+    let content = column![
+        image(&app.icon_path)
+            .width(Length::Fixed(ICON_SIZE))
+            .height(Length::Fixed(ICON_SIZE)),
+        text(truncate_label(&app.name, 12)).size(12),
+    ]
+    .spacing(4)
+    .align_x(Horizontal::Center);
 
-    // dnd_source wraps bare icon — gets uncontested mouse events
-    let src: cosmic::Element<'_, SearchMessage> =
-        dnd_source(icon_content)
-            .drag_content(move || AppIdPayload(app_id.clone()))
-            .into();
-
-    // Bridge cosmic::Theme → cosmic::iced::Theme
-    let bridged: Element<'_, SearchMessage> =
-        Themer::new(None::<cosmic::Theme>, src).into();
-
-    // mouse_area sits OUTSIDE the dnd_source.
-    // Click (press + release without moving) → AppClicked.
-    // Drag (press + move past threshold) → dnd_source takes over,
-    // compositor grabs the pointer, release never reaches mouse_area.
-    // The two gestures are naturally mutually exclusive.
-    mouse_area(bridged)
+    mouse_area(container(content).padding(6))
         .on_press(SearchMessage::AppClicked(exec))
         .into()
 }
