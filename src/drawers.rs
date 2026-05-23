@@ -23,8 +23,8 @@ use cosmic::iced::{Color, Element, Length, Theme};
 // DnD bridge
 use cosmic::iced::widget::Themer;
 use cosmic::iced::clipboard::mime::{AllowedMimeTypes, AsMimeTypes};
+use cosmic::widget::dnd_destination;
 use cosmic::widget::dnd_destination::dnd_destination_for_data;
-use cosmic::widget::{dnd_source};
 
 const TOOLBOX_WIDTH: f32 = 360.0;
 const RIGHT_PANEL_WIDTH: f32 = 560.0;
@@ -290,7 +290,8 @@ fn sidebar_drawer_button<'a>(
     let is_drag_target = search.drag_hover_drawer.as_deref()
         == Some(drawer_name.as_str());
 
-    let app_count = drawer.apps.len();
+    // Show total item count (apps + files)
+    let item_count = search.drawer_state.item_count(&drawer_name);
 
     let bg_color: Option<cosmic::iced::Background> = if is_drag_target {
         Some(Color::from_rgb8(40, 80, 40).into())
@@ -325,7 +326,7 @@ fn sidebar_drawer_button<'a>(
                     cosmic::iced::widget::text(name_str).size(16),
                     cosmic::iced::widget::space::horizontal()
                         .width(Length::Fill),
-                    cosmic::iced::widget::text(app_count.to_string()).size(12),
+                    cosmic::iced::widget::text(item_count.to_string()).size(12),
                 ]
                 .align_y(Vertical::Center)
                 .padding(14),
@@ -378,13 +379,17 @@ fn drawer_contents_view<'a>(
     drawer_name: &'a str,
 ) -> Element<'a, SearchMessage> {
     let pinned_ids = search.drawer_state.apps_in_drawer(drawer_name);
+    let drawer_files = search.drawer_state.files_in_drawer(drawer_name);
+
+    let is_file_hover = search.drawer_file_hover.as_deref()
+        == Some(drawer_name);
 
     let header = mouse_area(
         container(
             row![
                 text(format!("📁  {drawer_name}")).size(22),
                 space::horizontal().width(Length::Fill),
-                text("Drag apps here or right-click to add").size(11),
+                text("Drag apps or files here · right-click to add").size(11),
             ]
             .padding([0, 0, 12, 0])
             .align_y(Vertical::Center)
@@ -395,16 +400,21 @@ fn drawer_contents_view<'a>(
         SearchMessage::RightClickDrawerBackground(drawer_name.to_string())
     );
 
-    if pinned_ids.is_empty() {
-        return mouse_area(
+    let is_empty = pinned_ids.is_empty() && drawer_files.is_empty();
+
+    // ── Build the inner content (empty state or grid) ─────────────────────
+    let content: Element<'a, SearchMessage> = if is_empty {
+        mouse_area(
             container(
                 column![
                     header,
                     space::vertical().height(Length::Fixed(32.0)),
                     container(
                         column![
+                            text("📂").size(48),
+                            space::vertical().height(Length::Fixed(8.0)),
                             text("This drawer is empty.").size(16),
-                            text("Drag apps from search, or right-click to add.").size(13),
+                            text("Drop files here, or right-click to add apps.").size(13),
                         ]
                         .spacing(8)
                         .align_x(Horizontal::Center)
@@ -419,28 +429,146 @@ fn drawer_contents_view<'a>(
         .on_right_press(
             SearchMessage::RightClickDrawerBackground(drawer_name.to_string())
         )
-        .into();
-    }
+        .into()
+    } else {
+        let app_entries: Vec<_> = pinned_ids
+            .iter()
+            .filter_map(|id| search.app_by_id(id).map(|app| (id, app)))
+            .collect();
 
-    let app_entries: Vec<_> = pinned_ids
-        .iter()
-        .filter_map(|id| search.app_by_id(id).map(|app| (id, app)))
-        .collect();
+        let mut content_col = column!().spacing(8);
 
-    let grid = app_entries
-        .chunks(GRID_COLUMNS)
-        .fold(column!().spacing(8), |col, chunk| {
-            let mut grid_row = row!().spacing(8).width(Length::Fill);
-            for (app_id, app) in chunk {
-                grid_row = grid_row.push(drawer_app_icon(app, drawer_name, app_id));
+        // ── Apps grid ─────────────────────────────────────────────────────
+        if !app_entries.is_empty() {
+            let apps_grid = app_entries
+                .chunks(GRID_COLUMNS)
+                .fold(column!().spacing(8), |col, chunk| {
+                    let mut grid_row = row!().spacing(8).width(Length::Fill);
+                    for (app_id, app) in chunk {
+                        grid_row = grid_row.push(
+                            drawer_app_icon(app, drawer_name, app_id)
+                        );
+                    }
+                    col.push(grid_row)
+                });
+            content_col = content_col.push(apps_grid);
+        }
+
+        // ── Files grid ────────────────────────────────────────────────────
+        if !drawer_files.is_empty() {
+            if !app_entries.is_empty() {
+                content_col = content_col.push(
+                    container(text("Files").size(11)).padding([8, 0, 4, 0])
+                );
             }
-            col.push(grid_row)
-        });
 
+            let files_grid = drawer_files
+                .chunks(GRID_COLUMNS)
+                .fold(column!().spacing(8), |col, chunk| {
+                    let mut grid_row = row!().spacing(8).width(Length::Fill);
+                    for file in chunk {
+                        grid_row = grid_row.push(
+                            drawer_file_icon(file, drawer_name)
+                        );
+                    }
+                    col.push(grid_row)
+                });
+
+            content_col = content_col.push(files_grid);
+        }
+
+        mouse_area(
+            container(column![header, scrollable(content_col)])
+                .width(Length::Fill)
+                .height(Length::Fill)
+        )
+        .on_right_press(
+            SearchMessage::RightClickDrawerBackground(drawer_name.to_string())
+        )
+        .into()
+    };
+
+    // ── Drop zone — mirrors vault_ui.rs exactly ───────────────────────────
+    //
+    // Step 1: inner widget as cosmic::Element (cosmic::widget::container)
+    let drop_inner: cosmic::Element<'_, SearchMessage> =
+        cosmic::widget::container(
+            cosmic::widget::text(
+                if is_file_hover { "Drop to add files" } else { "Drop files here to add them" }
+            ).size(11),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into();
+
+    // Step 2: dnd_destination wraps drop_inner → cosmic::Element.
+    // Registers the widget bounds with the compositor as a drop target.
+    let dn_enter  = drawer_name.to_string();
+    let dn_finish = drawer_name.to_string();
+
+    let drop_dest: cosmic::Element<'_, SearchMessage> =
+        cosmic::widget::dnd_destination(
+            drop_inner,
+            vec![std::borrow::Cow::Borrowed("text/uri-list")],
+        )
+        .on_enter(move |_x, _y, _mimes| {
+            SearchMessage::DrawerFileHover(Some(dn_enter.clone()))
+        })
+        .on_leave(|| SearchMessage::DrawerFileHover(None))
+        .on_finish(move |_mime, data, _action, _x, _y| {
+            let payload = String::from_utf8_lossy(&data);
+            let paths = payload
+                .lines()
+                .map(str::trim)
+                .filter(|l| l.starts_with("file://"))
+                .filter_map(|l| {
+                    let raw = l.trim_start_matches("file://");
+                    let decoded = uri_decode(raw);
+                    let p = std::path::PathBuf::from(decoded);
+                    if p.exists() { Some(p) } else { None }
+                })
+                .collect::<Vec<_>>();
+            SearchMessage::FilesDroppedOnDrawer(dn_finish.clone(), paths)
+        })
+        .into();
+
+    // Step 3: Themer bridges cosmic::Theme → cosmic::iced::Theme.
+    // Outer iced container applies the hover highlight styling on top.
+    let (drop_bg, drop_border_color, drop_border_width) = if is_file_hover {
+        (
+            Color::from_rgba8(30, 80, 30, 0.35),
+            Color::from_rgb8(60, 200, 60),
+            2.0_f32,
+        )
+    } else {
+        (
+            Color::from_rgba8(255, 255, 255, 0.03),
+            Color::from_rgba8(255, 255, 255, 0.08),
+            1.0_f32,
+        )
+    };
+
+    // ── Final layout: content above, drop zone strip below ────────────────
     mouse_area(
-        container(column![header, scrollable(grid)])
-            .width(Length::Fill)
-            .height(Length::Fill)
+        container(
+            column![
+                content,
+                container(Themer::new(None::<cosmic::Theme>, drop_dest))
+                    .width(Length::Fill)
+                    .style(move |_: &Theme| container::Style {
+                        background: Some(drop_bg.into()),
+                        border: cosmic::iced::Border {
+                            color: drop_border_color,
+                            width: drop_border_width,
+                            radius: cosmic::iced::border::rounded(10).radius,
+                        },
+                        ..Default::default()
+                    }),
+            ]
+            .spacing(8)
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
     )
     .on_right_press(
         SearchMessage::RightClickDrawerBackground(drawer_name.to_string())
@@ -474,6 +602,77 @@ fn drawer_app_icon<'a>(
             app_id.to_string(),
         ))
         .into()
+}
+
+// ─────────────────────────────────────────────────────────────
+// Drawer File Icon
+// ─────────────────────────────────────────────────────────────
+
+fn drawer_file_icon<'a>(
+    file: &'a crate::drawers_state::DrawerFile,
+    drawer_name: &'a str,
+) -> Element<'a, SearchMessage> {
+    let emoji = file_emoji(&file.name);
+
+    let icon_cell = container(
+        container(text(emoji).size(18))
+            .width(Length::Fixed(ICON_SIZE))
+            .height(Length::Fixed(ICON_SIZE))
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+            .style(|_| container::Style {
+                background: Some(
+                    cosmic::iced::Color::from_rgba8(60, 60, 80, 0.9).into(),
+                ),
+                border: cosmic::iced::Border {
+                    radius: 8.0.into(),
+                    width: 1.0,
+                    color: cosmic::iced::Color::from_rgb8(90, 90, 110),
+                },
+                ..Default::default()
+            }),
+    );
+
+    let label = text(truncate_label(&file.name, 12)).size(12);
+
+    let content = column![icon_cell, label]
+        .spacing(4)
+        .align_x(Horizontal::Center);
+
+    mouse_area(container(content).padding(6))
+        .on_press(SearchMessage::OpenDrawerFile(file.path.clone()))
+        .on_right_press(SearchMessage::RightClickDrawerFile(
+            drawer_name.to_string(),
+            file.path.clone(),
+        ))
+        .into()
+}
+
+/// Pick a representative emoji for a file by extension.
+fn file_emoji(name: &str) -> &'static str {
+    let ext = name.rsplit('.').next().unwrap_or("").to_lowercase();
+    match ext.as_str() {
+        "pdf"                               => "📄",
+        "doc" | "docx" | "odt" | "rtf"     => "📝",
+        "xls" | "xlsx" | "ods" | "csv"     => "📊",
+        "ppt" | "pptx" | "odp"             => "📋",
+        "txt" | "md" | "rst"               => "📃",
+        "png" | "jpg" | "jpeg" | "gif"
+            | "webp" | "bmp" | "svg"       => "🖼",
+        "mp4" | "mkv" | "avi" | "mov"
+            | "webm"                        => "🎬",
+        "mp3" | "flac" | "ogg" | "wav"
+            | "aac" | "m4a"                => "🎵",
+        "zip" | "tar" | "gz" | "xz"
+            | "7z" | "rar"                 => "🗜",
+        "rs" | "py" | "js" | "ts"
+            | "go" | "c" | "cpp" | "h"
+            | "java" | "kt" | "swift"      => "💻",
+        "sh" | "bash" | "zsh" | "fish"     => "⚙",
+        "json" | "toml" | "yaml" | "yml"
+            | "xml" | "ini" | "conf"       => "🔧",
+        _                                   => "📁",
+    }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -517,6 +716,25 @@ fn context_menu_view<'a>(menu: &'a ContextMenu) -> Element<'a, SearchMessage> {
                 menu_item(
                     "✖ Remove App",
                     SearchMessage::RemoveAppFromDrawer(drawer.clone(), app_id.clone()),
+                ),
+            ]
+            .spacing(2)
+        )
+        .style(context_menu_style)
+        .padding(8)
+        .width(Length::Fixed(260.0))
+        .into(),
+
+        ContextMenu::DrawerFile { drawer, file_path } => container(
+            column![
+                menu_item(
+                    "↗ Open File",
+                    SearchMessage::OpenDrawerFile(file_path.clone()),
+                ),
+                menu_divider(),
+                menu_item(
+                    "✖ Remove from Drawer",
+                    SearchMessage::RemoveFileFromDrawer(drawer.clone(), file_path.clone()),
                 ),
             ]
             .spacing(2)
@@ -686,139 +904,52 @@ fn truncate_label(text: &str, max: usize) -> String {
     }
 }
 
-// === DONE ===
-// PICKER FREEZE FIX: capped to PICKER_MAX_RENDER (50) :: done
-//   overflow note shown when filtered > 50 :: done
-// AppIdPayload: implements AsMimeTypes + AllowedMimeTypes + TryFrom :: done
-//   used as D type for dnd_source and dnd_destination_for_data :: done
-// Search app icons: dnd_source(icon_content).drag_content(|| AppIdPayload) :: done
-//   click-to-launch preserved via mouse_area inside the dnd_source child :: done
-// Sidebar drawer buttons: dnd_destination_for_data::<AppIdPayload> :: done
-//   on_finish fires AppDroppedOnDrawer(drawer_name, app_id) :: done
-//   on_enter/on_leave fires DrawerDragHover(Some/None) for green highlight :: done
-// Themer bridges cosmic::Theme subtree into cosmic::iced::Theme tree :: done
-// DrawerDragHover + AppDroppedOnDrawer messages in search.rs :: done
-// drag_hover_drawer: Option<String> field in Search struct :: done
-// All context menus, right-click, rename flows preserved :: done
+// ── Drawer file-drop highlight styles ────────────────────────────────────────
+// Named fn so we can pass it as a fn pointer to cosmic::widget::container::style().
+// ── URI percent-decoding (used by drawer file drop zone) ─────────────────────
 
-// ── Search results / picker remain unchanged ───────────────
-// Keep your existing:
-// - app_picker_view()
-// - picker_app_icon()
-// - search_results_view()
-// - app_icon_button()
-// - truncate_label()
+fn uri_decode(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let bytes = input.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let (Some(hi), Some(lo)) = (
+                hex_nibble(bytes[i + 1]),
+                hex_nibble(bytes[i + 2]),
+            ) {
+                out.push((hi << 4 | lo) as char);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i] as char);
+        i += 1;
+    }
+    out
+}
 
-// === DONE ===
-// Added drawer rename modal overlay :: done
-// Added right-click sidebar context menu :: done
-// Added Rename Drawer menu item :: done
-// Added modal darkened backdrop :: done
-// Added Save / Cancel actions :: done
-// Preserved all existing app picker logic :: done
-// Preserved lightweight mouse_area interactions :: done
-// Preserved zero-runtime icon lookup architecture :: done
-// Preserved grid rendering architecture :: done
-
-// === DONE ===
-// Imports back to cosmic::iced::widget to match cosmic::iced::application :: done
-// Theme imported as cosmic::iced::Theme via use cosmic::iced::Theme :: done
-// All style closures typed as |_: &Theme| explicitly :: done
-// context_menu_style takes &Theme (cosmic::iced::Theme) :: done
-// HashSet for pinned lookup preserved :: done
+fn hex_nibble(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
+}
 
 // === DONE ===
-// Switched all widget imports from cosmic::iced::widget to cosmic::widget :: done
-// Element comes from cosmic::prelude::* :: done
-// context_menu_style takes &cosmic::Theme not &cosmic::iced::Theme :: done
-// style closures use cosmic::iced::widget::container::Style directly :: done
-// already_pinned uses HashSet for O(1) lookup per app per frame :: done
-// All alignment imports consolidated to cosmic::iced::alignment :: done
-
-// === DONE ===
-// Drawer contents now renders real pinned apps :: done
-// Right-click on drawer background → context menu (Add apps / Clear) :: done
-// Right-click on app in drawer → context menu (Remove) :: done
-// App picker modal: filter, add, remove, shows checkmark if already added :: done
-// Active drawer highlighted in sidebar :: done
-// App count shown next to each drawer name :: done
-// Search results view preserved unchanged :: done
-
-// === DONE ===
-// Removed rendering-time filesystem icon resolution :: done
-// Removed resolve_icon_path entirely :: done
-// UI now uses pre-resolved icon_path directly :: done
-// Zero filesystem access during typing/rendering :: done
-// Faster render path architecture implemented :: done
-// Grid layout preserved :: done
-// Lightweight mouse_area interactions preserved :: done
-
-// === DONE ===
-// Replaced heavy button widgets with lightweight mouse_area :: done
-// Direct clickable icons :: done
-// Added fallback icon support :: done
-// Added icon path resolution :: done
-// Removed expensive button styling :: done
-// Grid layout preserved :: done
-// Faster rendering + snappier scrolling :: done
-
-// ── Search results / picker remain unchanged ───────────────
-// Keep your existing:
-// - app_picker_view()
-// - picker_app_icon()
-// - search_results_view()
-// - app_icon_button()
-// - truncate_label()
-
-// === DONE ===
-// Added drawer rename modal overlay :: done
-// Added right-click sidebar context menu :: done
-// Added Rename Drawer menu item :: done
-// Added modal darkened backdrop :: done
-// Added Save / Cancel actions :: done
-// Preserved all existing app picker logic :: done
-// Preserved lightweight mouse_area interactions :: done
-// Preserved zero-runtime icon lookup architecture :: done
-// Preserved grid rendering architecture :: done
-
-// === DONE ===
-// Imports back to cosmic::iced::widget to match cosmic::iced::application :: done
-// Theme imported as cosmic::iced::Theme via use cosmic::iced::Theme :: done
-// All style closures typed as |_: &Theme| explicitly :: done
-// context_menu_style takes &Theme (cosmic::iced::Theme) :: done
-// HashSet for pinned lookup preserved :: done
-
-// === DONE ===
-// Switched all widget imports from cosmic::iced::widget to cosmic::widget :: done
-// Element comes from cosmic::prelude::* :: done
-// context_menu_style takes &cosmic::Theme not &cosmic::iced::Theme :: done
-// style closures use cosmic::iced::widget::container::Style directly :: done
-// already_pinned uses HashSet for O(1) lookup per app per frame :: done
-// All alignment imports consolidated to cosmic::iced::alignment :: done
-
-// === DONE ===
-// Drawer contents now renders real pinned apps :: done
-// Right-click on drawer background → context menu (Add apps / Clear) :: done
-// Right-click on app in drawer → context menu (Remove) :: done
-// App picker modal: filter, add, remove, shows checkmark if already added :: done
-// Active drawer highlighted in sidebar :: done
-// App count shown next to each drawer name :: done
-// Search results view preserved unchanged :: done
-
-// === DONE ===
-// Removed rendering-time filesystem icon resolution :: done
-// Removed resolve_icon_path entirely :: done
-// UI now uses pre-resolved icon_path directly :: done
-// Zero filesystem access during typing/rendering :: done
-// Faster render path architecture implemented :: done
-// Grid layout preserved :: done
-// Lightweight mouse_area interactions preserved :: done
-
-// === DONE ===
-// Replaced heavy button widgets with lightweight mouse_area :: done
-// Direct clickable icons :: done
-// Added fallback icon support :: done
-// Added icon path resolution :: done
-// Removed expensive button styling :: done
-// Grid layout preserved :: done
-// Faster rendering + snappier scrolling :: done
+// drawer_contents_view: renders apps grid + files grid in same view :: done
+// Files section label shown only when both apps and files present :: done
+// drawer_file_icon(): emoji by extension, click = OpenDrawerFile, right-click = context menu :: done
+// file_emoji(): extension-to-emoji mapping covering common file types :: done
+// ContextMenu::DrawerFile: Open File + Remove from Drawer :: done
+// sidebar badge: item_count() = apps + files instead of apps only :: done
+// All existing app drag/drop, context menus, picker, modals unchanged :: done
+// Added file drop zone to drawer_contents_view — mirrors vault_ui.rs exactly :: done
+// Step 1: drop_inner as cosmic::Element via cosmic::widget::container :: done
+// Step 2: cosmic::widget::dnd_destination wraps drop_inner :: done
+//   on_enter → DrawerFileHover(Some(name)), on_leave → DrawerFileHover(None) :: done
+//   on_finish → parse text/uri-list → FilesDroppedOnDrawer :: done
+// Step 3: outer iced container(Themer::new(None, drop_dest)) applies hover style :: done
+// uri_decode() helper for percent-encoded file:// URIs :: done

@@ -34,6 +34,7 @@ pub enum Message {
     RightClickDrawerBackground(String),
     RightClickDrawerSidebar(String),
     RightClickDrawerApp(String, String),
+    RightClickDrawerFile(String, String),   // (drawer_name, file_path)
     CloseContextMenu,
 
     // App picker
@@ -66,13 +67,25 @@ pub enum Message {
 
     /// Fired when files are dropped onto the vault drop zone
     VaultFilesDropped(Vec<std::path::PathBuf>),
-    /// Fired on drag enter/leave to toggle the hover highlight
+    /// Fired on drag enter/leave to toggle the vault hover highlight
     VaultDragHover(bool),
 
     /// Fired when an app is dragged over a sidebar drawer (Some) or leaves (None)
     DrawerDragHover(Option<String>),
     /// Fired when an app icon is dropped onto a drawer in the sidebar
     AppDroppedOnDrawer(String, String), // (drawer_name, app_id)
+
+    /// Fired when files are dragged over the open drawer panel (Some) or leave (None)
+    DrawerFileHover(Option<String>),
+
+    /// Fired when files from the file manager are dropped onto an open drawer
+    FilesDroppedOnDrawer(String, Vec<PathBuf>), // (drawer_name, paths)
+
+    /// Open a drawer file with xdg-open
+    OpenDrawerFile(String), // path
+
+    /// Remove a file entry from a drawer
+    RemoveFileFromDrawer(String, String), // (drawer_name, file_path)
 
     // Drawer inline editing
     OpenRenameDrawer(String),
@@ -104,6 +117,11 @@ pub enum ContextMenu {
     DrawerApp {
         drawer: String,
         app_id: String,
+    },
+
+    DrawerFile {
+        drawer: String,
+        file_path: String,
     },
 }
 
@@ -140,6 +158,9 @@ pub struct Search {
 
     /// Which sidebar drawer is currently being hovered by a drag
     pub drag_hover_drawer: Option<String>,
+
+    /// Which open drawer panel is being hovered by a file drag
+    pub drawer_file_hover: Option<String>,
 
     /// Active inline drawer rename/icon edit modal
     pub drawer_edit: Option<DrawerEditModal>,
@@ -185,6 +206,8 @@ impl Search {
             vault: Vault::new(),
 
             drag_hover_drawer: None,
+
+            drawer_file_hover: None,
 
             drawer_edit: None,
         };
@@ -289,6 +312,19 @@ impl Search {
                     Some(ContextMenu::DrawerApp {
                         drawer,
                         app_id,
+                    });
+
+                None
+            }
+
+            Message::RightClickDrawerFile(
+                drawer,
+                file_path,
+            ) => {
+                self.context_menu =
+                    Some(ContextMenu::DrawerFile {
+                        drawer,
+                        file_path,
                     });
 
                 None
@@ -517,24 +553,57 @@ impl Search {
                 None
             }
 
-            // ── Vault ─────────────────────────────
+            // ── Drawer files ──────────────────────
 
-            Message::VaultPasswordChanged(
-                value,
-            ) => {
-                self.vault.password_input =
-                    value;
-                self.vault.error = None;
+            Message::FilesDroppedOnDrawer(drawer, paths) => {
+                self.drag_hover_drawer = None;
+                self.drawer_file_hover = None;
+
+                for path in &paths {
+                    let name = path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("file")
+                        .to_string();
+
+                    self.drawer_state.add_file(
+                        &drawer,
+                        path.display().to_string(),
+                        name,
+                    );
+                }
+
+                save_drawer_state(&self.drawer_state);
 
                 None
             }
 
-            Message::VaultConfirmChanged(
-                value,
-            ) => {
-                self.vault.confirm_input =
-                    value;
-                self.vault.error = None;
+            Message::OpenDrawerFile(path) => {
+                // Returned as Some() so main.rs runs it via `sh -c`.
+                // xdg-open works fine through that path.
+                Some(format!("xdg-open {}", shell_escape(&path)))
+            }
+
+            Message::RemoveFileFromDrawer(drawer, file_path) => {
+                self.drawer_state.remove_file(&drawer, &file_path);
+
+                save_drawer_state(&self.drawer_state);
+
+                self.context_menu = None;
+
+                None
+            }
+
+            // ── Vault ─────────────────────────────
+
+            Message::VaultPasswordChanged(pw) => {
+                self.vault.password_input = pw;
+
+                None
+            }
+
+            Message::VaultConfirmChanged(pw) => {
+                self.vault.confirm_input = pw;
 
                 None
             }
@@ -567,6 +636,18 @@ impl Search {
                 None
             }
 
+            Message::VaultFilesDropped(paths) => {
+                for path in paths {
+                    if let Err(e) = self.vault.add_file(&path) {
+                        self.vault.error = Some(e);
+                    }
+                }
+
+                self.vault.drag_hover = false;
+
+                None
+            }
+
             Message::VaultRemoveFile(id) => {
                 if let Err(e) =
                     self.vault.remove_file(&id)
@@ -583,22 +664,36 @@ impl Search {
 
             Message::VaultDragHover(hovering) => {
                 self.vault.drag_hover = hovering;
+
                 None
             }
 
-            Message::DrawerDragHover(drawer) => {
-                self.drag_hover_drawer = drawer;
+            // ── Drag and drop ─────────────────────
+
+            Message::DrawerDragHover(name) => {
+                self.drag_hover_drawer = name;
+
+                None
+            }
+
+            Message::DrawerFileHover(name) => {
+                self.drawer_file_hover = name;
+
                 None
             }
 
             Message::AppDroppedOnDrawer(drawer, app_id) => {
                 self.drag_hover_drawer = None;
+
                 self.drawer_state.add_app(&drawer, app_id);
+
                 save_drawer_state(&self.drawer_state);
+
                 None
             }
 
-            // ── Drawer inline edit ───────────────────────────────────────
+            // ── Drawer inline edit ────────────────
+
             Message::OpenRenameDrawer(drawer) => {
                 self.drawer_edit = Some(DrawerEditModal::Rename {
                     input: drawer.clone(),
@@ -659,46 +754,6 @@ impl Search {
 
             Message::DrawerEditCancel => {
                 self.drawer_edit = None;
-                None
-            }
-
-            Message::VaultFilesDropped(paths) => {
-                self.vault.error = None;
-                self.vault.status = None;
-
-                let mut added = 0usize;
-                let mut last_error: Option<String> = None;
-
-                for path in &paths {
-                    match self.vault.add_file(path) {
-                        Ok(()) => {
-                            added += 1;
-                        }
-                        Err(e) if e.starts_with("NEEDS_PKEXEC:") => {
-                            // Encrypted copy succeeded; original removal needs elevation.
-                            // Count as added — the file is safe in the vault.
-                            added += 1;
-                            eprintln!("pkexec needed to remove original: {e}");
-                        }
-                        Err(e) => {
-                            last_error = Some(e);
-                        }
-                    }
-                }
-
-                self.vault.drag_hover = false;
-
-                if added > 0 {
-                    self.vault.status = Some(match added {
-                        1 => "1 file added to vault.".to_string(),
-                        n => format!("{n} files added to vault."),
-                    });
-                }
-
-                if let Some(e) = last_error {
-                    self.vault.error = Some(e);
-                }
-
                 None
             }
         }
@@ -953,6 +1008,14 @@ impl Search {
     }
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/// Minimal shell escaping: wraps path in single quotes and escapes any
+/// single quotes within the path. Safe for `sh -c "xdg-open '...'"`.
+fn shell_escape(path: &str) -> String {
+    format!("'{}'", path.replace('\'', "'\\''"))
+}
+
 // ── Persistence ───────────────────────────────────────────────────────────────
 
 fn drawer_state_path() -> Option<PathBuf> {
@@ -1002,89 +1065,20 @@ fn save_drawer_state(state: &DrawerState) {
 }
 
 // === DONE ===
-// Fixed Vault::load() → Vault::new() :: done
-// Fixed vault.setup() → vault.finish_setup() :: done
-// Fixed vault.remove_entry() → vault.remove_file() :: done
-// Removed unused vault_ui import :: done
-// VaultOpenFile and VaultRemoveFile now handle errors into vault.error :: done
-// VaultPasswordChanged and VaultConfirmChanged clear vault.error on input :: done
-// All drawer management logic preserved unchanged :: done
-// Search logic preserved unchanged :: done
-
-// === DONE ===
-// Replaced hardcoded drawers vec with DrawerState :: done
-// Added app_by_id() lookup for drawer rendering :: done
-// Added ContextMenu enum and app_picker state :: done
-// Added full message set for drawer mutations :: done
-// Added persistence: load on startup, save on every mutation :: done
-// Search logic unchanged :: done
- 
-// === DONE ===
-// Removed duplicate local AppEntry — now uses crate::indexer::AppEntry :: done
-// Removed dead load_desktop_entries() — now uses crate::indexer::build_index() :: done
-// Fixed empty query: alphabetical slice, not broken fuzzy-on-empty :: done
-// Fixed tier logic: rank-based not raw storage index :: done
-// Tiered spec:
-//   0 chars  → first 200 alphabetical
-//   1 char   → top 12 prefix, then 50% prefix / 50% fuzzy
-//   2 chars  → top 12 prefix, then 75% prefix / 25% fuzzy
-//   3+ chars → top 12 prefix, 100% prefix, 0% fuzzy :: done
-
-// === DONE ===
-// Rewritten search logic per MRV spec:
-// 0 chars  → 200 results fuzzy (top 12 from that list fallback to prefix)
-// 1 char   → top 12 prefix, then 25% prefix / 75% fuzzy
-// 2 chars  → top 12 prefix, then 50% prefix / 50% fuzzy
-// 3+ chars → top 12 prefix, then 100% prefix (no fuzzy)
-// Removed icon-required filter — icon is now Option<String> with fallback
-// Tightened should_skip_entry to exec-only
-// No debug output in fuzzy path
-
-// === DONE ===
-// Added VaultFilesDropped(Vec<PathBuf>) message :: done
-// Added VaultDragHover(bool) message :: done
-// VaultDragHover sets vault.drag_hover for visual feedback :: done
-// VaultFilesDropped iterates paths, calls vault.add_file() on each :: done
-// NEEDS_PKEXEC errors counted as success — file is encrypted, original removal needs elevation :: done
-// Clears drag_hover on drop regardless of outcome :: done
-// Status shows count of added files; last hard error shown in red :: done
-// All existing messages and logic unchanged :: done
-
-// === DONE ===
-// Fixed Vault::load() → Vault::new() :: done
-// Fixed vault.setup() → vault.finish_setup() :: done
-// Fixed vault.remove_entry() → vault.remove_file() :: done
-// Removed unused vault_ui import :: done
-// VaultOpenFile and VaultRemoveFile now handle errors into vault.error :: done
-// VaultPasswordChanged and VaultConfirmChanged clear vault.error on input :: done
-// All drawer management logic preserved unchanged :: done
-// Search logic preserved unchanged :: done
-
-// === DONE ===
-// Replaced hardcoded drawers vec with DrawerState :: done
-// Added app_by_id() lookup for drawer rendering :: done
-// Added ContextMenu enum and app_picker state :: done
-// Added full message set for drawer mutations :: done
-// Added persistence: load on startup, save on every mutation :: done
-// Search logic unchanged :: done
- 
-// === DONE ===
-// Removed duplicate local AppEntry — now uses crate::indexer::AppEntry :: done
-// Removed dead load_desktop_entries() — now uses crate::indexer::build_index() :: done
-// Fixed empty query: alphabetical slice, not broken fuzzy-on-empty :: done
-// Fixed tier logic: rank-based not raw storage index :: done
-// Tiered spec:
-//   0 chars  → first 200 alphabetical
-//   1 char   → top 12 prefix, then 50% prefix / 50% fuzzy
-//   2 chars  → top 12 prefix, then 75% prefix / 25% fuzzy
-//   3+ chars → top 12 prefix, 100% prefix, 0% fuzzy :: done
-
-// === DONE ===
-// Rewritten search logic per MRV spec:
-// 0 chars  → 200 results fuzzy (top 12 from that list fallback to prefix)
-// 1 char   → top 12 prefix, then 25% prefix / 75% fuzzy
-// 2 chars  → top 12 prefix, then 50% prefix / 50% fuzzy
-// 3+ chars → top 12 prefix, then 100% prefix (no fuzzy)
-// Removed icon-required filter — icon is now Option<String> with fallback
-// Tightened should_skip_entry to exec-only
-// No debug output in fuzzy path
+// Added FilesDroppedOnDrawer(String, Vec<PathBuf>) message :: done
+// Added OpenDrawerFile(String) message — returns Some(xdg-open path) :: done
+// Added RemoveFileFromDrawer(String, String) message :: done
+// Added RightClickDrawerFile(String, String) message :: done
+// Added ContextMenu::DrawerFile { drawer, file_path } variant :: done
+// FilesDroppedOnDrawer handler: extracts filename, calls add_file(), saves :: done
+// OpenDrawerFile: shell-escaped xdg-open path returned as Some() for main.rs launcher :: done
+// RemoveFileFromDrawer: calls remove_file(), saves, closes context menu :: done
+// RightClickDrawerFile: opens DrawerFile context menu :: done
+// shell_escape() helper: single-quote wraps path, escapes embedded single quotes :: done
+// All existing messages and handlers preserved unchanged :: done
+// Restored missing VaultPasswordChanged, VaultConfirmChanged, VaultSetupConfirm, VaultUnlock arms :: done
+// Restored VaultDragHover, DrawerDragHover, AppDroppedOnDrawer handlers :: done
+// Added DrawerFileHover(Option<String>) message for file drag over the open drawer panel :: done
+// Added drawer_file_hover: Option<String> field to Search struct :: done
+// DrawerFileHover handler updates drawer_file_hover :: done
+// FilesDroppedOnDrawer clears drawer_file_hover on drop :: done

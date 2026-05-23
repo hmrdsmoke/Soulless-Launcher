@@ -6,11 +6,26 @@
 
 use serde::{Deserialize, Serialize};
 
+// ── File entry stored inside a drawer ────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DrawerFile {
+    /// Absolute path to the file on disk
+    pub path: String,
+    /// Display name (filename without leading path)
+    pub name: String,
+}
+
+// ── Drawer ────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Drawer {
     pub name: String,
     pub icon: String,
     pub apps: Vec<String>,
+    /// Files dropped from the file manager
+    #[serde(default)]
+    pub files: Vec<DrawerFile>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,21 +41,25 @@ impl Default for DrawerState {
                     name: "Daily Apps".to_string(),
                     icon: "⭐".to_string(),
                     apps: Vec::new(),
+                    files: Vec::new(),
                 },
                 Drawer {
                     name: "Work".to_string(),
                     icon: "💼".to_string(),
                     apps: Vec::new(),
+                    files: Vec::new(),
                 },
                 Drawer {
                     name: "Games".to_string(),
                     icon: "🎮".to_string(),
                     apps: Vec::new(),
+                    files: Vec::new(),
                 },
                 Drawer {
                     name: "Utilities".to_string(),
                     icon: "⚙".to_string(),
                     apps: Vec::new(),
+                    files: Vec::new(),
                 },
             ],
         }
@@ -74,6 +93,29 @@ impl DrawerState {
             .find(|d| d.name == drawer_name)
             .map(|d| d.apps.as_slice())
             .unwrap_or(&[])
+    }
+
+    pub fn files_in_drawer(
+        &self,
+        drawer_name: &str,
+    ) -> &[DrawerFile] {
+        self.drawers
+            .iter()
+            .find(|d| d.name == drawer_name)
+            .map(|d| d.files.as_slice())
+            .unwrap_or(&[])
+    }
+
+    /// Total item count (apps + files) for the sidebar badge.
+    pub fn item_count(
+        &self,
+        drawer_name: &str,
+    ) -> usize {
+        self.drawers
+            .iter()
+            .find(|d| d.name == drawer_name)
+            .map(|d| d.apps.len() + d.files.len())
+            .unwrap_or(0)
     }
 
     pub fn app_count(
@@ -120,6 +162,7 @@ impl DrawerState {
             name,
             icon,
             apps: Vec::new(),
+            files: Vec::new(),
         });
     }
 
@@ -264,22 +307,53 @@ impl DrawerState {
             .find(|d| d.name == drawer_name)
         {
             drawer.apps.clear();
+            drawer.files.clear();
+        }
+    }
+
+    // ── File Mutations ────────────────────────────────────────
+
+    /// Add a file to a drawer. Skips duplicates by path.
+    pub fn add_file(
+        &mut self,
+        drawer_name: &str,
+        path: String,
+        name: String,
+    ) {
+        if let Some(drawer) = self
+            .drawers
+            .iter_mut()
+            .find(|d| d.name == drawer_name)
+        {
+            if !drawer.files.iter().any(|f| f.path == path) {
+                drawer.files.push(DrawerFile { path, name });
+            }
+        }
+    }
+
+    /// Remove a file from a drawer by its path.
+    pub fn remove_file(
+        &mut self,
+        drawer_name: &str,
+        path: &str,
+    ) {
+        if let Some(drawer) = self
+            .drawers
+            .iter_mut()
+            .find(|d| d.name == drawer_name)
+        {
+            drawer.files.retain(|f| f.path != path);
         }
     }
 }
 
 // === DONE ===
-// Replaced HashMap architecture with ordered Vec<Drawer> model :: done
-// Added drawer icons :: done
-// Added ordered drawer support :: done
-// Added move up/down support :: done
-// Added create/delete drawer support :: done
-// Added rename drawer support :: done
-// Cleaner future animation architecture :: done
-// Persistence-compatible serde model :: done
-// Better long-term launcher scalability :: done
-
-// === DONE ===
-// Serialize/Deserialize derives present — ready for serde_json persistence :: done
-// DrawerState is now the single source of truth for drawer names and contents :: done
-// Used by search.rs: loaded at startup, saved on every mutation :: done
+// Added DrawerFile { path, name } struct :: done
+// Added files: Vec<DrawerFile> to Drawer with #[serde(default)] for back-compat :: done
+// Added files_in_drawer() accessor :: done
+// Added item_count() = apps + files (used for sidebar badge) :: done
+// Added add_file() / remove_file() mutations :: done
+// clear_drawer() now clears both apps and files :: done
+// create_drawer() initialises files: Vec::new() :: done
+// Default drawers all include files: Vec::new() :: done
+// Fully serde-compatible — old drawers.json loads fine (files defaults to []) :: done

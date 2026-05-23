@@ -1,8 +1,15 @@
+// MIT License - see LICENSE file for full terms
+//
+// Copyright 2026 Michael Van Auker (HMRDSmoke)
+// This is my original work with contributions from Grok (xAI).
+// Do not remove these comments.
+
+
 use cosmic::iced::keyboard::key::Named;
 use cosmic::iced::{
     Element, Length, Subscription, Task, Theme,
     event, keyboard,
-    widget::container,
+    widget::{column, container, row, Space},
     window,
 };
 use cosmic::iced::clipboard::dnd::{DndEvent, OfferEvent};
@@ -13,6 +20,8 @@ use std::path::PathBuf;
 mod drawers;
 mod drawers_state;
 mod indexer;
+mod network_monitor;
+mod system_monitor;
 mod position;
 mod search;
 mod vault;
@@ -20,19 +29,25 @@ mod vault_ui;
 
 use position::LauncherPosition;
 use search::Message as SearchMessage;
+use network_monitor::Message as NetworkMessage;
+use system_monitor::Message as SystemMessage;
 
 // ── Top-level message ─────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 pub enum Message {
     Search(SearchMessage),
+    Network(NetworkMessage),
+    System(SystemMessage),
     WindowEvent(cosmic::iced::Event),
 }
 
-// ── Application model ─────────────────────────────────────────
+// ── Application model ────────────────────────────────────────────────────────
 
 struct Soulless {
-    search: search::Search,
+    search:     search::Search,
+    network:    network_monitor::NetworkState,
+    system:     system_monitor::SystemState,
     cursor_pos: Option<cosmic::iced::Point>,
 }
 
@@ -40,7 +55,9 @@ impl Soulless {
     fn new() -> (Self, Task<Message>) {
         (
             Self {
-                search: search::Search::new(),
+                search:     search::Search::new(),
+                network:    network_monitor::NetworkState::new(),
+                system:     system_monitor::SystemState::new(),
                 cursor_pos: None,
             },
             Task::none(),
@@ -49,6 +66,16 @@ impl Soulless {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
+            Message::Network(msg) => {
+                self.network.update(msg);
+                Task::none()
+            }
+
+            Message::System(msg) => {
+                self.system.update(msg);
+                Task::none()
+            }
+
             Message::Search(msg) => {
                 if let Some(exec) = self.search.update(msg) {
                     let clean_exec = strip_desktop_placeholders(&exec);
@@ -67,7 +94,7 @@ impl Soulless {
                 }
             }
 
-            // ── Keyboard ──────────────────────────────────────────────────────
+            // ── Keyboard ──────────────────────────────────────────────────
             Message::WindowEvent(
                 cosmic::iced::Event::Keyboard(
                     keyboard::Event::KeyPressed { key, .. },
@@ -76,10 +103,11 @@ impl Soulless {
                 if matches!(key, keyboard::Key::Named(Named::Escape)) {
                     return cosmic::iced::exit::<Message>();
                 }
+
                 Task::none()
             }
 
-            // ── Track cursor position ────────────────────────────────────────
+            // ── Track cursor position ────────────────────────────────────
             Message::WindowEvent(cosmic::iced::Event::Mouse(
                 cosmic::iced::mouse::Event::CursorMoved { position },
             )) => {
@@ -87,64 +115,105 @@ impl Soulless {
                 Task::none()
             }
 
-            // ── Click outside → exit ──────────────────────────────────────────
+            // ── Click outside → exit ─────────────────────────────────────
             Message::WindowEvent(cosmic::iced::Event::Mouse(
                 cosmic::iced::mouse::Event::ButtonPressed(_),
             )) => {
-                // Exit if the click landed outside the window bounds.
-                // window_size() returns (width, height) as f32 via Size.
                 let size = LauncherPosition.window_size();
+
                 let outside = self.cursor_pos.map_or(false, |p| {
-                    p.x < 0.0 || p.y < 0.0
+                    p.x < 0.0
+                        || p.y < 0.0
                         || p.x > size.width
                         || p.y > size.height
                 });
+
                 if outside {
                     return cosmic::iced::exit::<Message>();
                 }
+
                 Task::none()
             }
 
-            // ── Drag-and-drop ─────────────────────────────────────────────────
+            // ── Drag-and-drop ────────────────────────────────────────────
+            // NOTE: drawer file drops are handled entirely by drawers.rs via
+            // dnd_destination on_finish. main.rs only handles vault drops and
+            // hover state updates here.
             Message::WindowEvent(cosmic::iced::Event::Dnd(dnd_event)) => {
                 use search::OpenDrawer;
 
-                if self.search.current_open_drawer != OpenDrawer::Vault {
-                    return Task::none();
-                }
-
                 match dnd_event {
                     DndEvent::Offer(_, OfferEvent::Enter { .. }) => {
-                        self.search.update(SearchMessage::VaultDragHover(true));
+                        match &self.search.current_open_drawer {
+                            OpenDrawer::Vault => {
+                                self.search.update(
+                                    SearchMessage::VaultDragHover(true),
+                                );
+                            }
+                            OpenDrawer::Pinned(name) => {
+                                let name = name.clone();
+                                self.search.update(
+                                    SearchMessage::DrawerDragHover(Some(name.clone())),
+                                );
+                                self.search.update(
+                                    SearchMessage::DrawerFileHover(Some(name)),
+                                );
+                            }
+                            OpenDrawer::Search => {}
+                        }
                     }
 
                     DndEvent::Offer(_, OfferEvent::Leave)
                     | DndEvent::Offer(_, OfferEvent::LeaveDestination) => {
-                        self.search.update(SearchMessage::VaultDragHover(false));
+                        self.search
+                            .update(SearchMessage::VaultDragHover(false));
+                        self.search
+                            .update(SearchMessage::DrawerDragHover(None));
+                        self.search
+                            .update(SearchMessage::DrawerFileHover(None));
                     }
 
-                    DndEvent::Offer(_, OfferEvent::Data { data, mime_type }) => {
+                    DndEvent::Offer(_, OfferEvent::Data {
+                        data,
+                        mime_type,
+                    }) => {
+                        // Only handle vault drops here — drawer drops are
+                        // handled by dnd_destination on_finish in drawers.rs.
                         if mime_type == "text/uri-list" {
-                            let payload = String::from_utf8_lossy(&data);
-                            let paths: Vec<PathBuf> = payload
-                                .lines()
-                                .map(str::trim)
-                                .filter(|l| l.starts_with("file://"))
-                                .filter_map(|l| {
-                                    let raw = l.trim_start_matches("file://");
-                                    let decoded = percent_decode_uri(raw);
-                                    let p = PathBuf::from(decoded);
-                                    if p.exists() { Some(p) } else { None }
-                                })
-                                .collect();
+                            if matches!(
+                                self.search.current_open_drawer,
+                                OpenDrawer::Vault
+                            ) {
+                                let payload = String::from_utf8_lossy(&data);
 
-                            if !paths.is_empty() {
-                                self.search.update(
-                                    SearchMessage::VaultFilesDropped(paths),
-                                );
+                                let paths: Vec<PathBuf> = payload
+                                    .lines()
+                                    .map(str::trim)
+                                    .filter(|l| l.starts_with("file://"))
+                                    .filter_map(|l| {
+                                        let raw =
+                                            l.trim_start_matches("file://");
+                                        let decoded = percent_decode_uri(raw);
+                                        let p = PathBuf::from(decoded);
+                                        if p.exists() { Some(p) } else { None }
+                                    })
+                                    .collect();
+
+                                if !paths.is_empty() {
+                                    self.search.update(
+                                        SearchMessage::VaultFilesDropped(paths),
+                                    );
+                                }
                             }
                         }
-                        self.search.update(SearchMessage::VaultDragHover(false));
+
+                        // Clear all hover states after drop
+                        self.search
+                            .update(SearchMessage::VaultDragHover(false));
+                        self.search
+                            .update(SearchMessage::DrawerDragHover(None));
+                        self.search
+                            .update(SearchMessage::DrawerFileHover(None));
                     }
 
                     _ => {}
@@ -158,8 +227,62 @@ impl Soulless {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        let content = drawers::view(&self.search)
-            .map(Message::Search);
+        // Main launcher content
+        let launcher_content = container(
+            drawers::view(&self.search).map(Message::Search),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill);
+
+        // Widget placeholder
+        let widget_box = || {
+            container(Space::new())
+                .width(Length::Fixed(140.0))
+                .height(Length::Fixed(70.0))
+                .style(|_| container::Style {
+                    background: Some(
+                        cosmic::iced::Color::from_rgba8(45, 45, 45, 0.90).into(),
+                    ),
+                    border: cosmic::iced::Border {
+                        radius: 12.0.into(),
+                        width: 1.0,
+                        color: cosmic::iced::Color::from_rgb8(70, 70, 70),
+                    },
+                    ..Default::default()
+                })
+        };
+
+        // Network monitor widget (top-left slot)
+        let net_widget = network_monitor::view(&self.network)
+            .map(Message::Network);
+
+        // System monitor widget (top-right slot)
+        let sys_widget = system_monitor::view(&self.system)
+            .map(Message::System);
+
+        // 2x2 widget grid
+        let widgets = column![
+            row![
+                net_widget,
+                sys_widget,
+            ]
+            .spacing(12),
+            row![
+                widget_box(),
+                widget_box(),
+            ]
+            .spacing(12),
+        ]
+        .spacing(12)
+        .padding([0, 16, 16, 16]);
+
+        // Entire layout
+        let content = column![
+            launcher_content,
+            widgets,
+        ]
+        .spacing(0)
+        .height(Length::Fill);
 
         container(content)
             .width(Length::Fill)
@@ -179,11 +302,15 @@ impl Soulless {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        event::listen().map(Message::WindowEvent)
+        Subscription::batch([
+            event::listen().map(Message::WindowEvent),
+            network_monitor::subscription().map(Message::Network),
+            system_monitor::subscription().map(Message::System),
+        ])
     }
 }
 
-// ── Entry point ───────────────────────────────────────────────────────────────
+// ── Entry point ──────────────────────────────────────────────────────────────
 
 fn main() -> cosmic::iced::Result {
     if !ensure_single_instance() {
@@ -210,7 +337,7 @@ fn main() -> cosmic::iced::Result {
     .run()
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 fn strip_desktop_placeholders(exec: &str) -> String {
     let mut result = String::with_capacity(exec.len());
@@ -226,6 +353,7 @@ fn strip_desktop_placeholders(exec: &str) -> String {
                 continue;
             }
         }
+
         result.push(c);
     }
 
@@ -249,6 +377,7 @@ fn ensure_single_instance() -> bool {
         if file.try_lock_exclusive().is_ok() {
             #[allow(clippy::mem_forget)]
             Box::leak(Box::new(file));
+
             return true;
         }
     }
@@ -256,7 +385,7 @@ fn ensure_single_instance() -> bool {
     false
 }
 
-// ── URI percent-decoding ──────────────────────────────────────────────────────
+// ── URI percent-decoding ────────────────────────────────────────────────────
 
 fn percent_decode_uri(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
@@ -274,6 +403,7 @@ fn percent_decode_uri(input: &str) -> String {
                 continue;
             }
         }
+
         out.push(bytes[i] as char);
         i += 1;
     }
@@ -291,50 +421,26 @@ fn hex_nibble(b: u8) -> Option<u8> {
 }
 
 // === Done ===
-// Added superkey opens 
-// added press outside closes
+// Added superkey opens
+// Added press outside closes
 
 // === DONE ===
-// Added Event::Dnd handling in update() via the existing subscription :: done
-// OfferEvent::Enter  → VaultDragHover(true)  :: done
-// OfferEvent::Leave / LeaveDestination → VaultDragHover(false) :: done
-// OfferEvent::Data   → parse text/uri-list → VaultFilesDropped :: done
-// Only fires when current_open_drawer == Vault :: done
-// percent_decode_uri handles %20 and other encoded path chars :: done
-// dnd_destination widget removed — no cosmic::Theme conflict :: done
-// All other update arms unchanged :: done
-
-// === DONE ===
-// Switched back to cosmic::iced::application() for full window control :: done
-// decorations(false) — protocol-level request to compositor: no decorations :: done
-// resizable(false) — no resize border :: done
-// transparent(true) — rounded corners on Wayland :: done
-// Theme::Dark preserved :: done
-// Single-instance lock preserved :: done
-// strip_desktop_placeholders preserved :: done
-
-// === DONE ===
-// client_decorations(false) — removes title bar and window buttons :: done
-// resizable(None) — disables resize border entirely :: done
-// transparent(true) — keeps rounded corners on Wayland :: done
-// exit_on_close(false) — exit controlled by Escape/launch, not window X :: done
-// is_daemon(false) — foreground launcher window :: done
-// cosmic::app::run() — uses wgpu renderer on Wayland :: done
-// Single-instance lock preserved :: done
-// strip_desktop_placeholders preserved :: done
-
-// === DONE ===
-// Replaced cosmic::iced::application() with cosmic::Application trait :: done
-// Now uses cosmic::app::run() which selects wgpu on Wayland :: done
-// cosmic::app::Settings replaces the chained builder :: done
-// KeyPressed handling preserved via event::listen_with :: done
-// Single-instance lock preserved :: done
-// strip_desktop_placeholders preserved :: done
-
-// === DONE ===
-// Removed unsupported text_input::Id API :: done
-// Removed unsupported text_input::focus API :: done
-// Removed unsupported FocusSearchBar message :: done
-// Launcher still exits after app launch :: done
-// transparent(true) retained for Wayland rounded corners :: done
-// Single-instance lock retained :: done
+// DnD Enter: hover state now set per current_open_drawer (Vault or Pinned) :: done
+// DnD Leave/LeaveDestination: clears both vault and drawer hover :: done
+// DnD Data: vault-only — drawer drops handled by dnd_destination on_finish in drawers.rs :: done
+//   Vault  → VaultFilesDropped(paths) :: done
+//   Pinned → handled by drawers.rs on_finish (not here) :: done
+//   Search → ignored :: done
+// Both hover states cleared after every drop :: done
+// DrawerFileHover(Some(name)) fired on DnD Enter for Pinned drawer :: done
+// DrawerFileHover(None) fired on DnD Leave, LeaveDestination, and after drop :: done
+// Added network_monitor mod (src/network_monitor/) :: done
+// NetworkState field on Soulless, initialised in new() :: done
+// Network(NetworkMessage) variant dispatches to network.update() :: done
+// network_monitor::subscription() batched with event::listen() :: done
+// Top-left widget_box replaced with network_monitor::view() :: done
+// Added system_monitor mod (src/system_monitor/) :: done
+// SystemState field on Soulless, initialised in new() :: done
+// System(SystemMessage) variant dispatches to system.update() :: done
+// system_monitor::subscription() batched into Subscription::batch :: done
+// Top-right widget_box replaced with system_monitor::view() :: done

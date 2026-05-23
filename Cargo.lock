@@ -4665,6 +4665,7 @@ dependencies = [
  "libcosmic",
  "nucleo-matcher",
  "once_cell",
+ "percent-encoding",
  "rand 0.8.6",
  "resvg 0.44.0",
  "secrecy",
