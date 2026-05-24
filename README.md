@@ -2,8 +2,6 @@
 
 **Open Source — MIT License**
 
-still in testing !!!!!
-
 I hated computers.
 
 Straight up. I only turned my PC on to game. Everything else pissed me off. Then Grok hit me with “Why don’t you try Pop!_OS?”
