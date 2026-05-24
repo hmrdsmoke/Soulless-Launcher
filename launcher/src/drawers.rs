@@ -26,8 +26,7 @@ use cosmic::iced::clipboard::mime::{AllowedMimeTypes, AsMimeTypes};
 use cosmic::widget::dnd_destination;
 use cosmic::widget::dnd_destination::dnd_destination_for_data;
 
-const TOOLBOX_WIDTH: f32 = 360.0;
-const RIGHT_PANEL_WIDTH: f32 = 560.0;
+use crate::position::layout::{TOOLBOX_WIDTH, RIGHT_PANEL_WIDTH};
 const GRID_COLUMNS: usize = 4;
 const ICON_SIZE: f32 = 64.0;
 
@@ -85,6 +84,7 @@ pub fn view<'a>(
     search: &'a crate::search::Search,
 ) -> Element<'a, SearchMessage> {
     let search_bar = text_input("Search all apps...", &search.query)
+        .id(cosmic::widget::Id::new("soulless-search-bar"))
         .on_input(SearchMessage::QueryChanged)
         .on_submit(SearchMessage::SearchBarClicked)
         .padding(16)
