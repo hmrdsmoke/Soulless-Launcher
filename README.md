@@ -1,5 +1,8 @@
 # Soulless Launcher
 
+TO INSTALL
+git clone --recurse-submodules https://github.com/hmrdsmoke/Soulless-Launcher.git
+
 **Open Source — MIT License**
 
 I hated computers.
