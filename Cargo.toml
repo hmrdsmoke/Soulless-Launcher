@@ -1,71 +1,104 @@
 # MIT License - see LICENSE file for full terms
 # Copyright 2026 Michael Van Auker (HMRDSmoke)
-# This is my original work with contributions from Grok (xAI).
+# This is my original work with contributions from Claude (Anthropic).
 # Do not remove these comments.
 
-[package]
-name = "soulless-launcher"
-version = "0.1.0"
-edition = "2024"
-authors = ["Michael Van Auker (HMRDSmoke)"]
-description = "The replacement app launcher for Cosmic"
+[workspace]
+resolver = "2"
+members = [
+    "launcher",
+    "applet",
+]
 
-[dependencies]
-# Frozen exact versions — do not touch without full re-test (per Michael's directive)
-nucleo-matcher = "0.3.1"                    # tested against this exact version :: MRV
-freedesktop-desktop-entry = "0.6.2"         # tested against this exact version :: MRV
-dirs = "5.0.1"                              # pinned exact :: MRV
-fs2 = "0.4.3"                               # pinned exact :: MRV
+# ===========================================================================
+# Shared dependency versions — single source of truth for the whole workspace.
+# Update here and it propagates to all crates. :: MRV
+# ===========================================================================
+
+[workspace.package]
+version      = "0.1.0"
+edition      = "2024"
+authors      = ["Michael Van Auker (HMRDSmoke)"]
+license      = "MIT"
+repository   = "https://github.com/hmrdsmoke/soulless-launcher"
+homepage     = "https://github.com/hmrdsmoke/soulless-launcher"
+readme       = "README.md"
+
+[workspace.dependencies]
+# ── UI framework ─────────────────────────────────────────────────────────────
 cosmic = { git = "https://github.com/pop-os/libcosmic", branch = "master", package = "libcosmic", features = ["tokio", "wayland", "winit"] }
-serde_json = "1.0.149"                      # pinned exact :: MRV
-serde = { version = "1.0.228", features = ["derive"] }  # pinned exact :: MRV
-resvg = "0.44.0"
-tiny-skia = "0.11.4"
-percent-encoding = "2.0.0"
-sysinfo = "0.39.2"
-nvml-wrapper = "0.10"                       # NVIDIA GPU stats via NVML :: MRV
 
- # Vault security implemented commented out :: MRV
-argon2 = "0.5.3"
+# ── Search ────────────────────────────────────────────────────────────────────
+nucleo-matcher = "0.3.1"                    # pinned exact :: MRV
+
+# ── Desktop integration ───────────────────────────────────────────────────────
+freedesktop-desktop-entry = "0.6.2"         # pinned exact :: MRV
+dirs = "5.0.1"                              # pinned exact :: MRV
+
+# ── Serialization ─────────────────────────────────────────────────────────────
+serde       = { version = "1.0.228", features = ["derive"] }
+serde_json  = "1.0.149"
+bincode     = "1.3.3"
+
+# ── System monitoring ─────────────────────────────────────────────────────────
+sysinfo      = "0.39.2"
+nvml-wrapper = "0.10"                       # NVIDIA GPU stats :: MRV
+
+# ── Graphics ──────────────────────────────────────────────────────────────────
+resvg       = "0.44.0"
+tiny-skia   = "0.11.4"
+
+# ── Vault security ────────────────────────────────────────────────────────────
+argon2          = "0.5.3"
 chacha20poly1305 = "0.10.0"
-rand = "0.8.5"
-secrecy = "0.8.0"
-zeroize = "1.8.1"
-bincode = "1.3.3"
-once_cell = "1.19.0"
+rand            = "0.8.5"
+secrecy         = "0.8.0"
+zeroize         = "1.8.1"
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+fs2              = "0.4.3"                  # pinned exact :: MRV
+once_cell        = "1.19.0"
+percent-encoding = "2.0.0"
+
+# ── Applet ────────────────────────────────────────────────────────────────────
+futures-util  = "0.3.31"
+i18n-embed-fl = "0.10"
+rust-embed    = "8.7.2"
+tokio         = { version = "1.48.0", features = ["full"] }
+
+[workspace.dependencies.i18n-embed]
+version  = "0.16"
+features = ["fluent-system", "desktop-requester"]
 
 # ===========================================================================
 # RELEASE PROFILE — shipped binary, fully optimized and stripped :: MRV
 # Use: cargo build --release
 # ===========================================================================
 [profile.release]
-lto = "fat"
+lto           = "fat"
 codegen-units = 1
-opt-level = 3
-panic = "abort"
-strip = true
-debug = true  # uncomment only if attaching a debugger to release :: MRV
-
+opt-level     = 3
+panic         = "abort"
+strip         = true
 
 # ===========================================================================
-# PROFILING PROFILE — release speed, debug symbols intact :: MRV
-# Use: cargo build --profile release-with-debug
-#      cargo flamegraph --profile release-with-debug --bin soulless-launcher
+# PROFILING — release speed, debug symbols intact :: MRV
+# Use: cargo build --profile profiling
+#      cargo flamegraph --profile profiling --bin soulless-launcher
 # ===========================================================================
-# [profile.release-with-debug]
-# inherits = "release"
-# strip = false
-# debug = true
-# lto = "thin"  # swap to thin if flamegraph builds are too slow :: MRV
+[profile.profiling]
+inherits = "release"
+strip    = false
+debug    = true
+lto      = "thin"
 
-
 # ===========================================================================
-# FAST DEV RELEASE — quicker compile, no LTO, for day-to-day --release testing :: MRV
-# Use: cargo build --profile release-dev
+# DEV RELEASE — fast compile, no LTO, for day-to-day testing :: MRV
+# Use: cargo build --profile dev-release
 # ===========================================================================
-# [profile.release-dev]
-# inherits = "release"
-# lto = "thin"
-# codegen-units = 4
-# strip = false
-# debug = false
+[profile.dev-release]
+inherits      = "release"
+lto           = "thin"
+codegen-units = 4
+strip         = false
+debug         = false
