@@ -1,0 +1,3 @@
+[submodule "applet"]
+	path = applet
+	url = https://github.com/hmrdsmoke/soulless-applet.git
