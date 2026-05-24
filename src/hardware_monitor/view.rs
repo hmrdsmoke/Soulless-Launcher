@@ -16,65 +16,69 @@ use crate::hardware_monitor::{
 
 /// Renders the hardware monitor into a 140×90 widget box.
 ///
-/// Layout (measured):
-///   padding-top:  4px
-///   graph:       28px
-///   spacing:      4px
-///   label row:   ~11px  (size 9 text)
-///   spacing:      2px
-///   value row:   ~11px  (size 9 text)
-///   spacing:      2px
-///   sub row:     ~11px  (size 9 text)
-///   padding-bot:  4px
-///   total:       ~77px → use 90px for breathing room
+/// Shows temperatures and clock frequencies only —
+/// usage % is handled by the system monitor widget.
+///
+/// Layout:
+///   [ temp sparkline — CPU + GPU temp over time    ]
+///   [ CPU col         | GPU col      | RAM col     ]
+///   [ temp / freq     | temp / core  | freq MHz    ]
 pub fn view(state: &HardwareMonitorState) -> Element<'_, Message> {
     let hw = &state.hw;
 
-    // ── Sparkline ─────────────────────────────────────────────────────────────
+    // ── Sparkline — CPU and GPU temp histories ────────────────────────────────
     let graph: Element<'_, Message> = canvas(HwGraph::new(
         hw.cpu_history.clone(),
         hw.gpu_history.clone(),
-        hw.ram_history.clone(),
+        vec![],
     ))
     .width(Length::Fill)
     .height(Length::Fixed(28.0))
     .into();
 
     // ── CPU column ────────────────────────────────────────────────────────────
-    let cpu_temp_color = temp_color(hw.cpu_temp, CPU_COLOR);
+    let cpu_temp_color = temp_color(hw.cpu_temp_c, CPU_COLOR);
+
+    let cpu_temp_str = hw.cpu_temp_c
+        .map(|t| format!("{:.0}°C", t))
+        .unwrap_or_else(|| "—".to_string());
 
     let cpu_col = column![
         text("cpu").size(9).color(CPU_COLOR),
-        text(fmt_pct(hw.cpu_usage)).size(9),
-        text(fmt_freq(hw.cpu_freq_mhz)).size(9).color(cpu_temp_color),
+        text(cpu_temp_str).size(9).color(cpu_temp_color),
+        text(fmt_cpu_freq(hw.cpu_freq_mhz)).size(9),
     ]
     .spacing(1)
     .width(Length::Fill);
 
     // ── GPU column ────────────────────────────────────────────────────────────
-    let gpu_temp_color = temp_color(hw.gpu_temp.map(|t| t as f32), GPU_COLOR);
+    let gpu_temp_color = temp_color(hw.gpu_temp_c.map(|t| t as f32), GPU_COLOR);
 
-    let gpu_usage_str = hw.gpu_usage
-        .map(|u| fmt_pct(u as f32))
+    let gpu_temp_str = hw.gpu_temp_c
+        .map(|t| format!("{}°C", t))
         .unwrap_or_else(|| "—".to_string());
 
-    let gpu_temp_str = hw.gpu_temp
-        .map(fmt_temp_u32)
+    let gpu_clock_str = hw.gpu_clock_mhz
+        .map(|c| format!("{} MHz", c))
         .unwrap_or_else(|| "—".to_string());
 
     let gpu_col = column![
         text("gpu").size(9).color(GPU_COLOR),
-        text(gpu_usage_str).size(9),
         text(gpu_temp_str).size(9).color(gpu_temp_color),
+        text(gpu_clock_str).size(9),
     ]
     .spacing(1)
     .width(Length::Fill);
 
     // ── RAM column ────────────────────────────────────────────────────────────
+    let ram_freq_str = hw.ram_freq_mhz
+        .map(|f| format!("{} MHz", f))
+        .unwrap_or_else(|| "—".to_string());
+
     let ram_col = column![
         text("ram").size(9).color(RAM_COLOR),
-        text(fmt_pct(hw.ram_pct)).size(9),
-        text(fmt_ram(hw.ram_used_mb, hw.ram_total_mb)).size(9),
+        text(ram_freq_str).size(9),
+        text("").size(9),
     ]
     .spacing(1)
     .width(Length::Fill);
@@ -104,32 +108,31 @@ pub fn view(state: &HardwareMonitorState) -> Element<'_, Message> {
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
-fn fmt_pct(v: f32) -> String {
-    format!("{:.0}%", v)
-}
-
-fn fmt_freq(mhz: u64) -> String {
+/// CPU freq: show GHz if >= 1000 MHz, else MHz
+fn fmt_cpu_freq(mhz: u64) -> String {
     if mhz >= 1000 {
-        format!("{:.1}G", mhz as f32 / 1000.0)
+        format!("{:.2} GHz", mhz as f32 / 1000.0)
+    } else if mhz > 0 {
+        format!("{} MHz", mhz)
     } else {
-        format!("{}M", mhz)
+        "—".to_string()
     }
 }
 
-fn fmt_temp_u32(t: u32) -> String {
-    format!("{}°", t)
-}
+// === DONE ===
+// MHz spelled out in full for GPU clock and RAM freq :: done
+// CPU freq auto-scales: GHz if >= 1000 MHz, MHz otherwise :: done
+// cpu col: label / temp°C (heat-coloured) / freq :: done
+// gpu col: label / temp°C (heat-coloured) / core clock MHz :: done
+// ram col: label / freq MHz (dmidecode, static) :: done
 
-fn fmt_ram(used_mb: u64, total_mb: u64) -> String {
-    if total_mb >= 4096 {
-        format!("{:.0}/{:.0}G",
-            used_mb  as f32 / 1024.0,
-            total_mb as f32 / 1024.0,
-        )
-    } else {
-        format!("{}M", used_mb)
-    }
-}
+// === DONE ===
+// Reworked: usage% removed — shows temp + freq only :: done
+// cpu col: label / temp°C (heat-coloured) / avg freq :: done
+// gpu col: label / temp°C (heat-coloured) / core clock MHz :: done
+// ram col: label / freq MHz (DMI, static) :: done
+// Sparkline tracks CPU + GPU temp history (not usage) :: done
+// RAM col has blank third row to keep column heights aligned :: done
 
 // === DONE ===
 // Fixed: container height bumped 70 → 90px to fit graph + 3-row stats :: done

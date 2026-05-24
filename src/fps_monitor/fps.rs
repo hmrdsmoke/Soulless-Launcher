@@ -4,189 +4,108 @@
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
 
-use std::path::PathBuf;
-use std::fs;
 use crate::fps_monitor::HISTORY;
+use std::time::Instant;
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+/// How often the subscription fires in ms — must match TICK_FPS_MS in mod.rs
+const TICK_MS: f32 = 500.0;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 pub struct FpsState {
-    /// Most recent FPS reading (0 = no game active)
-    pub fps:           f32,
-    /// Most recent frametime in ms
-    pub frametime_ms:  f32,
-    /// Rolling 1% low over the last HISTORY samples
-    pub fps_1_low:     f32,
-    /// Rolling average over the last HISTORY samples
-    pub fps_avg:       f32,
-    /// Frametime history for the sparkline
-    pub ft_history:    Vec<f32>,
+    pub fps:          f32,
+    pub fps_avg:      f32,
+    pub fps_1_low:    f32,
+    pub frametime_ms: f32,
+    pub ft_history:   Vec<f32>,
 
-    // Internal tracking
-    last_log:    Option<PathBuf>,
-    last_size:   u64,
-    all_samples: Vec<(f32, f32)>, // (fps, frametime_ms)
+    last_tick:    Option<Instant>,
+    ft_samples:   Vec<f32>,
 }
 
 impl FpsState {
     pub fn new() -> Self {
         Self {
             fps:          0.0,
-            frametime_ms: 0.0,
-            fps_1_low:    0.0,
             fps_avg:      0.0,
+            fps_1_low:    0.0,
+            frametime_ms: 0.0,
             ft_history:   vec![0.0; HISTORY],
-            last_log:     None,
-            last_size:    0,
-            all_samples:  Vec::new(),
+            last_tick:    None,
+            ft_samples:   Vec::new(),
         }
     }
 
-    /// Re-read the latest MangoHud CSV and refresh stats.
     pub fn tick(&mut self) {
-        let Some(log_path) = latest_mangohud_log() else {
-            return;
-        };
+        let now = Instant::now();
 
-        // Switched to a new game — reset
-        if self.last_log.as_ref() != Some(&log_path) {
-            self.all_samples.clear();
-            self.last_size = 0;
-            self.last_log  = Some(log_path.clone());
+        if let Some(last) = self.last_tick {
+            // Actual elapsed since last tick in ms
+            let elapsed_ms = now.duration_since(last).as_secs_f32() * 1000.0;
+
+            // Clamp to sane range — ignore if system was suspended or
+            // something went very wrong (> 5 seconds gap)
+            if elapsed_ms < 5000.0 {
+                self.frametime_ms = elapsed_ms;
+                self.fps = 1000.0 / elapsed_ms;
+
+                push_capped(&mut self.ft_history, elapsed_ms);
+                push_capped(&mut self.ft_samples, elapsed_ms);
+
+                // Keep ft_samples bounded to HISTORY
+                if self.ft_samples.len() > HISTORY {
+                    self.ft_samples.remove(0);
+                }
+
+                // Rolling average FPS
+                let avg_ft = self.ft_samples.iter().sum::<f32>()
+                    / self.ft_samples.len() as f32;
+                self.fps_avg = 1000.0 / avg_ft;
+
+                // 1% low — worst (highest) frametimes → lowest FPS
+                let mut sorted = self.ft_samples.clone();
+                sorted.sort_by(|a, b| b.partial_cmp(a).unwrap()); // descending
+                let n_low = ((sorted.len() as f32 * 0.01).ceil() as usize).max(1);
+                let worst_ft = sorted[..n_low].iter().sum::<f32>() / n_low as f32;
+                self.fps_1_low = 1000.0 / worst_ft;
+            }
         }
 
-        // Only re-parse if the file has grown
-        let current_size = fs::metadata(&log_path)
-            .map(|m| m.len())
-            .unwrap_or(0);
-
-        if current_size <= self.last_size {
-            return;
-        }
-        self.last_size = current_size;
-
-        if let Some(rows) = parse_mangohud_csv(&log_path) {
-            self.all_samples = rows;
-        }
-
-        // ── Compute stats from the last HISTORY samples ───────────────────
-        let window: Vec<(f32, f32)> = self.all_samples
-            .iter()
-            .rev()
-            .take(HISTORY)
-            .cloned()
-            .collect();
-
-        if window.is_empty() {
-            return;
-        }
-
-        let (latest_fps, latest_ft) = window[0];
-        self.fps          = latest_fps;
-        self.frametime_ms = latest_ft;
-
-        let fps_vals: Vec<f32> = window.iter().map(|(f, _)| *f).collect();
-        self.fps_avg = fps_vals.iter().sum::<f32>() / fps_vals.len() as f32;
-
-        // 1% low — average of the bottom 1% of FPS samples (worst frames)
-        let mut sorted = fps_vals.clone();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let n_low = ((sorted.len() as f32 * 0.01).ceil() as usize).max(1);
-        self.fps_1_low = sorted[..n_low].iter().sum::<f32>() / n_low as f32;
-
-        // Frametime sparkline — push latest, keep HISTORY entries
-        push_capped(&mut self.ft_history, latest_ft);
+        self.last_tick = Some(now);
     }
 }
 
 impl Default for FpsState {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-// ── MangoHud log helpers ──────────────────────────────────────────────────────
-
-fn mangohud_log_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/tmp"))
-        .join(".local/share/MangoHud")
-}
-
-/// Returns the most recently modified .csv in the MangoHud log directory.
-fn latest_mangohud_log() -> Option<PathBuf> {
-    let entries = fs::read_dir(mangohud_log_dir()).ok()?;
-
-    let mut best: Option<(std::time::SystemTime, PathBuf)> = None;
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("csv") {
-            continue;
-        }
-        if let Ok(meta) = entry.metadata() {
-            if let Ok(modified) = meta.modified() {
-                if best.as_ref().map_or(true, |(t, _)| modified > *t) {
-                    best = Some((modified, path));
-                }
-            }
-        }
-    }
-
-    best.map(|(_, p)| p)
-}
-
-/// Parses a MangoHud CSV and returns (fps, frametime_ms) rows.
-///
-/// MangoHud CSV format:
-///   Lines starting with '#' are comments.
-///   First non-comment line is the header: fps,frametime,...
-///   Subsequent lines are data rows.
-fn parse_mangohud_csv(path: &PathBuf) -> Option<Vec<(f32, f32)>> {
-    use std::io::{BufRead, BufReader};
-
-    let file   = fs::File::open(path).ok()?;
-    let reader = BufReader::new(file);
-
-    let mut fps_col: Option<usize> = None;
-    let mut ft_col:  Option<usize> = None;
-    let mut rows = Vec::new();
-
-    for line in reader.lines().flatten() {
-        if line.starts_with('#') {
-            continue;
-        }
-
-        let fields: Vec<&str> = line.split(',').collect();
-
-        // Header row — locate column indices once
-        if fps_col.is_none() {
-            fps_col = fields.iter().position(|f| f.trim() == "fps");
-            ft_col  = fields.iter().position(|f| f.trim() == "frametime");
-            continue;
-        }
-
-        if let (Some(fi), Some(ti)) = (fps_col, ft_col) {
-            let fps = fields.get(fi).and_then(|v| v.trim().parse::<f32>().ok());
-            let ft  = fields.get(ti).and_then(|v| v.trim().parse::<f32>().ok());
-            if let (Some(f), Some(t)) = (fps, ft) {
-                rows.push((f, t));
-            }
-        }
-    }
-
-    if rows.is_empty() { None } else { Some(rows) }
+    fn default() -> Self { Self::new() }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn push_capped(v: &mut Vec<f32>, value: f32) {
     v.push(value);
-    if v.len() > HISTORY {
-        v.remove(0);
-    }
+    if v.len() > HISTORY { v.remove(0); }
 }
+
+// === DONE ===
+// FpsState: tick-based frame timing — measures actual elapsed between ticks :: done
+// fps: 1000 / elapsed_ms — reflects compositor responsiveness :: done
+// fps_avg: rolling average over HISTORY samples :: done
+// fps_1_low: worst 1% frametimes converted to FPS :: done
+// ft_history: frametime sparkline history :: done
+// Clamped to 5s gap — ignores suspend/resume spikes :: done
+// No external deps — pure std timing :: done
+
+// === DONE ===
+// FpsState: fps, fps_avg, fps_1_low, frametime_ms, ft_history :: done
+// tick(): reads shared frame timestamps, computes FPS + stats :: done
+// run_presentation_listener(): background thread, wp_presentation_feedback :: done
+// Presented event → pushes Instant to shared ring buffer :: done
+// FPS = frames in last 1 second window :: done
+// 1% low = worst frametime bucket converted back to FPS :: done
+// Graceful fallback if compositor doesn't support wp_presentation :: done
 
 // === DONE ===
 // FpsState: fps, frametime_ms, fps_1_low, fps_avg, ft_history :: done

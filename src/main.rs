@@ -34,7 +34,7 @@ use search::Message as SearchMessage;
 use network_monitor::Message as NetworkMessage;
 use system_monitor::Message as SystemMessage;
 use hardware_monitor::Message as HardwareMessage;
-use fps_monitor::Message as FPSMessage;
+use fps_monitor::Message as FpsMessage;
 
 // ── Top-level message ─────────────────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ struct Soulless {
     search:     search::Search,
     network:    network_monitor::NetworkState,
     system:     system_monitor::SystemState,
-    hardware:   hardware_monitor::HardawreMonitorState,
+    hardware:   hardware_monitor::HardwareMonitorState,
     fps:        fps_monitor::FpsMonitorState,
     cursor_pos: Option<cosmic::iced::Point>,
 }
@@ -66,7 +66,7 @@ impl Soulless {
                 search:     search::Search::new(),
                 network:    network_monitor::NetworkState::new(),
                 system:     system_monitor::SystemState::new(),
-                hardwar:    hardwar_monitor::HardwareMonitorState::new(),
+                hardware:   hardware_monitor::HardwareMonitorState::new(),
                 fps:        fps_monitor::FpsMonitorState::new(),
                 cursor_pos: None,
             },
@@ -85,12 +85,12 @@ impl Soulless {
                 self.system.update(msg);
                 Task::none()
             }
-            
-            Message::hardware(msg) => {
-                self.hardwar.update(msg);
-                task::none()
+
+            Message::Hardware(msg) => {
+                self.hardware.update(msg);
+                Task::none()
             }
-            
+
             Message::Fps(msg) => {
                 self.fps.update(msg);
                 Task::none()
@@ -254,24 +254,6 @@ impl Soulless {
         .width(Length::Fill)
         .height(Length::Fill);
 
-        // Widget placeholder
-        let widget_box = || {
-            container(Space::new())
-                .width(Length::Fixed(140.0))
-                .height(Length::Fixed(70.0))
-                .style(|_| container::Style {
-                    background: Some(
-                        cosmic::iced::Color::from_rgba8(45, 45, 45, 0.90).into(),
-                    ),
-                    border: cosmic::iced::Border {
-                        radius: 12.0.into(),
-                        width: 1.0,
-                        color: cosmic::iced::Color::from_rgb8(70, 70, 70),
-                    },
-                    ..Default::default()
-                })
-        };
-
         // Network monitor widget (top-left slot)
         let net_widget = network_monitor::view(&self.network)
             .map(Message::Network);
@@ -279,11 +261,11 @@ impl Soulless {
         // System monitor widget (top-right slot)
         let sys_widget = system_monitor::view(&self.system)
             .map(Message::System);
-            
+
         // Hardware monitor widget (bottom-left slot)
         let hw_widget = hardware_monitor::view(&self.hardware)
             .map(Message::Hardware);
-            
+
         // FPS monitor widget (bottom-right slot)
         let fps_widget = fps_monitor::view(&self.fps)
             .map(Message::Fps);
@@ -296,8 +278,8 @@ impl Soulless {
             ]
             .spacing(12),
             row![
-                widget_box(),
-                widget_box(),
+                hw_widget,
+                fps_widget,
             ]
             .spacing(12),
         ]
@@ -474,3 +456,13 @@ fn hex_nibble(b: u8) -> Option<u8> {
 // System(SystemMessage) variant dispatches to system.update() :: done
 // system_monitor::subscription() batched into Subscription::batch :: done
 // Top-right widget_box replaced with system_monitor::view() :: done
+// Added hardware_monitor mod (src/hardware_monitor/) :: done
+// HardwareMonitorState field on Soulless, initialised in new() :: done
+// Hardware(HardwareMessage) variant dispatches to hardware.update() :: done
+// hardware_monitor::subscription() batched into Subscription::batch :: done
+// Bottom-left widget_box replaced with hardware_monitor::view() :: done
+// Added fps_monitor mod (src/fps_monitor/) :: done
+// FpsMonitorState field on Soulless, initialised in new() :: done
+// Fps(FpsMessage) variant dispatches to fps.update() :: done
+// fps_monitor::subscription() batched into Subscription::batch :: done
+// Bottom-right widget_box replaced with fps_monitor::view() :: done

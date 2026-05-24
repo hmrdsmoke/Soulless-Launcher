@@ -17,7 +17,7 @@ use std::time::Duration;
 pub const HISTORY: usize = 60;
 
 /// How often we re-read the MangoHud log file.
-const TICK_FPS_MS: u64 = 500;
+const TICK_FPS_MS: u64 = 16;
 
 // ── Message ───────────────────────────────────────────────────────────────────
 
