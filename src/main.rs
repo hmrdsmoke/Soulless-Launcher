@@ -22,6 +22,8 @@ mod drawers_state;
 mod indexer;
 mod network_monitor;
 mod system_monitor;
+mod hardware_monitor;
+mod fps_monitor;
 mod position;
 mod search;
 mod vault;
@@ -31,6 +33,8 @@ use position::LauncherPosition;
 use search::Message as SearchMessage;
 use network_monitor::Message as NetworkMessage;
 use system_monitor::Message as SystemMessage;
+use hardware_monitor::Message as HardwareMessage;
+use fps_monitor::Message as FPSMessage;
 
 // ── Top-level message ─────────────────────────────────────────────────────────
 
@@ -39,6 +43,8 @@ pub enum Message {
     Search(SearchMessage),
     Network(NetworkMessage),
     System(SystemMessage),
+    Hardware(HardwareMessage),
+    Fps(FpsMessage),
     WindowEvent(cosmic::iced::Event),
 }
 
@@ -48,6 +54,8 @@ struct Soulless {
     search:     search::Search,
     network:    network_monitor::NetworkState,
     system:     system_monitor::SystemState,
+    hardware:   hardware_monitor::HardawreMonitorState,
+    fps:        fps_monitor::FpsMonitorState,
     cursor_pos: Option<cosmic::iced::Point>,
 }
 
@@ -58,6 +66,8 @@ impl Soulless {
                 search:     search::Search::new(),
                 network:    network_monitor::NetworkState::new(),
                 system:     system_monitor::SystemState::new(),
+                hardwar:    hardwar_monitor::HardwareMonitorState::new(),
+                fps:        fps_monitor::FpsMonitorState::new(),
                 cursor_pos: None,
             },
             Task::none(),
@@ -73,6 +83,16 @@ impl Soulless {
 
             Message::System(msg) => {
                 self.system.update(msg);
+                Task::none()
+            }
+            
+            Message::hardware(msg) => {
+                self.hardwar.update(msg);
+                task::none()
+            }
+            
+            Message::Fps(msg) => {
+                self.fps.update(msg);
                 Task::none()
             }
 
@@ -259,6 +279,14 @@ impl Soulless {
         // System monitor widget (top-right slot)
         let sys_widget = system_monitor::view(&self.system)
             .map(Message::System);
+            
+        // Hardware monitor widget (bottom-left slot)
+        let hw_widget = hardware_monitor::view(&self.hardware)
+            .map(Message::Hardware);
+            
+        // FPS monitor widget (bottom-right slot)
+        let fps_widget = fps_monitor::view(&self.fps)
+            .map(Message::Fps);
 
         // 2x2 widget grid
         let widgets = column![
@@ -306,6 +334,8 @@ impl Soulless {
             event::listen().map(Message::WindowEvent),
             network_monitor::subscription().map(Message::Network),
             system_monitor::subscription().map(Message::System),
+            hardware_monitor::subscription().map(Message::Hardware),
+            fps_monitor::subscription().map(Message::Fps),
         ])
     }
 }

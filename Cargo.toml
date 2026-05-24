@@ -22,6 +22,7 @@ serde = { version = "1.0.228", features = ["derive"] }  # pinned exact :: MRV
 resvg = "0.44.0"
 tiny-skia = "0.11.4"
 percent-encoding = "2.0.0"
+sysinfo = "0.39.2"
 
  # Vault security implemented commented out :: MRV
 argon2 = "0.5.3"
@@ -31,7 +32,6 @@ secrecy = "0.8.0"
 zeroize = "1.8.1"
 bincode = "1.3.3"
 once_cell = "1.19.0"
-
 
 # ===========================================================================
 # RELEASE PROFILE — shipped binary, fully optimized and stripped :: MRV
