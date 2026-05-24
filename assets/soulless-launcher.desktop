@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Soulless Launcher
+Comment=The Soulless app launcher for COSMIC
+Exec=soulless-launcher
+Icon=com.github.hmrdsmoke.soulless-applet
+Type=Application
+Categories=Utility;
