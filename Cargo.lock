@@ -5111,6 +5111,7 @@ dependencies = [
  "dirs 5.0.1",
  "freedesktop-desktop-entry",
  "fs2",
+ "futures-util",
  "libcosmic 1.0.0 (git+https://github.com/pop-os/libcosmic?branch=master)",
  "nucleo-matcher",
  "nvml-wrapper",
