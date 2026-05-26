@@ -24,6 +24,7 @@ LAUNCHER_DESK := assets/soulless-launcher.desktop
 APPLET_DESK   := assets/soulless-applet.desktop
 ICON          := assets/com.github.hmrdsmoke.soulless-applet.png
 APPLET_ID     := com.github.hmrdsmoke.soulless-applet
+SHORTCUT_DIR  := $(HOME)/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1
 
 .PHONY: all release install uninstall clean
 
@@ -49,6 +50,12 @@ install: release
 	install -Dm644 $(ICON) $(ICONDIR_16)/$(APPLET_ID).png
 	install -Dm644 $(ICON) $(ICONDIR_22)/$(APPLET_ID).png
 	install -Dm644 $(ICON) $(ICONDIR_24)/$(APPLET_ID).png
+	@echo "Installing soulless-activate → $(BINDIR)/soulless-activate"
+	printf '#!/bin/sh\n/usr/bin/dbus-send --session --print-reply --dest=com.github.hmrdsmoke.SoullessApplet /com/github/hmrdsmoke/SoullessApplet com.github.hmrdsmoke.SoullessApplet.Activate\n' > /tmp/soulless-activate
+	install -Dm755 /tmp/soulless-activate $(BINDIR)/soulless-activate
+	@echo "Installing COSMIC shortcut..."
+	mkdir -p $(SHORTCUT_DIR)
+	@if [ ! -f $(SHORTCUT_DIR)/custom ]; then 		printf '{\n    (\n        modifiers: [\n            Super,\n        ],\n        key: "space",\n        description: Some("Soulless Launcher"),\n    ): Spawn("soulless-activate"),\n}\n' > $(SHORTCUT_DIR)/custom; 		echo "  → Super+Space shortcut installed."; 	fi
 	@echo "Updating icon cache and desktop database..."
 	gtk-update-icon-cache /usr/share/icons/hicolor 2>/dev/null || true
 	update-desktop-database $(APPDIR) 2>/dev/null || true
@@ -60,6 +67,7 @@ install: release
 uninstall:
 	@echo "Removing Soulless..."
 	rm -f $(BINDIR)/soulless-launcher
+	rm -f $(BINDIR)/soulless-activate
 	rm -f $(BINDIR)/$(APPLET_ID)
 	rm -f $(APPDIR)/soulless-launcher.desktop
 	rm -f $(APPDIR)/$(APPLET_ID).desktop
