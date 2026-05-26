@@ -114,6 +114,14 @@ impl Soulless {
                 }
             }
 
+            // ── Focus search bar on window focus ──────────────────────────
+            Message::WindowEvent(cosmic::iced::Event::Window(
+                window::Event::Focused,
+            )) => {
+                return cosmic::widget::text_input::focus(
+                    cosmic::widget::Id::new("soulless-search-bar")
+                );
+            }
             // ── Keyboard ──────────────────────────────────────────────────
             Message::WindowEvent(
                 cosmic::iced::Event::Keyboard(
