@@ -4,8 +4,8 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
-use crate::indexer::{AppEntry, AppSource};
-use crate::indexer::icon::IconCache;
+use super::{AppEntry, AppSource};
+use super::icon::IconCache;
 use nucleo_matcher::Utf32String;
 use std::collections::HashSet;
 use std::fs;

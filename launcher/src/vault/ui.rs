@@ -5,7 +5,7 @@
 // Do not remove these comments.
 
 use crate::search::Message as SearchMessage;
-use crate::vault::{Vault, VaultLockState};
+use super::{Vault, VaultLockState};
 
 use cosmic::iced::widget::{
     column, container, mouse_area, row, scrollable, space, text,
@@ -304,7 +304,7 @@ fn files_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
 // ── Individual file row ───────────────────────────────────────────────────────
 
 fn file_row<'a>(
-    entry: &'a crate::vault::VaultEntry,
+    entry: &'a super::VaultEntry,
 ) -> Element<'a, SearchMessage> {
     let icon = file_icon(&entry.meta.mime_type);
     let name = text(entry.meta.original_name.as_str()).size(14);

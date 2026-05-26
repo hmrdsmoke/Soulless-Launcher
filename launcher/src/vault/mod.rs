@@ -610,3 +610,4 @@ fn mime_from_path(path: &Path) -> String {
 // Ready for future integration with age or other crypto :: MRV
 // === DONE ===
 // Basic vault UI structure ready for expansion
+pub mod ui;

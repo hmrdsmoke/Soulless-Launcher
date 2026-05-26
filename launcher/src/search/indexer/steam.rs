@@ -4,7 +4,7 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
-use crate::indexer::{AppEntry, AppSource};
+use super::{AppEntry, AppSource};
 use nucleo_matcher::Utf32String;
 use std::fs;
 
@@ -92,7 +92,7 @@ fn resolve_steam_icon(appid: &str) -> String {
         }
     }
 
-    crate::indexer::icon::FALLBACK_ICON.to_string()
+    super::icon::FALLBACK_ICON.to_string()
 }
 
 /// Extracts a quoted string value from a Steam .acf manifest field.

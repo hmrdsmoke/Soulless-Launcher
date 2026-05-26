@@ -48,7 +48,7 @@ pub enum AppSource {
     Proton,
 }
 
-use crate::indexer::icon::IconCache;
+use crate::search::indexer::icon::IconCache;
 
 pub fn build_index() -> Vec<AppEntry> {
     let mut apps = Vec::new();

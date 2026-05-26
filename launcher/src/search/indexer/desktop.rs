@@ -4,8 +4,8 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
-use crate::indexer::icon::IconCache;
-use crate::indexer::{AppEntry, AppSource};
+use super::icon::IconCache;
+use super::{AppEntry, AppSource};
 
 use freedesktop_desktop_entry::DesktopEntry;
 use nucleo_matcher::Utf32String;

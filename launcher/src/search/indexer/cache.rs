@@ -1,4 +1,4 @@
-use crate::indexer::AppEntry;
+use super::AppEntry;
 use std::fs;
 use std::path::PathBuf;
 

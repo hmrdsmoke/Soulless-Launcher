@@ -6,7 +6,7 @@
 
 use std::convert::Infallible;
 
-use crate::drawers_state::Drawer;
+use crate::drawers::state::Drawer;
 use crate::search::AppPicker;
 use crate::search::ContextMenu;
 use crate::search::DrawerEditModal;
@@ -148,7 +148,7 @@ pub fn view<'a>(
         } else {
             match &search.current_open_drawer {
                 OpenDrawer::Pinned(name) => drawer_contents_view(search, name),
-                OpenDrawer::Vault => crate::vault_ui::view(&search.vault),
+                OpenDrawer::Vault => crate::vault::ui::view(&search.vault),
                 OpenDrawer::Search => container(
                     text("Search or select a drawer").size(18)
                 )
@@ -581,7 +581,7 @@ fn drawer_contents_view<'a>(
 // ─────────────────────────────────────────────────────────────
 
 fn drawer_app_icon<'a>(
-    app: &'a crate::indexer::AppEntry,
+    app: &'a crate::search::indexer::AppEntry,
     drawer_name: &'a str,
     app_id: &'a str,
 ) -> Element<'a, SearchMessage> {
@@ -609,7 +609,7 @@ fn drawer_app_icon<'a>(
 // ─────────────────────────────────────────────────────────────
 
 fn drawer_file_icon<'a>(
-    file: &'a crate::drawers_state::DrawerFile,
+    file: &'a crate::drawers::state::DrawerFile,
     drawer_name: &'a str,
 ) -> Element<'a, SearchMessage> {
     let emoji = file_emoji(&file.name);
@@ -805,7 +805,7 @@ fn search_results_view<'a>(
 // ─────────────────────────────────────────────────────────────
 
 fn app_icon_button<'a>(
-    app: &'a crate::indexer::AppEntry,
+    app: &'a crate::search::indexer::AppEntry,
 ) -> Element<'a, SearchMessage> {
     let exec = app.exec.clone();
 
@@ -953,3 +953,4 @@ fn hex_nibble(b: u8) -> Option<u8> {
 //   on_finish → parse text/uri-list → FilesDroppedOnDrawer :: done
 // Step 3: outer iced container(Themer::new(None, drop_dest)) applies hover style :: done
 // uri_decode() helper for percent-encoded file:// URIs :: done
+pub mod state;

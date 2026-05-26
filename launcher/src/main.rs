@@ -18,16 +18,15 @@ use std::fs::OpenOptions;
 use std::path::PathBuf;
 
 mod drawers;
-mod drawers_state;
-mod indexer;
 mod network_monitor;
 mod system_monitor;
 mod hardware_monitor;
 mod fps_monitor;
+mod keybinds;
 mod position;
 mod search;
 mod vault;
-mod vault_ui;
+
 
 use position::LauncherPosition;
 use search::Message as SearchMessage;

@@ -5,8 +5,9 @@
 // Do not remove these comments.
 
 use crate::vault::Vault;
-use crate::drawers_state::DrawerState;
-use crate::indexer::{build_index, AppEntry};
+use crate::drawers::state::DrawerState;
+pub mod indexer;
+use indexer::{build_index, AppEntry};
 
 use nucleo_matcher::pattern::{
     AtomKind,
