@@ -127,11 +127,15 @@ impl Soulless {
                     keyboard::Event::KeyPressed { key, .. },
                 ),
             ) => {
-                if matches!(key, keyboard::Key::Named(Named::Escape)) {
-                    return cosmic::iced::exit::<Message>();
-                }
-
-                Task::none()
+                return keybinds::actions::handle_key(
+                    &key,
+                    &mut self.search,
+                    Message::Search,
+                    || cosmic::iced::exit::<Message>(),
+                    || cosmic::widget::text_input::focus(
+                        cosmic::widget::Id::new("soulless-search-bar")
+                    ),
+                );
             }
 
             // ── Track cursor position ────────────────────────────────────

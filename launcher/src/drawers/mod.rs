@@ -314,39 +314,28 @@ fn sidebar_drawer_button<'a>(
     let icon_str = drawer.icon.clone();
     let name_str = drawer.name.clone();
 
-    // Build the full button as a cosmic::Element so dnd_destination_for_data
-    // can accept it (it takes cosmic::Element children).
+    // Build the full button as a focusable cosmic::widget::button so
+    // keyboard navigation (Tab / arrow keys) works on drawer buttons.
+    let row_content = cosmic::iced::widget::row![
+        cosmic::iced::widget::text(icon_str).size(18),
+        cosmic::iced::widget::space::horizontal()
+            .width(Length::Fixed(12.0)),
+        cosmic::iced::widget::text(name_str).size(16),
+        cosmic::iced::widget::space::horizontal()
+            .width(Length::Fill),
+        cosmic::iced::widget::text(item_count.to_string()).size(12),
+    ]
+    .align_y(Vertical::Center)
+    .padding(14);
+
     let button: cosmic::Element<'_, SearchMessage> =
-        cosmic::widget::mouse_area(
-            cosmic::widget::container(
-                cosmic::iced::widget::row![
-                    cosmic::iced::widget::text(icon_str).size(18),
-                    cosmic::iced::widget::space::horizontal()
-                        .width(Length::Fixed(12.0)),
-                    cosmic::iced::widget::text(name_str).size(16),
-                    cosmic::iced::widget::space::horizontal()
-                        .width(Length::Fill),
-                    cosmic::iced::widget::text(item_count.to_string()).size(12),
-                ]
-                .align_y(Vertical::Center)
-                .padding(14),
-            )
+        cosmic::widget::button::custom(row_content)
             .width(Length::Fill)
-            .style(move |_: &cosmic::Theme| {
-                cosmic::iced::widget::container::Style {
-                    background: bg_color,
-                    border: cosmic::iced::Border {
-                        color: border_color,
-                        width: if is_drag_target { 1.5 } else { 0.0 },
-                        radius: cosmic::iced::border::rounded(6).radius,
-                    },
-                    ..Default::default()
-                }
-            }),
-        )
-        .on_press(SearchMessage::DrawerClicked(dn_click.clone()))
-        .on_right_press(SearchMessage::RightClickDrawerSidebar(dn_rclick.clone()))
-        .into();
+            .on_press(SearchMessage::DrawerClicked(dn_click.clone()))
+            .selected(is_active)
+            .class(cosmic::theme::Button::MenuItem)
+            .id(cosmic::widget::Id::new(format!("drawer-btn-{}", drawer.name)))
+            .into();
 
     // Wrap the button as a dnd_destination_for_data.
     // When an AppIdPayload is dropped here we fire AppDroppedOnDrawer.

@@ -25,11 +25,14 @@ where
         // ── Esc → close launcher ──────────────────────────────────────────
         keyboard::Key::Named(Named::Escape) => f_exit(),
 
-        // ── Tab → open first drawer ───────────────────────────────────────
+        // ── Tab → focus first drawer button ──────────────────────────────
         keyboard::Key::Named(Named::Tab) => {
             if let Some(first) = search.drawer_state.drawers().first() {
                 let name = first.name.clone();
-                search.update(search::Message::DrawerClicked(name));
+                search.update(search::Message::DrawerClicked(name.clone()));
+                return cosmic::widget::button::focus(
+                    cosmic::widget::Id::new(format!("drawer-btn-{}", name))
+                );
             }
             Task::none()
         }
