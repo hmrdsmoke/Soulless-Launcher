@@ -167,7 +167,7 @@ pub fn view<'a>(
     let right: Element<'a, SearchMessage> = container(right_panel_content)
         .width(Length::Fill)
         .height(Length::Fill)
-        .padding(16)
+        .padding([16, 0, 16, 16])
         .into();
     let base = (toolbox, right);
     if let Some(modal) = &search.drawer_edit {
@@ -334,8 +334,53 @@ fn sidebar_drawer_button<'a>(
             .width(Length::Fill)
             .on_press(SearchMessage::DrawerClicked(dn_click.clone()))
             .selected(is_active)
-            .class(cosmic::theme::Button::MenuItem)
             .id(cosmic::widget::Id::new(format!("drawer-btn-{}", drawer.name)))
+            .class(cosmic::theme::Button::Custom {
+                active: Box::new(|selected, _theme| {
+                    let bg = if selected {
+                        crate::ui::theme::DRAWER_BTN_ACTIVE
+                    } else {
+                        crate::ui::theme::DRAWER_BTN_BG
+                    };
+                    cosmic::widget::button::Style {
+                        background: Some(bg.into()),
+                        border_color: crate::ui::theme::DRAWER_BTN_BORDER,
+                        border_width: 1.0,
+                        border_radius: cosmic::iced::border::rounded(6).radius,
+                        text_color: Some(if selected {
+                            crate::ui::theme::DRAWER_BTN_TEXT_HOVER
+                        } else {
+                            crate::ui::theme::DRAWER_BTN_TEXT
+                        }),
+                        ..Default::default()
+                    }
+                }),
+                hovered: Box::new(|selected, _theme| {
+                    let bg = if selected {
+                        crate::ui::theme::DRAWER_BTN_ACTIVE
+                    } else {
+                        crate::ui::theme::DRAWER_BTN_HOVER
+                    };
+                    cosmic::widget::button::Style {
+                        background: Some(bg.into()),
+                        border_color: crate::ui::theme::STEEL_TOP,
+                        border_width: 1.0,
+                        border_radius: cosmic::iced::border::rounded(6).radius,
+                        text_color: Some(crate::ui::theme::DRAWER_BTN_TEXT_HOVER),
+                        ..Default::default()
+                    }
+                }),
+                pressed: Box::new(|_selected, _theme| {
+                    cosmic::widget::button::Style {
+                        background: Some(crate::ui::theme::DRAWER_BTN_ACTIVE.into()),
+                        text_color: Some(crate::ui::theme::DRAWER_BTN_TEXT_HOVER),
+                        ..Default::default()
+                    }
+                }),
+                disabled: Box::new(|_theme| {
+                    cosmic::widget::button::Style::default()
+                }),
+            })
             .into();
 
     // Wrap the button as a dnd_destination_for_data.
@@ -787,7 +832,13 @@ fn search_results_view<'a>(
             col.push(grid_row)
         });
 
-    scrollable(grid).into()
+    scrollable(grid)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .scrollbar_width(6)
+        .scrollbar_padding(0)
+        .scroller_width(6)
+        .into()
 }
 
 // ─────────────────────────────────────────────────────────────

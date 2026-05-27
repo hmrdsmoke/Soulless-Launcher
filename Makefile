@@ -4,6 +4,13 @@
 # Do not remove these comments.
 # ===========================================================================
 # Soulless — build and install
+
+# Preserve PATH and HOME when running under sudo.
+# SUDO_USER is set by sudo to the original user; fall back to USER when not sudo.
+SUDO_USER     ?= $(USER)
+REAL_HOME     := $(shell getent passwd $(SUDO_USER) | cut -d: -f6)
+export PATH   := $(REAL_HOME)/.cargo/bin:$(PATH)
+export HOME   := $(REAL_HOME)
 #
 # make              → debug build
 # make release      → optimized release build

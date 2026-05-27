@@ -24,7 +24,7 @@ pub fn view(state: &SystemState) -> Element<'_, Message> {
         state.stats.disk_history.clone(),
     ))
     .width(Length::Fill)
-    .height(Length::Fixed(36.0))
+    .height(Length::Fixed(52.0))
     .into();
 
     // ── Stats row ──────────────────────────────────────────────────────────
@@ -51,8 +51,8 @@ pub fn view(state: &SystemState) -> Element<'_, Message> {
     container(
         column![graph, stats].spacing(4)
     )
-    .width(Length::Fixed(140.0))
-    .height(Length::Fixed(70.0))
+    .width(Length::Fill)
+    .height(Length::Fill)
     .padding([4, 6])
     .style(|_| container::Style {
         background: Some(

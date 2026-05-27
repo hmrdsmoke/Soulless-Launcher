@@ -58,10 +58,20 @@ struct Soulless {
     hardware:   hardware_monitor::HardwareMonitorState,
     fps:        fps_monitor::FpsMonitorState,
     cursor_pos: Option<cosmic::iced::Point>,
+    bg_handle:  Option<cosmic::iced::widget::image::Handle>,
 }
 
 impl Soulless {
     fn new() -> (Self, Task<Message>) {
+        let bg_handle = config::default_background().map(|path| {
+            let width = position::layout::RIGHT_PANEL_WIDTH as u32;
+            if let Some(rgba) = config::load_background_rgba(&path, width, 900) {
+                cosmic::iced::widget::image::Handle::from_rgba(width, 900, rgba)
+            } else {
+                cosmic::iced::widget::image::Handle::from_path(path)
+            }
+        });
+
         (
             Self {
                 search:     search::Search::new(),
@@ -70,6 +80,7 @@ impl Soulless {
                 hardware:   hardware_monitor::HardwareMonitorState::new(),
                 fps:        fps_monitor::FpsMonitorState::new(),
                 cursor_pos: None,
+                bg_handle,
             },
             Task::none(),
         )
@@ -268,7 +279,7 @@ impl Soulless {
             system_monitor::view(&self.system).map(Message::System),
             hardware_monitor::view(&self.hardware).map(Message::Hardware),
             fps_monitor::view(&self.fps).map(Message::Fps),
-            &self.search.bg_image_path,
+            self.bg_handle.clone(),
         )
     }
 
