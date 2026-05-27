@@ -10,7 +10,6 @@ use crate::ui::theme;
 use crate::position::layout::{TOOLBOX_WIDTH, RIGHT_PANEL_WIDTH};
 use cosmic::iced::{Element, Length};
 use cosmic::iced::widget::{column, container, row, space};
-use cosmic::iced::alignment::Vertical;
 
 /// Compose the full window — steel toolbox + right panel + monitor grid.
 /// M is the top-level Message type from main.rs.
@@ -23,16 +22,32 @@ pub fn compose<'a, M: 'static + Clone + Send>(
     fps: Element<'a, M>,
     bg_image_path: &Option<String>,
 ) -> Element<'a, M> {
-    let panels = launcher_panels(toolbox, right, bg_image_path);
     let monitors = monitor_grid(net, sys, hw, fps);
 
-    let content = column![panels, monitors]
-        .spacing(0)
-        .height(Length::Fill);
+    // Left column: steel toolbox + widgets below
+    let left_col = column![
+        launcher_steel(toolbox),
+        monitors,
+    ]
+    .spacing(12)
+    .width(Length::Fixed(crate::position::layout::TOOLBOX_WIDTH));
 
-    container(content)
+    // Right panel: full height
+    let right_panel = right_content_panel(right, bg_image_path);
+
+    let layout = row![
+        left_col,
+        space::horizontal().width(Length::Fixed(12.0)),
+        right_panel,
+    ]
+    .spacing(0)
+    .height(Length::Fill);
+
+    container(layout)
         .width(Length::Fill)
         .height(Length::Fill)
+        .padding(16)
+        .clip(true)
         .style(|_: &cosmic::iced::Theme| cosmic::iced::widget::container::Style {
             background: Some(theme::WINDOW_BG.into()),
             border: cosmic::iced::Border {
@@ -46,12 +61,10 @@ pub fn compose<'a, M: 'static + Clone + Send>(
         .into()
 }
 
-fn launcher_panels<'a, M: 'static + Clone + Send>(
+fn launcher_steel<'a, M: 'static + Clone + Send>(
     drawers_content: Element<'a, M>,
-    right_content: Element<'a, M>,
-    bg_image_path: &Option<String>,
 ) -> Element<'a, M> {
-    let steel = container(drawers_content)
+    container(drawers_content)
         .width(Length::Fixed(TOOLBOX_WIDTH))
         .height(Length::Shrink)
         .padding([theme::STEEL_VERTICAL_INSET, 0.0, theme::STEEL_VERTICAL_INSET, 0.0])
@@ -79,43 +92,71 @@ fn launcher_panels<'a, M: 'static + Clone + Send>(
             text_color: Some(theme::STEEL_TEXT),
             icon_color: None,
             snap: false,
-        });
-
-    let right_bg = if bg_image_path.is_some() {
-        cosmic::iced::Color::from_rgba8(0, 0, 0, 0.0)
-    } else {
-        theme::RIGHT_PANEL_BG
-    };
-    let right_border = theme::RIGHT_PANEL_BORDER;
-
-    let right = container(right_content)
-        .width(Length::Fixed(RIGHT_PANEL_WIDTH))
-        .height(Length::Fill)
-        .style(move |_: &cosmic::iced::Theme| cosmic::iced::widget::container::Style {
-            background: Some(right_bg.into()),
-            border: cosmic::iced::Border {
-                radius: cosmic::iced::border::rounded(theme::RIGHT_PANEL_CORNER_RADIUS).radius,
-                color: right_border,
-                width: 1.0,
-            },
-            icon_color: None,
-            snap: false,
-            ..Default::default()
-        });
-
-    container(
-        row![
-            steel,
-            space::horizontal().width(Length::Fixed(12.0)),
-            right,
-        ]
-        .spacing(0)
-        .height(Length::Fill)
-        .align_y(Vertical::Center)
-    )
-    .width(Length::Fill)
-    .height(Length::Fill)
+        })
     .into()
+}
+
+fn right_content_panel<'a, M: 'static + Clone + Send>(
+    right_content: Element<'a, M>,
+    bg_image_path: &Option<String>,
+) -> Element<'a, M> {
+    let right_border = theme::RIGHT_PANEL_BORDER;
+    let width = crate::position::layout::RIGHT_PANEL_WIDTH;
+
+    if let Some(path) = bg_image_path {
+        // Pre-resize image to exact panel dimensions to prevent bleeding
+        let handle = if let Some(rgba) = crate::config::load_background_rgba(
+            path, width as u32, 900
+        ) {
+            cosmic::iced::widget::image::Handle::from_rgba(
+                width as u32, 900u32, rgba
+            )
+        } else {
+            cosmic::iced::widget::image::Handle::from_path(path.as_str())
+        };
+
+        let bg: Element<'a, M> = cosmic::iced::widget::image(handle)
+            .width(Length::Fixed(width))
+            .height(Length::Fill)
+            .into();
+
+        let overlay: Element<'a, M> = container(right_content)
+            .width(Length::Fixed(width))
+            .height(Length::Fill)
+            .into();
+
+        container(cosmic::iced::widget::stack([bg, overlay]))
+            .width(Length::Fixed(width))
+            .height(Length::Fixed(height))
+            .clip(true)
+            .style(move |_: &cosmic::iced::Theme| cosmic::iced::widget::container::Style {
+                border: cosmic::iced::Border {
+                    radius: cosmic::iced::border::rounded(theme::RIGHT_PANEL_CORNER_RADIUS).radius,
+                    color: right_border,
+                    width: 1.0,
+                },
+                icon_color: None,
+                snap: false,
+                ..Default::default()
+            })
+            .into()
+    } else {
+        container(right_content)
+            .width(Length::Fixed(width))
+            .height(Length::Fill)
+            .style(move |_: &cosmic::iced::Theme| cosmic::iced::widget::container::Style {
+                background: Some(theme::RIGHT_PANEL_BG.into()),
+                border: cosmic::iced::Border {
+                    radius: cosmic::iced::border::rounded(theme::RIGHT_PANEL_CORNER_RADIUS).radius,
+                    color: right_border,
+                    width: 1.0,
+                },
+                icon_color: None,
+                snap: false,
+                ..Default::default()
+            })
+            .into()
+    }
 }
 
 fn monitor_grid<'a, M: 'static + Clone + Send>(
@@ -124,17 +165,23 @@ fn monitor_grid<'a, M: 'static + Clone + Send>(
     hw: Element<'a, M>,
     fps: Element<'a, M>,
 ) -> Element<'a, M> {
-    let net = container(net).style(widget_style);
-    let sys = container(sys).style(widget_style);
-    let hw  = container(hw).style(widget_style);
-    let fps = container(fps).style(widget_style);
+    // Each widget is 75% of half the window width (quarter less than full)
+    // Widgets sit side by side in a single row under the steel panel
+    // Each widget takes half the toolbox width with a small gap
+    let widget_width = Length::Fixed(109.0);
+    let widget_height = Length::Fixed(95.0);
+
+    let net = container(net).width(widget_width).height(widget_height).style(widget_style);
+    let sys = container(sys).width(widget_width).height(widget_height).style(widget_style);
+    let hw  = container(hw).width(widget_width).height(widget_height).style(widget_style);
+    let fps = container(fps).width(widget_width).height(widget_height).style(widget_style);
 
     column![
-        row![net, sys].spacing(12),
-        row![hw, fps].spacing(12),
+        row![net, sys].spacing(4),
+        row![hw, fps].spacing(4),
     ]
-    .spacing(12)
-    .padding([0, 16, 16, 16])
+    .spacing(4)
+    .padding([8, 4, 4, 4])
     .into()
 }
 

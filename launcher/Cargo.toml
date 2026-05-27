@@ -11,6 +11,7 @@ authors = ["Michael Van Auker (HMRDSmoke)"]
 description = "The replacement app launcher for Cosmic"
 
 [dependencies]
+image = { version = "0.25", features = ["jpeg", "png", "webp"] }
 # Frozen exact versions — do not touch without full re-test (per Michael's directive)
 nucleo-matcher = "0.3.1"                    # tested against this exact version :: MRV
 freedesktop-desktop-entry = "0.6.2"         # tested against this exact version :: MRV

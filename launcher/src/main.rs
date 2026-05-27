@@ -17,6 +17,7 @@ use fs2::FileExt;
 use std::fs::OpenOptions;
 use std::path::PathBuf;
 
+mod config;
 mod drawers;
 mod ui;
 mod network_monitor;

@@ -213,7 +213,7 @@ impl Search {
             drawer_file_hover: None,
 
             drawer_edit: None,
-            bg_image_path: None,
+            bg_image_path: crate::config::default_background(),
         };
 
         search.recompute_results();
