@@ -165,6 +165,8 @@ pub struct Search {
 
     /// Active inline drawer rename/icon edit modal
     pub drawer_edit: Option<DrawerEditModal>,
+    /// Custom background image path for the right panel (None = default dark red)
+    pub bg_image_path: Option<String>,
 }
 
 pub struct AppPicker {
@@ -211,6 +213,7 @@ impl Search {
             drawer_file_hover: None,
 
             drawer_edit: None,
+            bg_image_path: None,
         };
 
         search.recompute_results();

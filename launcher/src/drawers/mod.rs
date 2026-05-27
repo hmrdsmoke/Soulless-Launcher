@@ -26,7 +26,7 @@ use cosmic::iced::clipboard::mime::{AllowedMimeTypes, AsMimeTypes};
 use cosmic::widget::dnd_destination;
 use cosmic::widget::dnd_destination::dnd_destination_for_data;
 
-use crate::position::layout::{TOOLBOX_WIDTH, RIGHT_PANEL_WIDTH};
+use crate::position::layout::TOOLBOX_WIDTH;
 const GRID_COLUMNS: usize = 4;
 const ICON_SIZE: f32 = 64.0;
 
@@ -80,9 +80,11 @@ impl AsMimeTypes for AppIdPayload {
 // Main View
 // ─────────────────────────────────────────────────────────────
 
+/// Returns (toolbox_element, right_panel_element)
+/// Styling is handled by ui::panels — drawers only provides content.
 pub fn view<'a>(
     search: &'a crate::search::Search,
-) -> Element<'a, SearchMessage> {
+) -> (Element<'a, SearchMessage>, Element<'a, SearchMessage>) {
     let search_bar = text_input("Search all apps...", &search.query)
         .id(cosmic::widget::Id::new("soulless-search-bar"))
         .on_input(SearchMessage::QueryChanged)
@@ -160,18 +162,14 @@ pub fn view<'a>(
             }
         };
 
-    let base = row![
-        main_toolbox,
-        space::horizontal().width(Length::Fixed(12.0)),
-        container(right_panel_content)
-            .width(Length::Fixed(RIGHT_PANEL_WIDTH))
-            .height(Length::Fill)
-            .padding(16),
-    ]
-    .spacing(0)
-    .width(Length::Shrink)
-    .height(Length::Fill);
-
+    // ── Pass raw content to ui::panels for styling ───────────────────────
+    let toolbox: Element<'a, SearchMessage> = main_toolbox.into();
+    let right: Element<'a, SearchMessage> = container(right_panel_content)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .padding(16)
+        .into();
+    let base = (toolbox, right);
     if let Some(modal) = &search.drawer_edit {
         let (title, placeholder, value) = match modal {
             DrawerEditModal::Rename { input, .. } => (
@@ -235,10 +233,11 @@ pub fn view<'a>(
             ..Default::default()
         });
 
+        let (base_toolbox, base_right) = base;
         // Darken backdrop + center the modal
         let backdrop = mouse_area(
             container(
-                container(base)
+                container(base_toolbox)
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .style(|_: &Theme| container::Style {
@@ -253,7 +252,7 @@ pub fn view<'a>(
         )
         .on_press(SearchMessage::DrawerEditCancel);
 
-        column![
+        let full = column![
             backdrop,
             container(modal_widget)
                 .width(Length::Fill)
@@ -261,16 +260,18 @@ pub fn view<'a>(
                 .center_x(Length::Fill)
                 .padding([80, 0, 0, 0]),
         ]
-        .into()
+        .into();
+        (full, space::horizontal().width(Length::Fill).into())
     } else if let Some(menu) = &search.context_menu {
         let menu_widget = context_menu_view(menu);
+        let (toolbox, right) = base;
         let dismiss = mouse_area(
-            container(base).width(Length::Fill).height(Length::Fill)
+            container(toolbox).width(Length::Fill).height(Length::Fill)
         )
         .on_press(SearchMessage::CloseContextMenu);
-        column![dismiss, container(menu_widget).padding(8)].into()
+        (column![dismiss, container(menu_widget).padding(8)].into(), right)
     } else {
-        base.into()
+        base
     }
 }
 

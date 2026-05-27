@@ -18,6 +18,7 @@ use std::fs::OpenOptions;
 use std::path::PathBuf;
 
 mod drawers;
+mod ui;
 mod network_monitor;
 mod system_monitor;
 mod hardware_monitor;
@@ -258,64 +259,16 @@ impl Soulless {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        // Main launcher content
-        let launcher_content = container(
-            drawers::view(&self.search).map(Message::Search),
+        let (toolbox, right) = drawers::view(&self.search);
+        ui::panels::compose(
+            toolbox.map(Message::Search),
+            right.map(Message::Search),
+            network_monitor::view(&self.network).map(Message::Network),
+            system_monitor::view(&self.system).map(Message::System),
+            hardware_monitor::view(&self.hardware).map(Message::Hardware),
+            fps_monitor::view(&self.fps).map(Message::Fps),
+            &self.search.bg_image_path,
         )
-        .width(Length::Fill)
-        .height(Length::Fill);
-
-        // Network monitor widget (top-left slot)
-        let net_widget = network_monitor::view(&self.network)
-            .map(Message::Network);
-
-        // System monitor widget (top-right slot)
-        let sys_widget = system_monitor::view(&self.system)
-            .map(Message::System);
-
-        // Hardware monitor widget (bottom-left slot)
-        let hw_widget = hardware_monitor::view(&self.hardware)
-            .map(Message::Hardware);
-
-        // FPS monitor widget (bottom-right slot)
-        let fps_widget = fps_monitor::view(&self.fps)
-            .map(Message::Fps);
-
-        // 2x2 widget grid
-        let widgets = column![
-            row![
-                net_widget,
-                sys_widget,
-            ]
-            .spacing(12),
-            row![
-                hw_widget,
-                fps_widget,
-            ]
-            .spacing(12),
-        ]
-        .spacing(12)
-        .padding([0, 16, 16, 16]);
-
-        // Entire layout
-        let content = column![
-            launcher_content,
-            widgets,
-        ]
-        .spacing(0)
-        .height(Length::Fill);
-
-        container(content)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .style(|_| container::Style {
-                background: Some(
-                    cosmic::iced::Color::from_rgb8(30, 30, 30).into(),
-                ),
-                border: cosmic::iced::border::rounded(8),
-                ..Default::default()
-            })
-            .into()
     }
 
     fn theme(_: &Self) -> Theme {

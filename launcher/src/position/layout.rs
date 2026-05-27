@@ -24,3 +24,13 @@ pub const PANEL_SPACING: f32 = 12.0;
 
 /// Estimated panel/dock height at bottom of screen (used for placement offset)
 pub const PANEL_HEIGHT: f32 = 0.0;
+
+// ── Visual depth constants ────────────────────────────────────────────────────
+/// How much shorter the steel toolbox is vs the window (creates depth illusion)
+pub const TOOLBOX_VERTICAL_INSET: f32 = 24.0;
+/// Corner radius for the steel toolbox panel
+pub const STEEL_CORNER_RADIUS: f32 = 12.0;
+/// Corner radius for the right content panel
+pub const RIGHT_PANEL_CORNER_RADIUS: f32 = 8.0;
+/// Default background color for the right panel (dark red)
+pub const DEFAULT_BG_COLOR: (u8, u8, u8) = (60, 10, 10);
