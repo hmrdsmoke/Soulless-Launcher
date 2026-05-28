@@ -817,47 +817,28 @@ impl Search {
 
         self.show_search_results = true;
 
-        // How many prefix slots to reserve based on query length
-        let prefix_count: usize = match query.len() {
-            1 => 9,
-            2 => 18,
-            3 => 27,
-            _ => 36,
-        };
-
-        // Get prefix matches up to prefix_count
+        // All prefix matches
         let prefix_results: Vec<usize> = self.all_apps
             .iter()
             .enumerate()
             .filter(|(_, app)| app.lower_name.starts_with(&query))
             .map(|(i, _)| i)
-            .take(prefix_count)
             .collect();
 
         // If prefix found nothing, go 100% fuzzy
         if prefix_results.is_empty() {
-            self.filtered_apps = self.fuzzy_results(&query, 36, &std::collections::HashSet::new());
-            self.filtered_apps.truncate(36);
-            eprintln!("FINAL: prefix=0, total after fuzzy fill={}", self.filtered_apps.len());
+            self.filtered_apps = self.fuzzy_results(&query, usize::MAX, &std::collections::HashSet::new());
+            eprintln!("FINAL: prefix=0, total={}", self.filtered_apps.len());
             return;
         }
 
-        // actual_prefix may be less than prefix_count — give all leftover slots to fuzzy
-        let actual_prefix = prefix_results.len().min(prefix_count);
-        let remaining_slots = 36 - actual_prefix;
-
         let prefix_set: std::collections::HashSet<usize> = prefix_results.iter().copied().collect();
         let mut results = prefix_results;
-        results.truncate(actual_prefix);
+        let fuzzy = self.fuzzy_results(&query, usize::MAX, &prefix_set);
+        results.extend(fuzzy);
 
-        if remaining_slots > 0 {
-            let fuzzy = self.fuzzy_results(&query, remaining_slots, &prefix_set);
-            results.extend(fuzzy);
-        }
-
-        results.truncate(36);
         self.filtered_apps = results;
-        eprintln!("FINAL: prefix={}, total after fuzzy fill={}", actual_prefix, self.filtered_apps.len());
+        eprintln!("FINAL: total={}", self.filtered_apps.len());
     }
 
     fn fuzzy_results(

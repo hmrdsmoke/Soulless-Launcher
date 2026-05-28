@@ -841,15 +841,12 @@ fn context_menu_style(_: &Theme) -> container::Style {
 // Search Results — app icons are drag sources
 // ─────────────────────────────────────────────────────────────
 
-const MAX_RENDER: usize = 36;
-
 fn search_results_view<'a>(
     search: &'a crate::search::Search,
 ) -> Element<'a, SearchMessage> {
     let apps: Vec<_> = search
         .filtered_apps()
         .iter()
-        .take(MAX_RENDER)
         .filter_map(|i| search.app(*i))
         .collect();
 
@@ -863,7 +860,11 @@ fn search_results_view<'a>(
             col.push(grid_row)
         });
 
-    grid.into()
+    scrollable(grid)
+        .scrollbar_width(4)
+        .scrollbar_padding(0)
+        .scroller_width(4)
+        .into()
 }
 
 // ─────────────────────────────────────────────────────────────
