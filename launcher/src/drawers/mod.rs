@@ -27,7 +27,7 @@ use cosmic::widget::dnd_destination::dnd_destination_for_data;
 
 use crate::position::layout::TOOLBOX_WIDTH;
 const GRID_COLUMNS: usize = 4;
-const ICON_SIZE: f32 = 48.0;
+const ICON_SIZE: f32 = 42.0;
 
 // Cap picker render to prevent the freeze — was building 200+ widget trees
 // per frame. 50 is plenty; typing filters it down fast.
@@ -876,11 +876,17 @@ fn app_icon_button<'a>(
 ) -> Element<'a, SearchMessage> {
     let exec = app.exec.clone();
 
+    let label = if app.name.chars().count() > 10 {
+        format!("{}...", app.name.chars().take(10).collect::<String>())
+    } else {
+        app.name.clone()
+    };
+
     let content = column![
         image(&app.icon_path)
             .width(Length::Fixed(ICON_SIZE))
             .height(Length::Fixed(ICON_SIZE)),
-        text(truncate_label(&app.name, 12)).size(12),
+        text(label).size(12),
     ]
     .spacing(4)
     .align_x(Horizontal::Center);
