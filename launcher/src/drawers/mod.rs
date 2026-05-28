@@ -91,20 +91,15 @@ pub fn view<'a>(
         .padding(16)
         .size(18);
 
-    let drawers_column = scrollable(
-        column(
-            search
-                .drawer_state
-                .drawers()
-                .iter()
-                .map(|drawer| sidebar_drawer_button(search, drawer))
-                .collect::<Vec<_>>(),
-        )
-        .spacing(6)
+    let drawers_column = column(
+        search
+            .drawer_state
+            .drawers()
+            .iter()
+            .map(|drawer| sidebar_drawer_button(search, drawer))
+            .collect::<Vec<_>>(),
     )
-    .scrollbar_width(0)
-    .scroller_width(0)
-    .height(Length::Fill);
+    .spacing(6);
 
     let drawer_count = search.drawer_state.drawers().len();
 
@@ -273,11 +268,31 @@ pub fn view<'a>(
     } else if let Some(menu) = &search.context_menu {
         let menu_widget = context_menu_view(menu);
         let (toolbox, right) = base;
-        let dismiss = mouse_area(
-            container(toolbox).width(Length::Fill).height(Length::Fill)
+
+        // Clicking the toolbox dismisses the menu
+        let toolbox_dismiss: Element<'a, SearchMessage> = mouse_area(toolbox)
+            .on_press(SearchMessage::CloseContextMenu)
+            .into();
+
+        // Menu floats at bottom-right of the right panel as a stack overlay
+        let menu_overlay: Element<'a, SearchMessage> = container(menu_widget)
+            .width(Length::Shrink)
+            .align_right(Length::Fill)
+            .align_bottom(Length::Fill)
+            .padding(16)
+            .into();
+
+        let right_with_menu: Element<'a, SearchMessage> = mouse_area(
+            container(
+                cosmic::iced::widget::stack([right, menu_overlay])
+            )
+            .width(Length::Fill)
+            .height(Length::Fill)
         )
-        .on_press(SearchMessage::CloseContextMenu);
-        (column![dismiss, container(menu_widget).padding(8)].into(), right)
+        .on_press(SearchMessage::CloseContextMenu)
+        .into();
+
+        (toolbox_dismiss, right_with_menu)
     } else {
         base
     }
