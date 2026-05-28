@@ -53,6 +53,8 @@ install: release
 	install -Dm644 $(LAUNCHER_DESK) $(APPDIR)/soulless-launcher.desktop
 	install -Dm644 $(APPLET_DESK)   $(APPDIR)/$(APPLET_ID).desktop
 	@echo "Installing icons..."
+	install -Dm644 assets/com.github.hmrdsmoke.SoullessLauncher.metainfo.xml \
+		/usr/share/metainfo/com.github.hmrdsmoke.SoullessLauncher.metainfo.xml
 	install -Dm644 $(ICON) $(ICONDIR_128)/$(APPLET_ID).png
 	install -Dm644 $(ICON) $(ICONDIR_16)/$(APPLET_ID).png
 	install -Dm644 $(ICON) $(ICONDIR_22)/$(APPLET_ID).png
@@ -78,6 +80,7 @@ uninstall:
 	rm -f $(BINDIR)/$(APPLET_ID)
 	rm -f $(APPDIR)/soulless-launcher.desktop
 	rm -f $(APPDIR)/$(APPLET_ID).desktop
+	rm -f /usr/share/metainfo/com.github.hmrdsmoke.SoullessLauncher.metainfo.xml
 	rm -f $(ICONDIR_128)/$(APPLET_ID).png
 	rm -f $(ICONDIR_16)/$(APPLET_ID).png
 	rm -f $(ICONDIR_22)/$(APPLET_ID).png

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.github.hmrdsmoke.SoullessLauncher</id>
+  <name>Soulless Launcher</name>
+  <summary>The toolbox you need to organize the tools you use</summary>
+  <description>
+    <p>
+      Soulless is a COSMIC desktop launcher built for Pop!_OS. Find everything 
+      on your computer from one place — apps, files, directories, CLI tools, 
+      Steam games, Flatpaks, and Snaps. Organize your tools into custom drawers, 
+      secure sensitive files behind an encrypted vault, and make it yours with 
+      custom backgrounds.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Universal search across apps, files, CLI tools, Steam, Flatpak, and Snap</li>
+      <li>Custom drawers to organize your apps your way</li>
+      <li>Encrypted vault for sensitive files and apps</li>
+      <li>Live system monitors — network, CPU, GPU, RAM, FPS</li>
+      <li>Custom backgrounds from ~/.config/soulless/backgrounds/</li>
+      <li>Instant startup via disk cache</li>
+      <li>Keyboard navigation with Tab, S, V, arrow keys</li>
+      <li>Super+Space activation from anywhere</li>
+      <li>wgpu accelerated rendering</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">soulless-launcher.desktop</launchable>
+
+  <url type="homepage">https://github.com/hmrdsmoke/Soulless-Launcher</url>
+  <url type="bugtracker">https://github.com/hmrdsmoke/Soulless-Launcher/issues</url>
+
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+
+  <developer id="com.github.hmrdsmoke">
+    <name>Michael Van Auker (HMRDSmoke)</name>
+  </developer>
+
+  <branding>
+    <color type="primary" scheme_preference="dark">#0A0A0C</color>
+    <color type="primary" scheme_preference="light">#D9DDE6</color>
+  </branding>
+
+  <categories>
+    <category>Utility</category>
+    <category>System</category>
+  </categories>
+
+  <keywords>
+    <keyword>launcher</keyword>
+    <keyword>search</keyword>
+    <keyword>COSMIC</keyword>
+    <keyword>Pop!_OS</keyword>
+    <keyword>toolbox</keyword>
+  </keywords>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Search across apps, files, CLI tools and more</caption>
+      <image>https://raw.githubusercontent.com/hmrdsmoke/Soulless-Launcher/main/screenshots/search.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Live system monitors — network, CPU, GPU, RAM, FPS</caption>
+      <image>https://raw.githubusercontent.com/hmrdsmoke/Soulless-Launcher/main/screenshots/monitor.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Encrypted vault for sensitive files and apps</caption>
+      <image>https://raw.githubusercontent.com/hmrdsmoke/Soulless-Launcher/main/screenshots/vault.png</image>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="0.1.0" date="2026-05-28">
+      <description>
+        <p>Initial release of Soulless Launcher.</p>
+        <ul>
+          <li>Universal search across apps, files, CLI tools, Steam, Flatpak, Snap</li>
+          <li>Custom drawers with drag and drop</li>
+          <li>Encrypted vault</li>
+          <li>Live system monitors</li>
+          <li>wgpu accelerated rendering</li>
+          <li>Disk cache for instant startup</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1"/>
+</component>
