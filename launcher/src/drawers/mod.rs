@@ -26,6 +26,7 @@ use cosmic::iced::clipboard::mime::{AllowedMimeTypes, AsMimeTypes};
 use cosmic::widget::dnd_destination::dnd_destination_for_data;
 
 use crate::position::layout::TOOLBOX_WIDTH;
+use crate::search::indexer::AppSource;
 const GRID_COLUMNS: usize = 4;
 const ICON_SIZE: f32 = 42.0;
 
@@ -844,23 +845,87 @@ fn context_menu_style(_: &Theme) -> container::Style {
 fn search_results_view<'a>(
     search: &'a crate::search::Search,
 ) -> Element<'a, SearchMessage> {
-    let apps: Vec<_> = search
+    let all_apps: Vec<_> = search
         .filtered_apps()
         .iter()
         .filter_map(|i| search.app(*i))
         .collect();
 
-    let grid = apps
-        .chunks(GRID_COLUMNS)
-        .fold(column!().spacing(8), |col, chunk| {
-            let mut grid_row = row!().spacing(8);
-            for app in chunk {
-                grid_row = grid_row.push(app_icon_button(app));
-            }
-            col.push(grid_row)
-        });
+    let (text_apps, icon_apps): (Vec<_>, Vec<_>) = all_apps
+        .into_iter()
+        .partition(|app| matches!(app.source, AppSource::Binary | AppSource::File));
 
-    scrollable(grid)
+    eprintln!("PARTITION: icon={} text={}", icon_apps.len(), text_apps.len());
+
+    let mut sections: Vec<Element<'a, SearchMessage>> = Vec::new();
+
+    if !icon_apps.is_empty() {
+        let grid = icon_apps
+            .chunks(GRID_COLUMNS)
+            .fold(column!().spacing(8), |col, chunk| {
+                let mut grid_row = row!().spacing(8);
+                for app in chunk {
+                    grid_row = grid_row.push(app_icon_button(app));
+                }
+                col.push(grid_row)
+            });
+        sections.push(grid.into());
+    }
+
+    if !text_apps.is_empty() {
+        let cli_rows: Vec<cosmic::Element<'a, SearchMessage>> = text_apps
+            .iter()
+            .map(|app| {
+                let row_content = row![
+                    text("$ ").size(11),
+                    text(&app.name).size(14),
+                ]
+                .spacing(8)
+                .align_y(Vertical::Center)
+                .padding([8, 12]);
+
+                let btn: cosmic::Element<'a, SearchMessage> =
+                    cosmic::widget::button::custom(row_content)
+                        .width(Length::Fill)
+                        .on_press(SearchMessage::AppClicked(app.exec.clone()))
+                        .class(cosmic::theme::Button::Custom {
+                            active: Box::new(|_, _| cosmic::widget::button::Style {
+                                background: Some(cosmic::iced::Color {
+                                    r: 0.08, g: 0.08, b: 0.09, a: 0.6,
+                                }.into()),
+                                border_color: crate::ui::theme::DRAWER_BTN_BORDER,
+                                border_width: 1.0,
+                                border_radius: cosmic::iced::border::rounded(0).radius,
+                                text_color: Some(crate::ui::theme::DRAWER_BTN_TEXT),
+                                ..Default::default()
+                            }),
+                            hovered: Box::new(|_, _| cosmic::widget::button::Style {
+                                background: Some(cosmic::iced::Color {
+                                    r: 0.75, g: 0.78, b: 0.82, a: 0.7,
+                                }.into()),
+                                border_color: crate::ui::theme::STEEL_TOP,
+                                border_width: 1.0,
+                                border_radius: cosmic::iced::border::rounded(0).radius,
+                                text_color: Some(crate::ui::theme::DRAWER_BTN_TEXT_HOVER),
+                                ..Default::default()
+                            }),
+                            pressed: Box::new(|_, _| cosmic::widget::button::Style {
+                                background: Some(crate::ui::theme::DRAWER_BTN_ACTIVE.into()),
+                                text_color: Some(crate::ui::theme::DRAWER_BTN_TEXT_HOVER),
+                                ..Default::default()
+                            }),
+                            disabled: Box::new(|_| cosmic::widget::button::Style::default()),
+                        })
+                        .into();
+                btn
+            })
+            .collect();
+        let cli_col: cosmic::Element<'a, SearchMessage> =
+            cosmic::widget::column(cli_rows).spacing(2).into();
+        sections.push(Themer::new(None::<cosmic::Theme>, cli_col).into());
+    }
+
+    scrollable(column(sections).spacing(12))
         .scrollbar_width(4)
         .scrollbar_padding(0)
         .scroller_width(4)
