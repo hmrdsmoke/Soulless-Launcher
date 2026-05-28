@@ -22,6 +22,7 @@ use cosmic::iced::Task;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct LauncherPosition;
 
+#[allow(dead_code)] // issue #1 — layer shell implementation
 impl LauncherPosition {
     // Fallback screen size — replaced by runtime detection in future.
     // === IN PROGRESS ===

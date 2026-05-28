@@ -787,6 +787,7 @@ impl Search {
             .find(|a| a.id == id)
     }
 
+    #[allow(dead_code)]
     pub fn drawers(&self) -> Vec<String> {
         self.drawer_state.drawer_names()
     }

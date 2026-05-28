@@ -122,6 +122,7 @@ impl Vault {
 
     // ── Setup (first launch) ──────────────────────────────────────────────
 
+    #[allow(dead_code)] // issue #3
     pub fn begin_setup(&mut self) {
         self.is_setup = true;
         self.error = None;
@@ -291,6 +292,7 @@ impl Vault {
         Ok(())
     }
 
+    #[allow(dead_code)] // issue #3
     /// Retry the original file removal using pkexec.
     pub fn remove_original_pkexec(source: &Path) -> Result<(), String> {
         let status = std::process::Command::new("pkexec")

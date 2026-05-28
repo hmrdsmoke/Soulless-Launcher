@@ -14,6 +14,7 @@ pub fn fallback_icon() -> String {
     "/usr/share/icons/hicolor/48x48/apps/apport.png".to_string()
 }
 
+#[allow(dead_code)] // issue #6 — icon cache utilities
 /// Shared icon cache type.
 pub type SharedIconCache = Arc<RwLock<IconCache>>;
 

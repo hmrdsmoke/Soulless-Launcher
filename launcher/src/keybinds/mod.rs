@@ -9,4 +9,3 @@
 
 pub mod actions;
 
-pub use actions::handle_key;

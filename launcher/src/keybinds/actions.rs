@@ -14,7 +14,7 @@ use cosmic::iced::keyboard::{self, key::Named};
 pub fn handle_key<Message>(
     key: &keyboard::Key,
     search: &mut search::Search,
-    f_search_msg: impl Fn(search::Message) -> Message + Copy,
+    _f_search_msg: impl Fn(search::Message) -> Message + Copy,
     f_exit: impl FnOnce() -> Task<Message>,
     f_focus_search: impl FnOnce() -> Task<Message>,
 ) -> Task<Message>

@@ -66,6 +66,7 @@ impl Default for DrawerState {
     }
 }
 
+#[allow(dead_code)] // issue #3 — keyboard navigation
 impl DrawerState {
     // ── Accessors ─────────────────────────────────────────────
 

@@ -6,6 +6,7 @@
 // src/position/layout.rs
 // Single source of truth for all window and panel dimensions.
 // drawers.rs should import from here instead of hardcoding values.
+#![allow(dead_code)]
 
 /// Total window width
 pub const WINDOW_WIDTH: f32 = 700.0;

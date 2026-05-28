@@ -15,7 +15,8 @@ pub mod path;
 pub mod steam;
 pub mod icon;
 
-#[derive(Clone)]
+#[allow(dead_code)] // issue #6 — launch stats tracking
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct AppEntry {
     pub id: String,
 
@@ -27,6 +28,7 @@ pub struct AppEntry {
     pub source: AppSource,
 
     pub lower_name: String,
+    #[serde(skip)]
     pub haystack: Utf32String,
 
     pub keywords: Vec<String>,
@@ -36,7 +38,8 @@ pub struct AppEntry {
     pub last_launched: Option<u64>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[allow(dead_code)] // issue #4 — Wine/JetBrains app sources
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum AppSource {
     Desktop,
     Flatpak,

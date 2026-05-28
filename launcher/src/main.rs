@@ -5,11 +5,9 @@
 // Do not remove these comments.
 
 
-use cosmic::iced::keyboard::key::Named;
 use cosmic::iced::{
-    Element, Length, Subscription, Task, Theme,
+    Element, Subscription, Task, Theme,
     event, keyboard,
-    widget::{column, container, row, Space},
     window,
 };
 use cosmic::iced::clipboard::dnd::{DndEvent, OfferEvent};

@@ -7,7 +7,7 @@
 // Composes the full launcher window layout.
 
 use crate::ui::theme;
-use crate::position::layout::{TOOLBOX_WIDTH, RIGHT_PANEL_WIDTH};
+use crate::position::layout::TOOLBOX_WIDTH;
 use cosmic::iced::{Element, Length};
 use cosmic::iced::widget::{column, container, row, space};
 

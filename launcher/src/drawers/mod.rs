@@ -23,7 +23,6 @@ use cosmic::iced::{Color, Element, Length, Theme};
 // DnD bridge
 use cosmic::iced::widget::Themer;
 use cosmic::iced::clipboard::mime::{AllowedMimeTypes, AsMimeTypes};
-use cosmic::widget::dnd_destination;
 use cosmic::widget::dnd_destination::dnd_destination_for_data;
 
 use crate::position::layout::TOOLBOX_WIDTH;
@@ -233,7 +232,7 @@ pub fn view<'a>(
             ..Default::default()
         });
 
-        let (base_toolbox, base_right) = base;
+        let (base_toolbox, _base_right) = base;
         // Darken backdrop + center the modal
         let backdrop = mouse_area(
             container(
@@ -294,7 +293,7 @@ fn sidebar_drawer_button<'a>(
     // Show total item count (apps + files)
     let item_count = search.drawer_state.item_count(&drawer_name);
 
-    let bg_color: Option<cosmic::iced::Background> = if is_drag_target {
+    let _bg_color: Option<cosmic::iced::Background> = if is_drag_target {
         Some(Color::from_rgb8(40, 80, 40).into())
     } else if is_active {
         Some(Color::from_rgb8(60, 60, 80).into())
@@ -302,14 +301,14 @@ fn sidebar_drawer_button<'a>(
         None
     };
 
-    let border_color = if is_drag_target {
+    let _border_color = if is_drag_target {
         Color::from_rgb8(60, 180, 60)
     } else {
         Color::from_rgba8(0, 0, 0, 0.0)
     };
 
     let dn_click = drawer_name.clone();
-    let dn_rclick = drawer_name.clone();
+    let _dn_rclick = drawer_name.clone();
     let dn_enter = drawer_name.clone();
     let dn_finish = drawer_name.clone();
     let icon_str = drawer.icon.clone();

@@ -37,6 +37,7 @@ pub const WIDGET_BG: Color = Color { r: 0.118, g: 0.118, b: 0.118, a: 0.9 };
 pub const WIDGET_BORDER: Color = Color { r: 0.3, g: 0.3, b: 0.3, a: 0.4 };
 pub const WIDGET_CORNER_RADIUS: f32 = 8.0;
 /// Scale factor for monitor widgets (0.75 = 25% smaller)
+#[allow(dead_code)]
 pub const WIDGET_SCALE: f32 = 0.75;
 
 // ── Drawer button colors ──────────────────────────────────────────────────────

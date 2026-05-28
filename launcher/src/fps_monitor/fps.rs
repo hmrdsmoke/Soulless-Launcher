@@ -10,6 +10,7 @@ use std::time::Instant;
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 /// How often the subscription fires in ms — must match TICK_FPS_MS in mod.rs
+#[allow(dead_code)]
 const TICK_MS: f32 = 500.0;
 
 // ── State ─────────────────────────────────────────────────────────────────────

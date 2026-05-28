@@ -1,84 +1,60 @@
+// MIT License - see LICENSE file for full terms
+// Copyright 2026 Michael Van Auker (HMRDSmoke)
+// This is my original work with contributions from Claude (Anthropic).
+// Do not remove these comments.
+
 use super::AppEntry;
+use nucleo_matcher::Utf32String;
 use std::fs;
 use std::path::PathBuf;
+use std::time::{Duration, SystemTime};
 
-const CACHE_DIR: &str = ".cache/soulless";
-const CACHE_FILE: &str = "index.bin";
-
-pub fn cache_path() -> Option<PathBuf> {
-    let home = dirs::home_dir()?;
-
-    Some(
-        home.join(CACHE_DIR)
-            .join(CACHE_FILE),
-    )
+pub fn cache_dir() -> PathBuf {
+    dirs::cache_dir()
+        .unwrap_or_else(|| PathBuf::from("/tmp"))
+        .join("soulless")
 }
 
-pub fn load_cache() -> Option<Vec<AppEntry>> {
-    let path = cache_path()?;
-
-    // Cache not created yet
-    if !path.exists() {
-        return None;
-    }
-
-    // Stub for now
-    //
-    // Later:
-    // - deserialize binary cache
-    // - restore launch stats
-    // - restore metadata
-    //
-    // For now we just prove the architecture works.
-
-    eprintln!(
-        "CACHE found at {}",
-        path.display()
-    );
-
-    None
+fn cache_path(source: &str) -> PathBuf {
+    cache_dir().join(format!("{}.bin", source))
 }
 
-pub fn save_cache(apps: &[AppEntry]) {
-    let Some(path) = cache_path() else {
-        return;
-    };
-
-    // Ensure cache directory exists
+pub fn save(source: &str, apps: &[AppEntry]) {
+    let path = cache_path(source);
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
     }
-
-    // Stub write for now
-    //
-    // Later:
-    // - bincode
-    // - postcard
-    // - rkyv
-    // - compressed binary cache
-    //
-    // For now:
-    // just create placeholder file.
-
-    let contents = format!(
-        "soulless cache placeholder\napps={}",
-        apps.len()
-    );
-
-    match fs::write(&path, contents) {
-        Ok(_) => {
-            eprintln!(
-                "CACHE saved {} apps -> {}",
-                apps.len(),
-                path.display()
-            );
+    match bincode::serialize(apps) {
+        Ok(bytes) => {
+            if let Err(e) = fs::write(&path, bytes) {
+                eprintln!("cache: failed to write {}: {}", path.display(), e);
+            }
         }
-
-        Err(err) => {
-            eprintln!(
-                "CACHE save failed: {}",
-                err
-            );
-        }
+        Err(e) => eprintln!("cache: serialize error for {}: {}", source, e),
     }
+}
+
+pub fn load(source: &str) -> Option<Vec<AppEntry>> {
+    let path = cache_path(source);
+    let bytes = fs::read(&path).ok()?;
+    let mut apps: Vec<AppEntry> = bincode::deserialize(&bytes).ok()?;
+    // Rebuild haystack — skipped during serde
+    for app in &mut apps {
+        app.haystack = Utf32String::from(app.name.as_str());
+    }
+    Some(apps)
+}
+
+pub fn is_stale(source: &str, hours: u64) -> bool {
+    let path = cache_path(source);
+    let Ok(meta) = fs::metadata(&path) else {
+        return true; // missing = stale
+    };
+    let Ok(modified) = meta.modified() else {
+        return true;
+    };
+    let age = SystemTime::now()
+        .duration_since(modified)
+        .unwrap_or(Duration::MAX);
+    age > Duration::from_secs(hours * 3600)
 }
