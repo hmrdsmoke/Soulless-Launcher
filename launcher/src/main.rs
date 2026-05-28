@@ -135,17 +135,15 @@ impl Soulless {
             // ── Keyboard ──────────────────────────────────────────────────
             Message::WindowEvent(
                 cosmic::iced::Event::Keyboard(
-                    keyboard::Event::KeyPressed { key, .. },
+                    keyboard::Event::KeyPressed { key, modifiers, .. },
                 ),
             ) => {
                 return keybinds::actions::handle_key(
                     &key,
+                    modifiers,
                     &mut self.search,
                     Message::Search,
                     || cosmic::iced::exit::<Message>(),
-                    || cosmic::widget::text_input::focus(
-                        cosmic::widget::Id::new("soulless-search-bar")
-                    ),
                 );
             }
 

@@ -166,6 +166,7 @@ pub struct Search {
     /// Active inline drawer rename/icon edit modal
     pub drawer_edit: Option<DrawerEditModal>,
     /// Custom background image path for the right panel (None = default dark red)
+    #[allow(dead_code)]
     pub bg_image_path: Option<String>,
 }
 
@@ -861,7 +862,7 @@ impl Search {
 
     fn fuzzy_results(
         &self,
-        query_lower: &str,
+        _query_lower: &str,
         budget: usize,
         exclude: &std::collections::HashSet<usize>,
     ) -> Vec<usize> {

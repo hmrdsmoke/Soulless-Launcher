@@ -7,7 +7,7 @@ use super::{AppEntry, AppSource};
 use super::icon::IconCache;
 use nucleo_matcher::Utf32String;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
     let mut apps = Vec::new();
