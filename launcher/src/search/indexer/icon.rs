@@ -35,6 +35,13 @@ impl IconCache {
 
         let _ = std::fs::create_dir_all(&svg_cache_dir);
 
+        eprintln!(
+            "Icon cache dir: {} files",
+            std::fs::read_dir(&svg_cache_dir)
+                .map(|d| d.count())
+                .unwrap_or(0)
+        );
+
         Self {
             cache: HashMap::new(),
             svg_cache_dir,
@@ -230,6 +237,22 @@ impl IconCache {
         pixmap.save_png(&out_path).ok()?;
 
         Some(out_path.display().to_string())
+    }
+
+    pub fn prewarm(&mut self) {
+        if let Ok(entries) = std::fs::read_dir(&self.svg_cache_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) == Some("png") {
+                    let key = path.file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    self.cache.insert(key, path.display().to_string());
+                }
+            }
+        }
+        eprintln!("Icon cache prewarmed: {} entries", self.cache.len());
     }
 
     pub fn len(&self) -> usize { self.cache.len() }

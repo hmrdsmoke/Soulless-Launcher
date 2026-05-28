@@ -182,6 +182,8 @@ impl Search {
         let matcher = Matcher::new(Config::DEFAULT);
 
         let all_apps = build_index();
+        eprintln!("all_apps total: {}", all_apps.len());
+        eprintln!("file entries in all_apps: {}", all_apps.iter().filter(|a| matches!(a.source, indexer::AppSource::File)).count());
 
         let drawer_state =
             load_drawer_state().unwrap_or_default();
@@ -232,8 +234,6 @@ impl Search {
                 self.query = q;
 
                 self.recompute_results();
-
-                self.show_search_results = true;
 
                 self.current_open_drawer =
                     OpenDrawer::Search;
@@ -795,159 +795,71 @@ impl Search {
     // ── Search internals ────────────────────────
 
     fn recompute_results(&mut self) {
-        const MAX_RESULTS: usize = 40;
-        const TOP_PREFIX_COUNT: usize = 12;
+        let query = self.query.trim().to_lowercase();
 
-        if self.query.is_empty() {
-            self.filtered_apps =
-                (0..self
-                    .all_apps
-                    .len()
-                    .min(MAX_RESULTS))
-                    .collect();
-
+        if query.is_empty() {
+            // Default view — top 36 by priority (apps first, then cli, then files)
+            self.filtered_apps = self.all_apps
+                .iter()
+                .enumerate()
+                .take(36)
+                .map(|(i, _)| i)
+                .collect();
+            self.show_search_results = false;
+            eprintln!("DEFAULT: all_apps={}, filtered={}", self.all_apps.len(), self.filtered_apps.len());
             return;
         }
 
-        let query_lower =
-            self.query.to_lowercase();
+        self.show_search_results = true;
 
-        let char_count =
-            self.query.chars().count();
+        // How many prefix slots to reserve based on query length
+        let prefix_count: usize = match query.len() {
+            1 => 9,
+            2 => 18,
+            3 => 27,
+            _ => 36,
+        };
 
-        let prefix_indices: Vec<usize> =
-            self
-                .all_apps
-                .iter()
-                .enumerate()
-                .filter(|(_, app)| {
-                    app.lower_name
-                        .starts_with(
-                            &query_lower
-                        )
-                })
-                .map(|(i, _)| i)
-                .collect();
+        // Get prefix matches up to prefix_count
+        let prefix_results: Vec<usize> = self.all_apps
+            .iter()
+            .enumerate()
+            .filter(|(_, app)| app.lower_name.starts_with(&query))
+            .map(|(i, _)| i)
+            .take(prefix_count)
+            .collect();
 
-        let top12: Vec<usize> =
-            prefix_indices
-                .iter()
-                .copied()
-                .take(TOP_PREFIX_COUNT)
-                .collect();
-
-        let remaining_budget =
-            MAX_RESULTS
-                .saturating_sub(top12.len());
-
-        match char_count {
-            1 => {
-                let prefix_budget =
-                    remaining_budget / 2;
-
-                let fuzzy_budget =
-                    remaining_budget
-                        - prefix_budget;
-
-                let prefix_rest:
-                    Vec<usize> =
-                    prefix_indices
-                        .iter()
-                        .copied()
-                        .skip(
-                            TOP_PREFIX_COUNT
-                        )
-                        .take(
-                            prefix_budget
-                        )
-                        .collect();
-
-                let fuzzy =
-                    self.fuzzy_results(
-                        &query_lower,
-                        fuzzy_budget,
-                        &prefix_indices,
-                    );
-
-                self.filtered_apps =
-                    top12
-                        .into_iter()
-                        .chain(
-                            prefix_rest
-                        )
-                        .chain(fuzzy)
-                        .take(
-                            MAX_RESULTS
-                        )
-                        .collect();
-            }
-
-            2 => {
-                let prefix_budget =
-                    (remaining_budget * 3)
-                        / 4;
-
-                let fuzzy_budget =
-                    remaining_budget
-                        - prefix_budget;
-
-                let prefix_rest:
-                    Vec<usize> =
-                    prefix_indices
-                        .iter()
-                        .copied()
-                        .skip(
-                            TOP_PREFIX_COUNT
-                        )
-                        .take(
-                            prefix_budget
-                        )
-                        .collect();
-
-                let fuzzy =
-                    self.fuzzy_results(
-                        &query_lower,
-                        fuzzy_budget,
-                        &prefix_indices,
-                    );
-
-                self.filtered_apps =
-                    top12
-                        .into_iter()
-                        .chain(
-                            prefix_rest
-                        )
-                        .chain(fuzzy)
-                        .take(
-                            MAX_RESULTS
-                        )
-                        .collect();
-            }
-
-            _ => {
-                self.filtered_apps =
-                    top12
-                        .into_iter()
-                        .chain(
-                            prefix_indices
-                                .into_iter()
-                                .skip(
-                                    TOP_PREFIX_COUNT
-                                ),
-                        )
-                        .take(
-                            MAX_RESULTS
-                        )
-                        .collect();
-            }
+        // If prefix found nothing, go 100% fuzzy
+        if prefix_results.is_empty() {
+            self.filtered_apps = self.fuzzy_results(&query, 36, &std::collections::HashSet::new());
+            self.filtered_apps.truncate(36);
+            eprintln!("FINAL: prefix=0, total after fuzzy fill={}", self.filtered_apps.len());
+            return;
         }
+
+        // actual_prefix may be less than prefix_count — give all leftover slots to fuzzy
+        let actual_prefix = prefix_results.len().min(prefix_count);
+        let remaining_slots = 36 - actual_prefix;
+
+        let prefix_set: std::collections::HashSet<usize> = prefix_results.iter().copied().collect();
+        let mut results = prefix_results;
+        results.truncate(actual_prefix);
+
+        if remaining_slots > 0 {
+            let fuzzy = self.fuzzy_results(&query, remaining_slots, &prefix_set);
+            results.extend(fuzzy);
+        }
+
+        results.truncate(36);
+        self.filtered_apps = results;
+        eprintln!("FINAL: prefix={}, total after fuzzy fill={}", actual_prefix, self.filtered_apps.len());
     }
 
     fn fuzzy_results(
         &self,
         query_lower: &str,
         budget: usize,
-        exclude: &[usize],
+        exclude: &std::collections::HashSet<usize>,
     ) -> Vec<usize> {
         if budget == 0 {
             return Vec::new();
@@ -968,14 +880,7 @@ impl Search {
             .all_apps
             .iter()
             .enumerate()
-            .filter(|(i, app)| {
-                !exclude.contains(i)
-                    && !app
-                        .lower_name
-                        .contains(
-                            query_lower
-                        )
-            })
+            .filter(|(i, _)| !exclude.contains(i))
             .filter_map(|(i, app)| {
                 pattern
                     .score(

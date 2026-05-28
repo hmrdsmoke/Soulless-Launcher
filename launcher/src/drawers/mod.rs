@@ -27,7 +27,7 @@ use cosmic::widget::dnd_destination::dnd_destination_for_data;
 
 use crate::position::layout::TOOLBOX_WIDTH;
 const GRID_COLUMNS: usize = 4;
-const ICON_SIZE: f32 = 64.0;
+const ICON_SIZE: f32 = 48.0;
 
 // Cap picker render to prevent the freeze — was building 200+ widget trees
 // per frame. 50 is plenty; typing filters it down fast.
@@ -150,14 +150,7 @@ pub fn view<'a>(
             match &search.current_open_drawer {
                 OpenDrawer::Pinned(name) => drawer_contents_view(search, name),
                 OpenDrawer::Vault => crate::vault::ui::view(&search.vault),
-                OpenDrawer::Search => container(
-                    text("Search or select a drawer").size(18)
-                )
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .center_x(Length::Fill)
-                .center_y(Length::Fill)
-                .into(),
+                OpenDrawer::Search => search_results_view(search),
             }
         };
 
@@ -812,12 +805,15 @@ fn context_menu_style(_: &Theme) -> container::Style {
 // Search Results — app icons are drag sources
 // ─────────────────────────────────────────────────────────────
 
+const MAX_RENDER: usize = 36;
+
 fn search_results_view<'a>(
     search: &'a crate::search::Search,
 ) -> Element<'a, SearchMessage> {
     let apps: Vec<_> = search
         .filtered_apps()
         .iter()
+        .take(MAX_RENDER)
         .filter_map(|i| search.app(*i))
         .collect();
 
@@ -831,13 +827,7 @@ fn search_results_view<'a>(
             col.push(grid_row)
         });
 
-    scrollable(grid)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .scrollbar_width(6)
-        .scrollbar_padding(0)
-        .scroller_width(6)
-        .into()
+    grid.into()
 }
 
 // ─────────────────────────────────────────────────────────────
