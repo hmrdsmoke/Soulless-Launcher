@@ -91,19 +91,24 @@ pub fn view<'a>(
         .padding(16)
         .size(18);
 
-    let drawers_column = column(
-        search
-            .drawer_state
-            .drawers()
-            .iter()
-            .map(|drawer| sidebar_drawer_button(search, drawer))
-            .collect::<Vec<_>>(),
+    let drawers_column = scrollable(
+        column(
+            search
+                .drawer_state
+                .drawers()
+                .iter()
+                .map(|drawer| sidebar_drawer_button(search, drawer))
+                .collect::<Vec<_>>(),
+        )
+        .spacing(6)
     )
-    .spacing(6);
+    .scrollbar_width(0)
+    .scroller_width(0)
+    .height(Length::Fill);
 
-    let main_toolbox = column![
-        container(search_bar).padding(16),
-        drawers_column,
+    let drawer_count = search.drawer_state.drawers().len();
+
+    let new_drawer_btn: Element<'_, SearchMessage> = if drawer_count < 5 {
         container(
             mouse_area(
                 container(
@@ -119,7 +124,18 @@ pub fn view<'a>(
             )
             .on_press(SearchMessage::CreateDrawer)
         )
-        .padding([8, 16]),
+        .padding([8, 16])
+        .into()
+    } else {
+        container(space::horizontal().width(Length::Fill))
+            .padding([8, 16])
+            .into()
+    };
+
+    let main_toolbox = column![
+        container(search_bar).padding(16),
+        drawers_column,
+        new_drawer_btn,
         container(
             mouse_area(
                 container(
@@ -393,8 +409,13 @@ fn sidebar_drawer_button<'a>(
         .on_leave(|| SearchMessage::DrawerDragHover(None))
         .into();
 
+    // Wire right-click before bridging theme (Themer produces AnyTheme which breaks mouse_area)
+    let dest_with_rclick: cosmic::Element<'_, SearchMessage> = mouse_area(dest)
+        .on_right_press(SearchMessage::RightClickDrawerSidebar(drawer_name.clone()))
+        .into();
+
     // Bridge cosmic::Theme → cosmic::iced::Theme
-    Themer::new(None::<cosmic::Theme>, dest).into()
+    Themer::new(None::<cosmic::Theme>, dest_with_rclick).into()
 }
 
 // ─────────────────────────────────────────────────────────────

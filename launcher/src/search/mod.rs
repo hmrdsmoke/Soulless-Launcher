@@ -398,6 +398,10 @@ impl Search {
             // ── Drawer management ─────────────────
 
             Message::CreateDrawer => {
+                if self.drawer_state.drawers().len() >= 5 {
+                    return None;
+                }
+
                 let mut index = 1;
 
                 loop {
