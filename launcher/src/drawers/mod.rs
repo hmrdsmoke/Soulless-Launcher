@@ -338,7 +338,7 @@ fn sidebar_drawer_button<'a>(
                         background: Some(bg.into()),
                         border_color: crate::ui::theme::DRAWER_BTN_BORDER,
                         border_width: 1.0,
-                        border_radius: cosmic::iced::border::rounded(6).radius,
+                        border_radius: cosmic::iced::border::rounded(0).radius,
                         text_color: Some(if selected {
                             crate::ui::theme::DRAWER_BTN_TEXT_HOVER
                         } else {
@@ -357,7 +357,7 @@ fn sidebar_drawer_button<'a>(
                         background: Some(bg.into()),
                         border_color: crate::ui::theme::STEEL_TOP,
                         border_width: 1.0,
-                        border_radius: cosmic::iced::border::rounded(6).radius,
+                        border_radius: cosmic::iced::border::rounded(0).radius,
                         text_color: Some(crate::ui::theme::DRAWER_BTN_TEXT_HOVER),
                         ..Default::default()
                     }
