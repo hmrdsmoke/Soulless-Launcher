@@ -11,12 +11,7 @@ use std::sync::{Arc, RwLock};
 pub const FALLBACK_ICON: &str = "assets/launcher.png";
 
 pub fn fallback_icon() -> String {
-    std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|d| d.join("assets/launcher.png")))
-        .filter(|p| p.exists())
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|| "/usr/share/icons/hicolor/48x48/apps/apport.png".to_string())
+    "/usr/share/icons/hicolor/48x48/apps/apport.png".to_string()
 }
 
 /// Shared icon cache type.

@@ -19,14 +19,15 @@ pub fn index(
 
     let home = dirs::home_dir().unwrap_or_default();
 
-    let dirs = [
-        "/usr/share/applications".to_string(),
-        "/usr/local/share/applications".to_string(),
-        format!(
-            "{}/.local/share/applications",
-            home.display()
-        ),
-    ];
+    let xdg_data_dirs = std::env::var("XDG_DATA_DIRS")
+        .unwrap_or_else(|_| "/usr/local/share:/usr/share".to_string());
+
+    let mut dirs: Vec<String> = xdg_data_dirs
+        .split(':')
+        .map(|d| format!("{}/applications", d))
+        .collect();
+
+    dirs.push(format!("{}/.local/share/applications", home.display()));
 
     for dir in dirs {
         let Ok(entries) = fs::read_dir(dir) else {

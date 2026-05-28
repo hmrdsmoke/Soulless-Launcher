@@ -794,7 +794,7 @@ impl Search {
     // ── Search internals ────────────────────────
 
     fn recompute_results(&mut self) {
-        const MAX_RESULTS: usize = 200;
+        const MAX_RESULTS: usize = 40;
         const TOP_PREFIX_COUNT: usize = 12;
 
         if self.query.is_empty() {

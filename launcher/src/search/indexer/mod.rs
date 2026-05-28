@@ -9,6 +9,7 @@ use nucleo_matcher::Utf32String;
 pub mod appimage;
 pub mod cache;
 pub mod desktop;
+pub mod files;
 pub mod flatpak;
 pub mod path;
 pub mod steam;
@@ -46,6 +47,7 @@ pub enum AppSource {
     JetBrains,
     Wine,
     Proton,
+    File,
 }
 
 use crate::search::indexer::icon::IconCache;
@@ -56,12 +58,25 @@ pub fn build_index() -> Vec<AppEntry> {
     // Shared startup icon resolver
     let mut icons = IconCache::new();
 
-    // Source priority: Desktop > Flatpak > AppImage > Steam
-    // PATH binaries are excluded — too noisy for a GUI launcher
+    // Source priority: Desktop > Flatpak > AppImage > Steam > PATH binaries > Files
     apps.extend(desktop::index(&mut icons));
     apps.extend(flatpak::index(&mut icons));
     apps.extend(appimage::index(&mut icons));
     apps.extend(steam::index());
+
+    // Only index binaries that have a man page (filters out noise)
+    let path_apps: Vec<AppEntry> = path::index(&mut icons)
+        .into_iter()
+        .filter(|app| {
+            let name = &app.name;
+            std::path::Path::new(&format!("/usr/share/man/man1/{}.1.gz", name)).exists()
+                || std::path::Path::new(&format!("/usr/share/man/man1/{}.1", name)).exists()
+                || std::path::Path::new(&format!("/usr/share/man/man8/{}.8.gz", name)).exists()
+        })
+        .collect();
+    apps.extend(path_apps);
+
+    apps.extend(files::index());
 
     // Deduplicate by lowercase name — keeps the highest-priority entry.
     // Removes duplicates like an app appearing as both .desktop and Flatpak.
