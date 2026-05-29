@@ -1,0 +1,25 @@
+0975704bbb57b9cdaa33bcbe60f46acf3dddc09e		branch 'cosmic-text-0.11' of https://github.com/iced-rs/cryoglyph
+2cf7e78a1a4306074893d8f67a5ed1fb70de291a		branch 'cosmic-text-0.14' of https://github.com/iced-rs/cryoglyph
+958a1bca0fcf890b41d8eb4d80d89e8529fd40d2		branch 'dev' of https://github.com/iced-rs/cryoglyph
+b979122dfa80e2072f0948aa227712201e173cc4		branch 'growing-atlas' of https://github.com/iced-rs/cryoglyph
+89883bcf38b5bed0d7bade788ef738d9facc857c		branch 'hinting' of https://github.com/iced-rs/cryoglyph
+647575039c86faf21518c3064f9dde2dacf16db7		branch 'iced' of https://github.com/iced-rs/cryoglyph
+09712a70df7431e9a3b1ac1bbd4fb634096cb3b4		branch 'iced-dev' of https://github.com/iced-rs/cryoglyph
+1ee9109e17fdbc75d1c874846afd648c7fda39e7		branch 'immutable-render' of https://github.com/iced-rs/cryoglyph
+53ba3e879539d19ed8162942126a977ec896cc3b		branch 'master' of https://github.com/iced-rs/cryoglyph
+ab86e12eb04412404c0d3729ee4e746fc5b290b4		branch 'multi-viewport-support' of https://github.com/iced-rs/cryoglyph
+a6a7ee1a612357cad9dceffa15464d49c044585e		branch 'no-upload-batching' of https://github.com/iced-rs/cryoglyph
+28b6b989f8a7506926b740aa8b7b366a593f4af8		branch 'reuse-allocations' of https://github.com/iced-rs/cryoglyph
+47050174841a4f58fc8d85c943a2117f72f19e8e		branch 'scaling' of https://github.com/iced-rs/cryoglyph
+28ffa3c3f7ba35525cb5347d143d5d6e3424c598		branch 'srgb' of https://github.com/iced-rs/cryoglyph
+de385ddd005289089808a58f603835e8079065e0		branch 'subpixel-positioning' of https://github.com/iced-rs/cryoglyph
+49e825c0e5d6ac401e512a8445df72bc69f02d04		branch 'temp' of https://github.com/iced-rs/cryoglyph
+0a8366be5ec6d48c3e10c996ba840936992d878f		branch 'update-cosmic-text' of https://github.com/iced-rs/cryoglyph
+2f2208c9af6debd3d5ca984e7832daba4487cebb		branch 'update-wgpu' of https://github.com/iced-rs/cryoglyph
+a71282e044d3882b09855e0ae913c094a578ab67		branch 'update/cosmic-text' of https://github.com/iced-rs/cryoglyph
+02bd74ead81e3d2ddc6bacd01405406389455e39		branch 'update/wgpu' of https://github.com/iced-rs/cryoglyph
+810764b2227923378f497a59871bad4ec7f58701		branch 'use-ahash-explicitly' of https://github.com/iced-rs/cryoglyph
+153a63b2f741bf46a64f2e82db4eaa035f4bac5c		branch 'use-staging-belt' of https://github.com/iced-rs/cryoglyph
+a6ddf89014abb9d742ff2550340d687a81096a7f		'refs/pull/1/head' of https://github.com/iced-rs/cryoglyph
+b36979ec183d776154bd2ad7ad79a3a571b00612		'refs/pull/2/head' of https://github.com/iced-rs/cryoglyph
+bccada08e636d610d78ec5fd84a7ca1b2f71b81c		'refs/pull/3/head' of https://github.com/iced-rs/cryoglyph
