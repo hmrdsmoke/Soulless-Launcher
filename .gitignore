@@ -33,3 +33,4 @@ soulless.lock       # our single-instance lock file (optional, but clean to igno
 
 # Rustfmt backups
 **/*.rs.bk
+.flatpak-builder/
