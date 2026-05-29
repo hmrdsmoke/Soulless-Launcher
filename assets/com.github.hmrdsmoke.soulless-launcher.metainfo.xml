@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.github.hmrdsmoke.SoullessLauncher</id>
+  <id>com.github.hmrdsmoke.soulless-launcher</id>
   <name>Soulless Launcher</name>
   <summary>The toolbox you need to organize the tools you use</summary>
   <description>
@@ -25,7 +25,7 @@
     </ul>
   </description>
 
-  <launchable type="desktop-id">soulless-launcher.desktop</launchable>
+  <launchable type="desktop-id">com.github.hmrdsmoke.soulless-launcher.desktop</launchable>
 
   <url type="homepage">https://github.com/hmrdsmoke/Soulless-Launcher</url>
   <url type="bugtracker">https://github.com/hmrdsmoke/Soulless-Launcher/issues</url>
