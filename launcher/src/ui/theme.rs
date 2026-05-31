@@ -47,3 +47,8 @@ pub const DRAWER_BTN_ACTIVE: Color   = Color { r: 0.55, g: 0.58, b: 0.62, a: 1.0
 pub const DRAWER_BTN_BORDER: Color   = Color { r: 0.25, g: 0.26, b: 0.28, a: 0.8 }; // dark edge
 pub const DRAWER_BTN_TEXT: Color     = Color { r: 0.88, g: 0.89, b: 0.91, a: 1.0 }; // light text
 pub const DRAWER_BTN_TEXT_HOVER: Color = Color { r: 0.05, g: 0.05, b: 0.06, a: 1.0 }; // dark text on hover
+
+/// Height of each monitor widget in the grid
+pub const WIDGET_HEIGHT: f32 = 95.0;
+/// Spacing between monitor widgets in the grid
+pub const WIDGET_SPACING: u16 = 4;

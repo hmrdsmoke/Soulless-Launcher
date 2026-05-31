@@ -30,7 +30,7 @@ pub fn compose<'a, M: 'static + Clone + Send>(
         monitors,
     ]
     .spacing(12)
-    .width(Length::Fixed(crate::position::layout::TOOLBOX_WIDTH));
+    .width(Length::Fixed(TOOLBOX_WIDTH));
 
     // Right panel: full height
     let right_panel = right_content_panel(right, bg_handle);
@@ -149,6 +149,7 @@ fn right_content_panel<'a, M: 'static + Clone + Send>(
     }
 }
 
+// TODO: move to ui/widgets.rs — see refactor plan
 fn monitor_grid<'a, M: 'static + Clone + Send>(
     net: Element<'a, M>,
     sys: Element<'a, M>,
@@ -158,7 +159,7 @@ fn monitor_grid<'a, M: 'static + Clone + Send>(
     // Each widget is 75% of half the window width (quarter less than full)
     // Widgets sit side by side in a single row under the steel panel
     // Each widget takes half the toolbox width with a small gap
-    let widget_height = Length::Fixed(95.0);
+    let widget_height = Length::Fixed(theme::WIDGET_HEIGHT);
 
     let net = container(net).width(Length::Fill).height(widget_height).style(widget_style);
     let sys = container(sys).width(Length::Fill).height(widget_height).style(widget_style);
@@ -166,14 +167,15 @@ fn monitor_grid<'a, M: 'static + Clone + Send>(
     let fps = container(fps).width(Length::Fill).height(widget_height).style(widget_style);
 
     column![
-        row![net, sys].spacing(4),
-        row![hw, fps].spacing(4),
+        row![net, sys].spacing(theme::WIDGET_SPACING),
+        row![hw, fps].spacing(theme::WIDGET_SPACING),
     ]
     .spacing(4)
     .padding([8, 0, 4, 0])
     .into()
 }
 
+// TODO: move to ui/widgets.rs — see refactor plan
 fn widget_style(_: &cosmic::iced::Theme) -> cosmic::iced::widget::container::Style {
     cosmic::iced::widget::container::Style {
         background: Some(theme::WIDGET_BG.into()),
