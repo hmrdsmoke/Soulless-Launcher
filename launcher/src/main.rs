@@ -11,8 +11,6 @@ use cosmic::iced::{
     window,
 };
 use cosmic::iced::clipboard::dnd::{DndEvent, OfferEvent};
-use fs2::FileExt;
-use std::fs::OpenOptions;
 use std::path::PathBuf;
 
 mod config;
@@ -298,7 +296,7 @@ impl Soulless {
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 fn main() -> cosmic::iced::Result {
-    if !ensure_single_instance() {
+    if !position::ensure_single_instance() {
         eprintln!("Soulless is already running.");
         return Ok(());
     }
@@ -320,31 +318,4 @@ fn main() -> cosmic::iced::Result {
     .transparent(true)
     .resizable(false)
     .run()
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-fn ensure_single_instance() -> bool {
-    let lock_path = dirs::data_dir()
-        .unwrap_or_else(|| PathBuf::from("/tmp"))
-        .join("soulless/soulless.lock");
-
-    if let Some(parent) = lock_path.parent() {
-        std::fs::create_dir_all(parent).ok();
-    }
-
-    if let Ok(file) = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(&lock_path)
-    {
-        if file.try_lock_exclusive().is_ok() {
-            #[allow(clippy::mem_forget)]
-            Box::leak(Box::new(file));
-
-            return true;
-        }
-    }
-
-    false
 }
