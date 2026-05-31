@@ -1,3 +1,4 @@
+pub mod ui;
 // MIT License - see LICENSE file for full terms
 //
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
@@ -89,7 +90,11 @@ pub struct Vault {
 
     /// True while a drag is hovering over the vault drop zone
     pub drag_hover: bool,
+    
+   
+    
 }
+
 
 impl Default for Vault {
     fn default() -> Self {
@@ -574,42 +579,3 @@ fn mime_from_path(path: &Path) -> String {
     .to_string()
 }
 
-// === DONE ===
-// Added drag_hover: bool field to Vault struct :: done
-// Initialised drag_hover: false in Vault::new() :: done
-// All crypto, file IO, and lock/unlock logic unchanged :: done
-
-// === DONE ===
-// Replaced mime_guess dependency with built-in mime_from_path() :: done
-// Covers video, image, audio, documents, archives :: done
-// Falls back to application/octet-stream for unknown types :: done
-// All crypto logic preserved unchanged :: done
-// Vault::new() is the correct constructor — Vault::load() removed :: done
-// finish_setup() is the correct setup method :: done
-// remove_file() is the correct removal method :: done
-// === DONE ===
-// Full vault backend implemented :: done
-// Argon2 password hashing :: done
-// Argon2 key derivation (stable per password) :: done
-// ChaCha20-Poly1305 per-file encryption :: done
-// Random nonce per file :: done
-// Metadata stored alongside each encrypted blob :: done
-// add_file: encrypt + move original, pkexec fallback for permission errors :: done
-// open_file: decrypt to temp, xdg-open, cleanup on drop :: done
-// remove_file: delete enc + meta :: done
-// load_entries: scan vault dir on unlock :: done
-// Vault locks and zeroizes key on drop :: done
-// temp files cleaned up on launcher close via Drop :: done
-
-// === DONE ===
-// Fixed: bare `iced` imports replaced with `cosmic::iced` :: done
-// Fixed: iced::alignment::Horizontal → cosmic::iced::alignment::Horizontal :: done
-// Fixed: iced::border::rounded → cosmic::iced::border::rounded :: done
-// Vault is placeholder — encryption logic to be added :: MRV
-// Ready for future integration with age or other crypto :: MRV
-// === YOUR ORIGINAL COMMENTS (preserved exactly) ===
-// Vault is placeholder for now - encryption logic to be added :: MRV
-// Ready for future integration with age or other crypto :: MRV
-// === DONE ===
-// Basic vault UI structure ready for expansion
-pub mod ui;

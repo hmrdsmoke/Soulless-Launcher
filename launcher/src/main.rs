@@ -26,6 +26,7 @@ mod keybinds;
 mod position;
 mod search;
 mod vault;
+mod utils;
 
 
 use position::LauncherPosition;
@@ -108,7 +109,7 @@ impl Soulless {
 
             Message::Search(msg) => {
                 if let Some(exec) = self.search.update(msg) {
-                    let clean_exec = strip_desktop_placeholders(&exec);
+                    let clean_exec = utils::strip_desktop_placeholders(&exec);
 
                     if let Err(e) = std::process::Command::new("sh")
                         .arg("-c")
@@ -233,7 +234,7 @@ impl Soulless {
                                     .filter_map(|l| {
                                         let raw =
                                             l.trim_start_matches("file://");
-                                        let decoded = percent_decode_uri(raw);
+                                        let decoded = utils::percent_decode_uri(raw);
                                         let p = PathBuf::from(decoded);
                                         if p.exists() { Some(p) } else { None }
                                     })
@@ -323,27 +324,6 @@ fn main() -> cosmic::iced::Result {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-fn strip_desktop_placeholders(exec: &str) -> String {
-    let mut result = String::with_capacity(exec.len());
-    let mut chars = exec.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        if c == '%' {
-            if chars
-                .peek()
-                .map_or(false, |&next| next.is_ascii_alphabetic())
-            {
-                chars.next();
-                continue;
-            }
-        }
-
-        result.push(c);
-    }
-
-    result.trim().to_string()
-}
-
 fn ensure_single_instance() -> bool {
     let lock_path = dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("/tmp"))
@@ -368,73 +348,3 @@ fn ensure_single_instance() -> bool {
 
     false
 }
-
-// ── URI percent-decoding ────────────────────────────────────────────────────
-
-fn percent_decode_uri(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let bytes = input.as_bytes();
-    let mut i = 0;
-
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let (Some(hi), Some(lo)) = (
-                hex_nibble(bytes[i + 1]),
-                hex_nibble(bytes[i + 2]),
-            ) {
-                out.push((hi << 4 | lo) as char);
-                i += 3;
-                continue;
-            }
-        }
-
-        out.push(bytes[i] as char);
-        i += 1;
-    }
-
-    out
-}
-
-fn hex_nibble(b: u8) -> Option<u8> {
-    match b {
-        b'0'..=b'9' => Some(b - b'0'),
-        b'a'..=b'f' => Some(b - b'a' + 10),
-        b'A'..=b'F' => Some(b - b'A' + 10),
-        _ => None,
-    }
-}
-
-// === Done ===
-// Added superkey opens
-// Added press outside closes
-
-// === DONE ===
-// DnD Enter: hover state now set per current_open_drawer (Vault or Pinned) :: done
-// DnD Leave/LeaveDestination: clears both vault and drawer hover :: done
-// DnD Data: vault-only — drawer drops handled by dnd_destination on_finish in drawers.rs :: done
-//   Vault  → VaultFilesDropped(paths) :: done
-//   Pinned → handled by drawers.rs on_finish (not here) :: done
-//   Search → ignored :: done
-// Both hover states cleared after every drop :: done
-// DrawerFileHover(Some(name)) fired on DnD Enter for Pinned drawer :: done
-// DrawerFileHover(None) fired on DnD Leave, LeaveDestination, and after drop :: done
-// Added network_monitor mod (src/network_monitor/) :: done
-// NetworkState field on Soulless, initialised in new() :: done
-// Network(NetworkMessage) variant dispatches to network.update() :: done
-// network_monitor::subscription() batched with event::listen() :: done
-// Top-left widget_box replaced with network_monitor::view() :: done
-// Added system_monitor mod (src/system_monitor/) :: done
-// SystemState field on Soulless, initialised in new() :: done
-// System(SystemMessage) variant dispatches to system.update() :: done
-// system_monitor::subscription() batched into Subscription::batch :: done
-// Top-right widget_box replaced with system_monitor::view() :: done
-// Added hardware_monitor mod (src/hardware_monitor/) :: done
-// HardwareMonitorState field on Soulless, initialised in new() :: done
-// Hardware(HardwareMessage) variant dispatches to hardware.update() :: done
-// hardware_monitor::subscription() batched into Subscription::batch :: done
-// Bottom-left widget_box replaced with hardware_monitor::view() :: done
-// Added fps_monitor mod (src/fps_monitor/) :: done
-// FpsMonitorState field on Soulless, initialised in new() :: done
-// Fps(FpsMessage) variant dispatches to fps.update() :: done
-// fps_monitor::subscription() batched into Subscription::batch :: done
-// Bottom-right widget_box replaced with fps_monitor::view() :: done

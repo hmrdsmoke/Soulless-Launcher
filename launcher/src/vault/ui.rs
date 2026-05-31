@@ -228,7 +228,7 @@ fn files_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
             .filter(|l| l.starts_with("file://"))
             .filter_map(|l| {
                 let raw = l.trim_start_matches("file://");
-                let decoded = percent_decode_uri(raw);
+                let decoded = crate::utils::percent_decode_uri(raw);
                 let p = std::path::PathBuf::from(decoded);
                 if p.exists() { Some(p) } else { None }
             })
@@ -376,109 +376,3 @@ fn format_size(bytes: u64) -> String {
         format!("{:.2} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
     }
 }
-
-// ── URI percent-decoding ──────────────────────────────────────────────────────
-
-fn percent_decode_uri(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let bytes = input.as_bytes();
-    let mut i = 0;
-
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let (Some(hi), Some(lo)) = (
-                hex_nibble(bytes[i + 1]),
-                hex_nibble(bytes[i + 2]),
-            ) {
-                out.push((hi << 4 | lo) as char);
-                i += 3;
-                continue;
-            }
-        }
-        out.push(bytes[i] as char);
-        i += 1;
-    }
-
-    out
-}
-
-fn hex_nibble(b: u8) -> Option<u8> {
-    match b {
-        b'0'..=b'9' => Some(b - b'0'),
-        b'a'..=b'f' => Some(b - b'a' + 10),
-        b'A'..=b'F' => Some(b - b'A' + 10),
-        _ => None,
-    }
-}
-
-// === DONE ===
-// Themer bridges cosmic::Theme (dnd_destination) → cosmic::iced::Theme (our tree) :: done
-// Step 1: drop_inner as cosmic::Element via cosmic::widget::container :: done
-// Step 2: dnd_destination wraps drop_inner → cosmic::Element :: done
-// Step 3: Themer::new(None, drop_dest) → satisfies iced::Theme From bound :: done
-// Step 4: outer iced container applies hover styling + holds Themer :: done
-// on_enter → VaultDragHover(true), on_leave → VaultDragHover(false) :: done
-// on_finish → parse text/uri-list bytes → VaultFilesDropped :: done
-// dnd_destination registers the window as a drop target with compositor :: done
-// All other views unchanged :: done
-
-// === DONE ===
-// Reverted to pure cosmic::iced widget tree — no dnd_destination widget :: done
-// drag_hover: bool drives the drop zone visual (blue tint + border) :: done
-// DnD events handled in main.rs via Event::Dnd subscription arm :: done
-// All three views compile cleanly against cosmic::iced::Theme :: done
-
-// === DONE ===
-// All imports stay on cosmic::iced — consistent with drawers.rs and rest of project :: done
-// drop_zone_inner explicitly typed as cosmic::Element<'_, SearchMessage>
-//   → satisfies dnd_destination's Into<cosmic::Element> bound :: done
-// drop_zone itself typed as cosmic::Element then placed into the iced column :: done
-// No cosmic::Theme / cosmic::widget::container leaking into the main widget tree :: done
-// on_enter → VaultDragHover(true), on_leave → VaultDragHover(false) :: done
-// on_finish: decode Vec<u8> as UTF-8 → parse text/uri-list → VaultFilesDropped :: done
-// percent_decode_uri handles %20 and other encoded path chars :: done
-
-// === DONE ===
-// Fixed: container imported from cosmic::widget (not cosmic::iced::widget) :: done
-//   → dnd_destination's Into<Element> bound resolves against cosmic::Theme :: done
-// Fixed: Theme imported as cosmic::Theme (not cosmic::iced::Theme) :: done
-//   → style closures on cosmic::widget::container match correctly :: done
-// dnd_destination + on_enter/on_leave/on_finish wired correctly :: done
-// Setup/unlock views unchanged in behaviour :: done
-
-// === DONE ===
-// Fixed: dnd_listener → dnd_destination (correct widget name in this libcosmic) :: done
-// Fixed: from_rgba8 alpha is f32 0.0–1.0, not u8 :: done
-// Fixed: on_exit → on_leave (correct method name) :: done
-// Fixed: data arrives in on_finish(mime, Vec<u8>, action, x, y), not on_drop :: done
-//        on_drop only signals the gesture; on_finish delivers the actual bytes :: done
-// dnd_destination declared with mime ["text/uri-list"] :: done
-// on_enter → VaultDragHover(true), on_leave → VaultDragHover(false) :: done
-// on_finish: UTF-8 decode bytes → split lines → strip file:// → percent-decode → PathBuf :: done
-// percent_decode_uri handles %20 and other encoded chars :: done
-// Setup/unlock views unchanged :: done
-// file_row, file_icon, format_size unchanged :: done
-
-// === DONE ===
-// Replaced static drop_hint with live dnd_listener drop target :: done
-// drag_hover field drives visual highlight (blue tint + border) on enter :: done
-// on_enter → VaultDragHover(true), on_exit → VaultDragHover(false) :: done
-// on_drop parses text/uri-list payload → Vec<PathBuf> → VaultFilesDropped :: done
-// percent_decode_uri handles %20 spaces and other encoded chars in file URIs :: done
-// Existing setup/unlock views unchanged :: done
-// Existing file_row, file_icon, format_size helpers unchanged :: done
-
-// === DONE ===
-// Replaced .password() with .secure(true) — correct method for this iced version :: done
-// from_rgba8 fixed — takes u8 0-255 not f32 0.0-1.0 :: done
-// All three views preserved: setup, unlock, files :: done
-// Error in red, status in green :: done
-// Click to open, right-click to remove :: done
-
-// === DONE ===
-// Setup view: create password + confirm :: done
-// Unlock view: enter password, submit on Enter :: done
-// Files view: header, lock button, drop hint, file list :: done
-// File row: icon by mime type, name, size, click to open, right-click to remove :: done
-// Error shown in red, status shown in green :: done
-// vault_bg style applied to all three views :: done
