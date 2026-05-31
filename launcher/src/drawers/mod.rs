@@ -4,6 +4,7 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
+pub mod state;
 use std::convert::Infallible;
 
 use crate::drawers::state::Drawer;
@@ -587,7 +588,7 @@ fn drawer_contents_view<'a>(
                 .filter(|l| l.starts_with("file://"))
                 .filter_map(|l| {
                     let raw = l.trim_start_matches("file://");
-                    let decoded = uri_decode(raw);
+                    let decoded = crate::utils::percent_decode_uri(raw);
                     let p = std::path::PathBuf::from(decoded);
                     if p.exists() { Some(p) } else { None }
                 })
@@ -653,7 +654,7 @@ fn drawer_app_icon<'a>(
         .width(Length::Fixed(ICON_SIZE))
         .height(Length::Fixed(ICON_SIZE));
 
-    let label = text(truncate_label(&app.name, 12)).size(12);
+    let label = text(crate::utils::truncate_label(&app.name, 12)).size(12);
 
     let content = column![icon_widget, label]
         .spacing(4)
@@ -697,7 +698,7 @@ fn drawer_file_icon<'a>(
             }),
     );
 
-    let label = text(truncate_label(&file.name, 12)).size(12);
+    let label = text(crate::utils::truncate_label(&file.name, 12)).size(12);
 
     let content = column![icon_cell, label]
         .spacing(4)
@@ -1033,62 +1034,3 @@ fn app_picker_view<'a>(
 // ─────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────
-
-fn truncate_label(text: &str, max: usize) -> String {
-    if text.chars().count() <= max {
-        text.to_string()
-    } else {
-        format!("{}…", text.chars().take(max).collect::<String>())
-    }
-}
-
-// ── Drawer file-drop highlight styles ────────────────────────────────────────
-// Named fn so we can pass it as a fn pointer to cosmic::widget::container::style().
-// ── URI percent-decoding (used by drawer file drop zone) ─────────────────────
-
-fn uri_decode(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let bytes = input.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let (Some(hi), Some(lo)) = (
-                hex_nibble(bytes[i + 1]),
-                hex_nibble(bytes[i + 2]),
-            ) {
-                out.push((hi << 4 | lo) as char);
-                i += 3;
-                continue;
-            }
-        }
-        out.push(bytes[i] as char);
-        i += 1;
-    }
-    out
-}
-
-fn hex_nibble(b: u8) -> Option<u8> {
-    match b {
-        b'0'..=b'9' => Some(b - b'0'),
-        b'a'..=b'f' => Some(b - b'a' + 10),
-        b'A'..=b'F' => Some(b - b'A' + 10),
-        _ => None,
-    }
-}
-
-// === DONE ===
-// drawer_contents_view: renders apps grid + files grid in same view :: done
-// Files section label shown only when both apps and files present :: done
-// drawer_file_icon(): emoji by extension, click = OpenDrawerFile, right-click = context menu :: done
-// file_emoji(): extension-to-emoji mapping covering common file types :: done
-// ContextMenu::DrawerFile: Open File + Remove from Drawer :: done
-// sidebar badge: item_count() = apps + files instead of apps only :: done
-// All existing app drag/drop, context menus, picker, modals unchanged :: done
-// Added file drop zone to drawer_contents_view — mirrors vault_ui.rs exactly :: done
-// Step 1: drop_inner as cosmic::Element via cosmic::widget::container :: done
-// Step 2: cosmic::widget::dnd_destination wraps drop_inner :: done
-//   on_enter → DrawerFileHover(Some(name)), on_leave → DrawerFileHover(None) :: done
-//   on_finish → parse text/uri-list → FilesDroppedOnDrawer :: done
-// Step 3: outer iced container(Themer::new(None, drop_dest)) applies hover style :: done
-// uri_decode() helper for percent-encoded file:// URIs :: done
-pub mod state;

@@ -59,3 +59,14 @@ fn hex_nibble(b: u8) -> Option<u8> {
         _ => None,
     }
 }
+
+/// Truncate a label to max characters, appending ellipsis if needed.
+pub fn truncate_label(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        text.to_string()
+    } else {
+        let mut s: String = text.chars().take(max.saturating_sub(1)).collect();
+        s.push('…');
+        s
+    }
+}
