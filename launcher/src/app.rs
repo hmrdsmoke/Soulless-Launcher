@@ -48,6 +48,7 @@ pub struct Soulless {
 
 impl Soulless {
     pub fn new() -> (Self, Task<Message>) {
+        crate::config::ensure_dirs();
         let bg_handle = crate::config::default_background().map(|path| {
             let width = crate::position::layout::RIGHT_PANEL_WIDTH as u32;
             if let Some(rgba) = crate::config::load_background_rgba(&path, width, 900) {

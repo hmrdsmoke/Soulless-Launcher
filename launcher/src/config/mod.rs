@@ -22,7 +22,6 @@ pub fn backgrounds_dir() -> PathBuf {
 }
 
 /// Ensure config directories exist
-#[allow(dead_code)]
 pub fn ensure_dirs() {
     let _ = std::fs::create_dir_all(backgrounds_dir());
 }
