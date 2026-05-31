@@ -32,3 +32,11 @@ bottom. It stil spawns in the middle like a middle finger taunting me. Dumbass!!
 Rebuilt the drawer state management from scratch because the old one was completely broken
 Pre-computed Utf32String for every app at startup so search doesn’t lag like shit
 Finally stopped the app from crashing every time you click empty space
+
+2026-05-30
+
+I decided to actually update this stupid shit so it is a long one here we go. today im trying to submitt this thing
+to a store and am about to get rid of all my comments in my code except for what is usefull which is only the shit
+ that tells me what it is or does still dont read or write rust but I can at least kinda understand the layout of
+ big projects which is good and im trying to understand submissions to stores which is going to take awhile 
+ Im just shit at this maybe I shouldnt but im falling in love with it thats all for now i guess 
