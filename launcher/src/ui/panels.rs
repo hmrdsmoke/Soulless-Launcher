@@ -37,7 +37,7 @@ pub fn compose<'a, M: 'static + Clone + Send>(
 
     let layout = row![
         left_col,
-        space::horizontal().width(Length::Fixed(12.0)),
+        space::horizontal().width(Length::Fixed(crate::position::layout::PANEL_SPACING)),
         right_panel,
     ]
     .spacing(0)

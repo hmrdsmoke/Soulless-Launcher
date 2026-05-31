@@ -35,39 +35,3 @@ zeroize = "1.8.1"
 bincode = "1.3.3"
 once_cell = "1.19.0"
 futures-util = { workspace = true }
-
-# ===========================================================================
-# RELEASE PROFILE — shipped binary, fully optimized and stripped :: MRV
-# Use: cargo build --release
-# ===========================================================================
-[profile.release]
-lto = "fat"
-codegen-units = 1
-opt-level = 3
-panic = "abort"
-strip = true
-debug = true  # uncomment only if attaching a debugger to release :: MRV
-
-
-# ===========================================================================
-# PROFILING PROFILE — release speed, debug symbols intact :: MRV
-# Use: cargo build --profile release-with-debug
-#      cargo flamegraph --profile release-with-debug --bin soulless-launcher
-# ===========================================================================
-# [profile.release-with-debug]
-# inherits = "release"
-# strip = false
-# debug = true
-# lto = "thin"  # swap to thin if flamegraph builds are too slow :: MRV
-
-
-# ===========================================================================
-# FAST DEV RELEASE — quicker compile, no LTO, for day-to-day --release testing :: MRV
-# Use: cargo build --profile release-dev
-# ===========================================================================
-# [profile.release-dev]
-# inherits = "release"
-# lto = "thin"
-# codegen-units = 4
-# strip = false
-# debug = false

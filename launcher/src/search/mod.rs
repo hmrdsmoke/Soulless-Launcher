@@ -51,6 +51,8 @@ pub enum Message {
     DeleteDrawer(String),
     MoveDrawerUp(String),
     MoveDrawerDown(String),
+    // TODO: complete rename flow — triggered by rename modal submit
+    #[allow(dead_code)]
     RenameDrawer(String, String),
 
     // Vault
@@ -64,6 +66,8 @@ pub enum Message {
     VaultOpenFile(String),
     VaultRemoveFile(String),
 
+    // TODO: context menu for vault files — not yet implemented
+    #[allow(dead_code)]
     VaultOpenFileMenu(String),
 
     /// Fired when files are dropped onto the vault drop zone
