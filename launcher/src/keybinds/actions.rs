@@ -125,7 +125,7 @@ where
 // S focuses search bar :: done
 // V opens vault :: done
 // === PLANNED ===
-// ArrowLeft/ArrowRight navigate app grid :: needs per-icon widget IDs
-// ArrowDown from last drawer → enter app grid :: needs grid focus state
-// Enter launches selected app :: planned
-// Ctrl+1-4 jump to drawer :: planned
+// ArrowLeft/ArrowRight navigate app grid :: see issue #16
+// ArrowDown from last drawer → enter app grid :: see issue #17
+// Enter launches selected app :: see issue #18
+// Ctrl+1-4 jump to drawer :: see issue #19
