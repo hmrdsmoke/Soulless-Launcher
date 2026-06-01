@@ -8,6 +8,7 @@
 // Never moves anything without user permission.
 
 pub mod rules;
+pub mod scan;
 
 
 use std::path::PathBuf;
@@ -39,15 +40,22 @@ pub enum Message {
 
 impl OrganizerState {
     pub fn new() -> Self {
-        Self { pending: load_pending() }
+        let mut pending = load_pending();
+        let existing_paths: std::collections::HashSet<_> = pending.iter()
+            .map(|p| p.suggestion.from.clone()).collect();
+        for s in scan::scan() {
+            if !existing_paths.contains(&s.suggestion.from) {
+                pending.push(s);
+            }
+        }
+        save_pending(&pending);
+        Self { pending }
     }
 
     pub fn update(&mut self, msg: Message) {
         match msg {
             Message::FileDetected(path) => {
-                eprintln!("organizer: classifying {:?}", path);
                 if let Some(suggestion) = rules::suggest(&path) {
-                    eprintln!("organizer: suggestion → {:?}", suggestion.to);
                     self.pending.push(PendingSuggestion { suggestion });
                     save_pending(&self.pending);
                 }
@@ -59,8 +67,7 @@ impl OrganizerState {
                     if let Some(parent) = s.suggestion.to.parent() {
                         let _ = std::fs::create_dir_all(parent);
                     }
-                    if let Err(e) = std::fs::rename(&s.suggestion.from, &s.suggestion.to) {
-                        eprintln!("organizer: move failed: {}", e);
+                    if let Err(_e) = std::fs::rename(&s.suggestion.from, &s.suggestion.to) {
                     }
                     save_pending(&self.pending);
                 }
@@ -94,8 +101,6 @@ fn watcher_stream() -> impl cosmic::iced::futures::Stream<Item = Message> {
         let mut watcher = notify::recommended_watcher(move |res| {
             let _ = notify_tx.send(res);
         }).expect("organizer: failed to create watcher");
-
-        eprintln!("organizer: watching {:?}", downloads);
         watcher.watch(&downloads, RecursiveMode::NonRecursive)
             .expect("organizer: failed to watch Downloads");
 
@@ -117,7 +122,6 @@ fn watcher_stream() -> impl cosmic::iced::futures::Stream<Item = Message> {
         loop {
             match event_rx.try_recv() {
                 Ok(path) => {
-                    eprintln!("organizer: detected {:?}", path);
                     let _ = tx.try_send(Message::FileDetected(path));
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {
@@ -160,3 +164,4 @@ fn load_pending() -> Vec<PendingSuggestion> {
         Some(PendingSuggestion { suggestion: rules::MoveSuggestion { from, to, reason } })
     }).collect()
 }
+

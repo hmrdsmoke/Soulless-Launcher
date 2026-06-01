@@ -22,9 +22,6 @@ pub fn suggest(path: &Path) -> Option<MoveSuggestion> {
     let ext = path.extension()?.to_str()?.to_lowercase();
 
     let downloads = dirs::download_dir().unwrap_or_else(|| home.join("Downloads"));
-    if !path.starts_with(&downloads) {
-        return None;
-    }
 
     let docs = dirs::document_dir().unwrap_or_else(|| home.join("Documents"));
     let pics = dirs::picture_dir().unwrap_or_else(|| home.join("Pictures"));
@@ -88,7 +85,6 @@ pub fn suggest(path: &Path) -> Option<MoveSuggestion> {
 
         _ => None,
     };
-
     // Name-based overrides
     let dest = dest.or_else(|| {
         if name.contains("resume") || name.contains("curriculum") || (name.contains("cv") && !name.ends_with(".csv")) {
@@ -105,7 +101,10 @@ pub fn suggest(path: &Path) -> Option<MoveSuggestion> {
             None
         }
     })?;
-
+    // Don't suggest if already in the right place
+    if path.parent() == Some(dest.as_path()) {
+        return None;
+    }
     let dest_file = dest.join(path.file_name()?);
     let reason = format!(
         "{} looks like it belongs in {}",
