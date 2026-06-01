@@ -128,6 +128,26 @@ where
             Task::none()
         }
 
+        // ── Ctrl+1-9 → jump directly to drawer by index ─────────────────
+        keyboard::Key::Character(c) if modifiers.control() => {
+            if let Ok(n) = c.as_str().parse::<usize>() {
+                if n >= 1 {
+                    let idx = n - 1;
+                    let name = {
+                        let drawers = search.drawer_state.drawers();
+                        drawers.get(idx).map(|d| d.name.clone())
+                    };
+                    if let Some(name) = name {
+                        search.update(search::Message::DrawerClicked(name.clone()));
+                        return cosmic::widget::button::focus(
+                            cosmic::widget::Id::new(format!("drawer-btn-{}", name))
+                        );
+                    }
+                }
+            }
+            Task::none()
+        }
+
         // ── S → focus search bar (only when not already in search) ────────
         keyboard::Key::Character(c) if c.as_str() == "s" && !in_search => {
             search.update(search::Message::QueryChanged(String::new()));
@@ -156,4 +176,4 @@ where
 // Enter launches focused app :: done #18
 // === PLANNED ===
 // ArrowDown from last drawer → enter app grid :: see issue #17
-// Ctrl+1-4 jump to drawer :: see issue #19
+// Ctrl+1-9 jump to drawer by index :: done #19
