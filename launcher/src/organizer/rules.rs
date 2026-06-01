@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 
 /// A suggestion for where a file should be moved.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct MoveSuggestion {
     pub from: PathBuf,
     pub to: PathBuf,

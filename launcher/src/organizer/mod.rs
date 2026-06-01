@@ -28,9 +28,11 @@ pub struct OrganizerState {
 pub enum Message {
     /// A new file appeared in Downloads
     FileDetected(PathBuf),
-    /// User approved a move suggestion
+    /// User approved a move suggestion — see issue #20
+    #[allow(dead_code)]
     ApproveSuggestion(usize),
-    /// User dismissed a suggestion
+    /// User dismissed a suggestion — see issue #20
+    #[allow(dead_code)]
     DismissSuggestion(usize),
 }
 
