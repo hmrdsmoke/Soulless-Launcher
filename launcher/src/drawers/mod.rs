@@ -89,7 +89,7 @@ pub fn view<'a>(
     let search_bar = text_input("Search all apps...", &search.query)
         .id(cosmic::widget::Id::new("soulless-search-bar"))
         .on_input(SearchMessage::QueryChanged)
-        .on_submit(SearchMessage::SearchBarClicked)
+        .on_submit_maybe(if search.focused_app_idx.is_none() { Some(SearchMessage::SearchBarClicked) } else { None })
         .padding(16)
         .size(18);
 
@@ -161,7 +161,7 @@ pub fn view<'a>(
             search_results_view(search)
         } else {
             match &search.current_open_drawer {
-                OpenDrawer::Pinned(name) => drawer_contents_view(search, name),
+                OpenDrawer::Pinned(name) => drawer_contents_view(search, name, search.focused_app_idx),
                 OpenDrawer::Vault => crate::vault::ui::view(&search.vault),
                 OpenDrawer::Search => search_results_view(search),
             }
@@ -442,6 +442,7 @@ fn sidebar_drawer_button<'a>(
 fn drawer_contents_view<'a>(
     search: &'a crate::search::Search,
     drawer_name: &'a str,
+    focused_idx: Option<usize>,
 ) -> Element<'a, SearchMessage> {
     let pinned_ids = search.drawer_state.apps_in_drawer(drawer_name);
     let drawer_files = search.drawer_state.files_in_drawer(drawer_name);
@@ -507,11 +508,14 @@ fn drawer_contents_view<'a>(
         if !app_entries.is_empty() {
             let apps_grid = app_entries
                 .chunks(GRID_COLUMNS)
-                .fold(column!().spacing(8), |col, chunk| {
+                .enumerate()
+                .fold(column!().spacing(8), |col, (row_i, chunk)| {
                     let mut grid_row = row!().spacing(8).width(Length::Fill);
-                    for (app_id, app) in chunk {
+                    for (col_i, (app_id, app)) in chunk.iter().enumerate() {
+                        let flat_idx = row_i * GRID_COLUMNS + col_i;
+                        let is_focused = focused_idx == Some(flat_idx);
                         grid_row = grid_row.push(
-                            drawer_app_icon(app, drawer_name, app_id)
+                            drawer_app_icon(app, drawer_name, app_id, is_focused)
                         );
                     }
                     col.push(grid_row)
@@ -649,6 +653,7 @@ fn drawer_app_icon<'a>(
     app: &'a crate::search::indexer::AppEntry,
     drawer_name: &'a str,
     app_id: &'a str,
+    is_focused: bool,
 ) -> Element<'a, SearchMessage> {
     let icon_widget = image(&app.icon_path)
         .width(Length::Fixed(ICON_SIZE))
@@ -660,7 +665,12 @@ fn drawer_app_icon<'a>(
         .spacing(4)
         .align_x(Horizontal::Center);
 
-    mouse_area(container(content).padding(6))
+    let bg = if is_focused {
+        Some(crate::ui::theme::STEEL_TOP.into())
+    } else {
+        None
+    };
+    mouse_area(container(content).padding(6).style(move |_: &cosmic::iced::Theme| cosmic::iced::widget::container::Style { background: bg, ..Default::default() }))
         .on_press(SearchMessage::AppClicked(app.exec.clone()))
         .on_right_press(SearchMessage::RightClickDrawerApp(
             drawer_name.to_string(),

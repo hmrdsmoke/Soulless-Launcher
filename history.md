@@ -35,8 +35,24 @@ Finally stopped the app from crashing every time you click empty space
 
 2026-05-30
 
-I decided to actually update this stupid shit so it is a long one here we go. today im trying to submitt this thing
-to a store and am about to get rid of all my comments in my code except for what is usefull which is only the shit
- that tells me what it is or does still dont read or write rust but I can at least kinda understand the layout of
+I decided to actually update this stupid shit so it is a long one here we go. today im trying to submitt
+this thing
+to a store and am about to get rid of all my comments in my code except for what is usefull which is only
+the shit
+ that tells me what it is or does still dont read or write rust but I can at least kinda understand the
+ layout of
  big projects which is good and im trying to understand submissions to stores which is going to take awhile 
  Im just shit at this maybe I shouldnt but im falling in love with it thats all for now i guess 
+ 
+ 2026-06-01 last one wasnt as long as i thought it would be here is an actual update of somethings i built 
+ organizer watcher fixed and working end to end so now your files are being watch and will be organized in
+ launcher with your approval which means it will suggest creating files to organize your downloads and 
+ other files as they are created all created by the soulless-organizer workspace crate it also scans your 
+ xdg dirs on startup and will suggest file organization even after it is closed and reopened until it gets
+ an answer as to what you want to do polished ui some more made it look good at least my opinion which i 
+ guess is all that matters but i set up the .ron config file so that others can customize it the way they
+ want to so it can be made the way they want last but not least added jetbrains and wine to my search index
+ the code base is coming back with little to no warnings and no errors at all compiling clean and working 
+ like a champ very happy with my new launcher might add more features not sure yet were i think i should 
+ stop
+ 

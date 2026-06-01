@@ -100,6 +100,34 @@ where
             Task::none()
         }
 
+        // ── Enter → launch focused app ───────────────────────────────────
+        keyboard::Key::Named(Named::Enter) => {
+            if let Some(idx) = search.focused_app_idx {
+                if let Some(exec) = search.focused_exec(idx) {
+                    search.record_launch_by_exec(&exec);
+                    let clean = crate::utils::strip_desktop_placeholders(&exec);
+                    let _ = std::process::Command::new("sh")
+                        .arg("-c")
+                        .arg(&clean)
+                        .spawn();
+                    return f_exit();
+                }
+            }
+            Task::none()
+        }
+
+        // ── ArrowRight → next app in grid ────────────────────────────────
+        keyboard::Key::Named(Named::ArrowRight) => {
+            search.update(search::Message::FocusNext);
+            Task::none()
+        }
+
+        // ── ArrowLeft → prev app in grid ─────────────────────────────────
+        keyboard::Key::Named(Named::ArrowLeft) => {
+            search.update(search::Message::FocusPrev);
+            Task::none()
+        }
+
         // ── S → focus search bar (only when not already in search) ────────
         keyboard::Key::Character(c) if c.as_str() == "s" && !in_search => {
             search.update(search::Message::QueryChanged(String::new()));
@@ -124,8 +152,8 @@ where
 // ArrowUp/ArrowDown navigate drawers :: done
 // S focuses search bar :: done
 // V opens vault :: done
+// ArrowLeft/ArrowRight navigate app grid :: done #16
+// Enter launches focused app :: done #18
 // === PLANNED ===
-// ArrowLeft/ArrowRight navigate app grid :: see issue #16
 // ArrowDown from last drawer → enter app grid :: see issue #17
-// Enter launches selected app :: see issue #18
 // Ctrl+1-4 jump to drawer :: see issue #19

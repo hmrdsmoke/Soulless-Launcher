@@ -31,6 +31,11 @@ pub enum Message {
     DrawerClicked(String),
     VaultClicked,
     SearchBarClicked,
+    // Keyboard grid navigation
+    FocusApp(usize),
+    FocusNext,
+    FocusPrev,
+    LaunchFocused,
 
     // Context menu
     RightClickDrawerBackground(String),
@@ -159,6 +164,8 @@ pub struct Search {
 
     pub vault: Vault,
 
+    /// Keyboard-focused app index in the current drawer/search grid
+    pub focused_app_idx: Option<usize>,
     /// Which sidebar drawer is currently being hovered by a drag
     pub drag_hover_drawer: Option<String>,
 
@@ -201,6 +208,7 @@ impl Search {
 
             show_search_results: true,
 
+            focused_app_idx: None,
             current_open_drawer:
                 OpenDrawer::Search,
 
@@ -248,6 +256,37 @@ impl Search {
             Message::AppClicked(exec) => {
                 self.record_launch_by_exec(&exec);
                 Some(exec)
+            }
+            Message::FocusApp(idx) => {
+                self.focused_app_idx = Some(idx);
+                None
+            }
+            Message::FocusNext => {
+                let len = self.current_grid_len();
+                if len > 0 {
+                    self.focused_app_idx = Some(
+                        self.focused_app_idx.map(|i| (i + 1) % len).unwrap_or(0)
+                    );
+                }
+                None
+            }
+            Message::FocusPrev => {
+                let len = self.current_grid_len();
+                if len > 0 {
+                    self.focused_app_idx = Some(
+                        self.focused_app_idx.map(|i| if i == 0 { len - 1 } else { i - 1 }).unwrap_or(0)
+                    );
+                }
+                None
+            }
+            Message::LaunchFocused => {
+                if let Some(idx) = self.focused_app_idx {
+                    if let Some(exec) = self.focused_exec(idx) {
+                        self.record_launch_by_exec(&exec);
+                        return Some(exec);
+                    }
+                }
+                None
             }
 
             Message::DrawerClicked(name) => {
@@ -793,7 +832,7 @@ impl Search {
 
     /// Record a launch event for the app with the given exec string.
     /// Updates launch_count and last_launched in memory and persists activity.
-    fn record_launch_by_exec(&mut self, exec: &str) {
+    pub fn record_launch_by_exec(&mut self, exec: &str) {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -931,6 +970,34 @@ impl Search {
             .map(|(_, i)| i)
             .collect()
     }
+    /// Number of apps in the currently visible grid.
+    pub fn current_grid_len(&self) -> usize {
+        if self.show_search_results {
+            return self.filtered_apps.len();
+        }
+        if let OpenDrawer::Pinned(name) = &self.current_open_drawer {
+            return self.drawer_state.apps_in_drawer(name).len();
+        }
+        0
+    }
+
+    /// Exec string for the app at a given grid index.
+    pub fn focused_exec(&self, idx: usize) -> Option<String> {
+        if self.show_search_results {
+            let app_idx = *self.filtered_apps.get(idx)?;
+            return Some(self.all_apps[app_idx].exec.clone());
+        }
+        if let OpenDrawer::Pinned(name) = &self.current_open_drawer {
+            let ids = self.drawer_state.apps_in_drawer(name);
+            let app_id = ids.get(idx)?;
+            return self.all_apps.iter()
+                .find(|a| &a.id == app_id)
+                .map(|a| a.exec.clone());
+        }
+        None
+    }
+
+
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -973,18 +1040,10 @@ fn save_drawer_state(state: &DrawerState) {
             if let Err(e) =
                 std::fs::write(&path, json)
             {
-                eprintln!(
-                    "DRAWER save failed: {}",
-                    e
-                );
             }
         }
 
         Err(e) => {
-            eprintln!(
-                "DRAWER serialize failed: {}",
-                e
-            );
         }
     }
 }

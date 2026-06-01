@@ -34,6 +34,8 @@ pub enum Message {
     WindowEvent(cosmic::iced::Event),
     WindowOpened(cosmic::iced::window::Id),
     Organizer(soulless_organizer::Message),
+    EnterPressed,
+    Noop,
 }
 
 // ── Application model ────────────────────────────────────────────────────────
@@ -111,7 +113,6 @@ impl Soulless {
                         .arg(&clean_exec)
                         .spawn()
                     {
-                        eprintln!("Failed to launch app: {}", e);
                     }
 
                     cosmic::iced::exit::<Message>()
@@ -262,6 +263,29 @@ impl Soulless {
                 Task::none()
             }
 
+            Message::Noop => Task::none(),
+            Message::EnterPressed => {
+                if let Some(idx) = self.search.focused_app_idx {
+                    if let Some(exec) = self.search.focused_exec(idx) {
+                        self.search.record_launch_by_exec(&exec);
+                        let clean = crate::utils::strip_desktop_placeholders(&exec);
+                        let _ = std::process::Command::new("sh")
+                            .arg("-c").arg(&clean).spawn();
+                        return cosmic::iced::exit();
+                    }
+                }
+                // No focused app — launch top search result if searching
+                if self.search.show_search_results {
+                    if let Some(exec) = self.search.focused_exec(0) {
+                        self.search.record_launch_by_exec(&exec);
+                        let clean = crate::utils::strip_desktop_placeholders(&exec);
+                        let _ = std::process::Command::new("sh")
+                            .arg("-c").arg(&clean).spawn();
+                        return cosmic::iced::exit();
+                    }
+                }
+                Task::none()
+            }
             Message::Organizer(msg) => {
                 self.organizer.update(msg);
                 Task::none()
@@ -310,6 +334,16 @@ impl Soulless {
     pub fn subscription(&self) -> Subscription<Message> {
         Subscription::batch([
             event::listen().map(Message::WindowEvent),
+            cosmic::iced::keyboard::listen().map(|event| {
+                match event {
+                    cosmic::iced::keyboard::Event::KeyReleased {
+                        key: cosmic::iced::keyboard::Key::Named(cosmic::iced::keyboard::key::Named::Enter),
+                        ..
+                    } => Message::EnterPressed,
+                    _ => Message::Noop,
+                }
+            }),
+
             cosmic::iced::window::open_events().map(Message::WindowOpened),
             soulless_organizer::subscription().map(Message::Organizer),
             crate::network_monitor::subscription().map(Message::Network),
