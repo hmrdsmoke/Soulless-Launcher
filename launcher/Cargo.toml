@@ -35,4 +35,5 @@ zeroize = "1.8.1"
 bincode = "1.3.3"
 once_cell = "1.19.0"
 notify = { workspace = true }
+tokio = { version = "1", features = ["time"] }
 futures-util = { workspace = true }

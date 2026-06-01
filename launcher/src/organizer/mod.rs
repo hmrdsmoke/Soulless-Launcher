@@ -44,7 +44,9 @@ impl OrganizerState {
     pub fn update(&mut self, msg: Message) {
         match msg {
             Message::FileDetected(path) => {
+                eprintln!("organizer: classifying {:?}", path);
                 if let Some(suggestion) = rules::suggest(&path) {
+                    eprintln!("organizer: suggestion → {:?}", suggestion.to);
                     self.pending.push(PendingSuggestion { suggestion });
                 }
             }
@@ -89,16 +91,35 @@ fn watcher_stream() -> impl cosmic::iced::futures::Stream<Item = Message> {
             let _ = notify_tx.send(res);
         }).expect("organizer: failed to create watcher");
 
+        eprintln!("organizer: watching {:?}", downloads);
         watcher.watch(&downloads, RecursiveMode::NonRecursive)
             .expect("organizer: failed to watch Downloads");
 
-        loop {
-            if let Ok(Ok(event)) = notify_rx.recv() {
-                if matches!(event.kind, EventKind::Create(CreateKind::File)) {
-                    for path in event.paths {
-                        let _ = tx.try_send(Message::FileDetected(path));
+        // Keep watcher alive and poll on a background thread
+        let (event_tx, event_rx) = std::sync::mpsc::channel::<std::path::PathBuf>();
+        std::thread::spawn(move || {
+            let _watcher = watcher;
+            loop {
+                if let Ok(Ok(event)) = notify_rx.recv() {
+                    if matches!(event.kind, EventKind::Create(CreateKind::File) | EventKind::Create(CreateKind::Any) | EventKind::Modify(notify::event::ModifyKind::Name(notify::event::RenameMode::To))) {
+                        for path in event.paths {
+                            let _ = event_tx.send(path);
+                        }
                     }
                 }
+            }
+        });
+
+        loop {
+            match event_rx.try_recv() {
+                Ok(path) => {
+                    eprintln!("organizer: detected {:?}", path);
+                    let _ = tx.try_send(Message::FileDetected(path));
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => break,
             }
         }
     })
