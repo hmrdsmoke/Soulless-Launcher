@@ -5547,6 +5547,7 @@ dependencies = [
  "futures-util",
  "image",
  "libcosmic 1.0.0 (git+https://github.com/pop-os/libcosmic?branch=master)",
+ "notify",
  "nucleo-matcher",
  "nvml-wrapper",
  "once_cell",

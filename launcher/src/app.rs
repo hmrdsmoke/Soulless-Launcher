@@ -33,6 +33,7 @@ pub enum Message {
     Fps(FpsMessage),
     WindowEvent(cosmic::iced::Event),
     WindowOpened(cosmic::iced::window::Id),
+    Organizer(crate::organizer::Message),
 }
 
 // ── Application model ────────────────────────────────────────────────────────
@@ -43,6 +44,7 @@ pub struct Soulless {
     system:     crate::system_monitor::SystemState,
     hardware:   crate::hardware_monitor::HardwareMonitorState,
     fps:        crate::fps_monitor::FpsMonitorState,
+    organizer: crate::organizer::OrganizerState,
     cursor_pos: Option<cosmic::iced::Point>,
     bg_handle:  Option<cosmic::iced::widget::image::Handle>,
 }
@@ -66,6 +68,7 @@ impl Soulless {
                 system:     crate::system_monitor::SystemState::new(),
                 hardware:   crate::hardware_monitor::HardwareMonitorState::new(),
                 fps:        crate::fps_monitor::FpsMonitorState::new(),
+                organizer: crate::organizer::OrganizerState::new(),
                 cursor_pos: None,
                 bg_handle,
             },
@@ -255,6 +258,10 @@ impl Soulless {
                 Task::none()
             }
 
+            Message::Organizer(msg) => {
+                self.organizer.update(msg);
+                Task::none()
+            }
             _ => Task::none(),
         }
     }
@@ -280,6 +287,7 @@ impl Soulless {
         Subscription::batch([
             event::listen().map(Message::WindowEvent),
             cosmic::iced::window::open_events().map(Message::WindowOpened),
+            crate::organizer::subscription().map(Message::Organizer),
             crate::network_monitor::subscription().map(Message::Network),
             crate::system_monitor::subscription().map(Message::System),
             crate::hardware_monitor::subscription().map(Message::Hardware),

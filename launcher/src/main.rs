@@ -22,6 +22,7 @@ use crate::position::LauncherPosition;
 
 mod app;
 mod utils;
+mod organizer;
 
 
 
