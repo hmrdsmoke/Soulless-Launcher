@@ -1043,7 +1043,7 @@ fn save_drawer_state(state: &DrawerState) {
             }
         }
 
-        Err(e) => {
+        Err(_e) => {
         }
     }
 }
