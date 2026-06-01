@@ -7,6 +7,7 @@
 use crate::vault::Vault;
 use crate::drawers::state::DrawerState;
 pub mod indexer;
+pub mod query;
 use indexer::{build_index, AppEntry};
 
 use nucleo_matcher::pattern::{
@@ -183,7 +184,8 @@ impl Search {
     pub fn new() -> Self {
         let matcher = Matcher::new(Config::DEFAULT);
 
-        let all_apps = build_index();
+        let mut all_apps = build_index();
+        load_activity(&mut all_apps);
 
         let drawer_state =
             load_drawer_state().unwrap_or_default();
@@ -244,6 +246,7 @@ impl Search {
             }
 
             Message::AppClicked(exec) => {
+                self.record_launch_by_exec(&exec);
                 Some(exec)
             }
 
@@ -787,9 +790,37 @@ impl Search {
 
     // ── Search internals ────────────────────────
 
+
+    /// Record a launch event for the app with the given exec string.
+    /// Updates launch_count and last_launched in memory and persists activity.
+    fn record_launch_by_exec(&mut self, exec: &str) {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        if let Some(app) = self.all_apps.iter_mut().find(|a| a.exec == exec) {
+            app.launch_count += 1;
+            app.last_launched = Some(now);
+        }
+        save_activity(&self.all_apps);
+    }
     fn recompute_results(&mut self) {
         let query = self.query.trim().to_lowercase();
-
+        // ── Smart query interpretation ─────────────────────────────────────
+        if let Some(mut results) = query::interpret(&self.query, &self.all_apps) {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            results.sort_by(|a, b| {
+                let score_a = query::score_app(&self.all_apps[*a], &self.query, now);
+                let score_b = query::score_app(&self.all_apps[*b], &self.query, now);
+                score_b.cmp(&score_a)
+            });
+            self.filtered_apps = results;
+            self.show_search_results = true;
+            return;
+        }
         if query.is_empty() {
             // Show everything when no query
             self.filtered_apps = self.all_apps
@@ -813,7 +844,10 @@ impl Search {
 
         // If prefix found nothing, go 100% fuzzy
         if prefix_results.is_empty() {
-            self.filtered_apps = self.fuzzy_results(&query, usize::MAX, &std::collections::HashSet::new());
+            let mut fuzzy_only = self.fuzzy_results(&query, usize::MAX, &std::collections::HashSet::new());
+            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+            fuzzy_only.sort_by(|a, b| query::score_app(&self.all_apps[*b], &self.query, now).cmp(&query::score_app(&self.all_apps[*a], &self.query, now)));
+            self.filtered_apps = fuzzy_only;
             return;
         }
 
@@ -831,6 +865,8 @@ impl Search {
             .collect();
         results.extend(contains);
 
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+        results.sort_by(|a, b| query::score_app(&self.all_apps[*b], &self.query, now).cmp(&query::score_app(&self.all_apps[*a], &self.query, now)));
         self.filtered_apps = results;
     }
 
@@ -971,3 +1007,47 @@ fn save_drawer_state(state: &DrawerState) {
 // Added drawer_file_hover: Option<String> field to Search struct :: done
 // DrawerFileHover handler updates drawer_file_hover :: done
 // FilesDroppedOnDrawer clears drawer_file_hover on drop :: done
+// ── Activity persistence ──────────────────────────────────────────────────────
+
+fn activity_path() -> Option<std::path::PathBuf> {
+    Some(dirs::data_local_dir()?
+        .join("soulless")
+        .join("activity.json"))
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct ActivityEntry {
+    id: String,
+    launch_count: u32,
+    last_launched: Option<u64>,
+}
+
+fn save_activity(apps: &[crate::search::indexer::AppEntry]) {
+    let Some(path) = activity_path() else { return };
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let entries: Vec<ActivityEntry> = apps.iter()
+        .filter(|a| a.launch_count > 0)
+        .map(|a| ActivityEntry {
+            id: a.id.clone(),
+            launch_count: a.launch_count,
+            last_launched: a.last_launched,
+        })
+        .collect();
+    if let Ok(json) = serde_json::to_string_pretty(&entries) {
+        let _ = std::fs::write(&path, json);
+    }
+}
+
+pub fn load_activity(apps: &mut Vec<crate::search::indexer::AppEntry>) {
+    let Some(path) = activity_path() else { return };
+    let Ok(text) = std::fs::read_to_string(&path) else { return };
+    let Ok(entries): Result<Vec<ActivityEntry>, _> = serde_json::from_str(&text) else { return };
+    for entry in entries {
+        if let Some(app) = apps.iter_mut().find(|a| a.id == entry.id) {
+            app.launch_count = entry.launch_count;
+            app.last_launched = entry.last_launched;
+        }
+    }
+}
