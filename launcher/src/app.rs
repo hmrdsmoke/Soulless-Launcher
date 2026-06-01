@@ -45,6 +45,7 @@ pub struct Soulless {
     hardware:   crate::hardware_monitor::HardwareMonitorState,
     fps:        crate::fps_monitor::FpsMonitorState,
     organizer: soulless_organizer::OrganizerState,
+    config: crate::config::SoullessConfig,
     cursor_pos: Option<cosmic::iced::Point>,
     bg_handle:  Option<cosmic::iced::widget::image::Handle>,
 }
@@ -52,6 +53,8 @@ pub struct Soulless {
 impl Soulless {
     pub fn new() -> (Self, Task<Message>) {
         crate::config::ensure_dirs();
+        crate::config::ensure_config();
+        let config = crate::config::load_config();
         let bg_handle = crate::config::default_background().map(|path| {
             let width = crate::position::layout::RIGHT_PANEL_WIDTH as u32;
             if let Some(rgba) = crate::config::load_background_rgba(&path, width, 900) {
@@ -69,6 +72,7 @@ impl Soulless {
                 hardware:   crate::hardware_monitor::HardwareMonitorState::new(),
                 fps:        crate::fps_monitor::FpsMonitorState::new(),
                 organizer: soulless_organizer::OrganizerState::new(),
+                config,
                 cursor_pos: None,
                 bg_handle,
             },
@@ -268,10 +272,25 @@ impl Soulless {
 
     pub fn view(&self) -> Element<'_, Message> {
         let (toolbox, right) = crate::drawers::view(&self.search);
+        let net = if self.config.show_system_monitor {
+            crate::network_monitor::view(&self.network).map(Message::Network)
+        } else { cosmic::iced::widget::space::horizontal().into() };
+        let sys = if self.config.show_system_monitor {
+            crate::system_monitor::view(&self.system).map(Message::System)
+        } else { cosmic::iced::widget::space::horizontal().into() };
+        let hw = if self.config.show_system_monitor {
+            crate::hardware_monitor::view(&self.hardware).map(Message::Hardware)
+        } else { cosmic::iced::widget::space::horizontal().into() };
+        let fps = if self.config.show_system_monitor {
+            crate::fps_monitor::view(&self.fps).map(Message::Fps)
+        } else { cosmic::iced::widget::space::horizontal().into() };
         crate::ui::panels::compose(
             {
                 let t = toolbox.map(Message::Search);
-                if let Some(banner) = crate::ui::organizer::organizer_banner(&self.organizer, Message::Organizer) {
+                let banner = if self.config.organizer_enabled {
+                    crate::ui::organizer::organizer_banner(&self.organizer, Message::Organizer)
+                } else { None };
+                if let Some(banner) = banner {
                     use cosmic::iced::widget::Column;
                     Column::new().push(t).push(banner).spacing(8).into()
                 } else {
@@ -279,10 +298,7 @@ impl Soulless {
                 }
             },
             right.map(Message::Search),
-            crate::network_monitor::view(&self.network).map(Message::Network),
-            crate::system_monitor::view(&self.system).map(Message::System),
-            crate::hardware_monitor::view(&self.hardware).map(Message::Hardware),
-            crate::fps_monitor::view(&self.fps).map(Message::Fps),
+            net, sys, hw, fps,
             self.bg_handle.clone(),
         )
     }

@@ -589,6 +589,12 @@ dependencies = [
 
 [[package]]
 name = "base64"
+version = "0.21.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
+
+[[package]]
+name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
@@ -1087,7 +1093,7 @@ dependencies = [
  "iced_futures 0.14.0 (git+https://github.com/pop-os/libcosmic?branch=master)",
  "known-folders",
  "notify",
- "ron",
+ "ron 0.12.1",
  "serde",
  "tokio",
  "tracing",
@@ -1106,7 +1112,7 @@ dependencies = [
  "iced_futures 0.14.0 (git+https://github.com/pop-os/libcosmic)",
  "known-folders",
  "notify",
- "ron",
+ "ron 0.12.1",
  "serde",
  "tracing",
  "xdg 3.0.0",
@@ -1215,7 +1221,7 @@ dependencies = [
  "csscolorparser",
  "dirs 6.0.0",
  "palette",
- "ron",
+ "ron 0.12.1",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -3201,7 +3207,7 @@ dependencies = [
  "palette",
  "phf 0.13.1",
  "rfd",
- "ron",
+ "ron 0.12.1",
  "rust-embed",
  "serde",
  "slotmap",
@@ -4805,6 +4811,18 @@ dependencies = [
 
 [[package]]
 name = "ron"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b91f7eff05f748767f183df4320a63d6936e9c6107d97c9e6bdd9784f4289c94"
+dependencies = [
+ "base64 0.21.7",
+ "bitflags 2.11.1",
+ "serde",
+ "serde_derive",
+]
+
+[[package]]
+name = "ron"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4147b952f3f819eca0e99527022f7d6a8d05f111aeb0a62960c74eb283bec8fc"
@@ -5285,6 +5303,7 @@ dependencies = [
  "percent-encoding",
  "rand 0.8.6",
  "resvg 0.44.0",
+ "ron 0.8.1",
  "secrecy",
  "serde",
  "serde_json",
@@ -5889,7 +5908,7 @@ version = "0.44.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7447e703d7223b067607655e625e0dbca80822880248937da65966194c4864e6"
 dependencies = [
- "base64",
+ "base64 0.22.1",
  "data-url",
  "flate2",
  "fontdb 0.22.0",
@@ -5916,7 +5935,7 @@ version = "0.45.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80be9b06fbae3b8b303400ab20778c80bbaf338f563afe567cf3c9eea17b47ef"
 dependencies = [
- "base64",
+ "base64 0.22.1",
  "data-url",
  "flate2",
  "fontdb 0.23.0",
