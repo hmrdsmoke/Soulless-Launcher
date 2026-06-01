@@ -33,7 +33,7 @@ pub enum Message {
     Fps(FpsMessage),
     WindowEvent(cosmic::iced::Event),
     WindowOpened(cosmic::iced::window::Id),
-    Organizer(crate::organizer::Message),
+    Organizer(soulless_organizer::Message),
 }
 
 // ── Application model ────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ pub struct Soulless {
     system:     crate::system_monitor::SystemState,
     hardware:   crate::hardware_monitor::HardwareMonitorState,
     fps:        crate::fps_monitor::FpsMonitorState,
-    organizer: crate::organizer::OrganizerState,
+    organizer: soulless_organizer::OrganizerState,
     cursor_pos: Option<cosmic::iced::Point>,
     bg_handle:  Option<cosmic::iced::widget::image::Handle>,
 }
@@ -68,7 +68,7 @@ impl Soulless {
                 system:     crate::system_monitor::SystemState::new(),
                 hardware:   crate::hardware_monitor::HardwareMonitorState::new(),
                 fps:        crate::fps_monitor::FpsMonitorState::new(),
-                organizer: crate::organizer::OrganizerState::new(),
+                organizer: soulless_organizer::OrganizerState::new(),
                 cursor_pos: None,
                 bg_handle,
             },
@@ -269,7 +269,15 @@ impl Soulless {
     pub fn view(&self) -> Element<'_, Message> {
         let (toolbox, right) = crate::drawers::view(&self.search);
         crate::ui::panels::compose(
-            toolbox.map(Message::Search),
+            {
+                let t = toolbox.map(Message::Search);
+                if let Some(banner) = crate::ui::organizer::organizer_banner(&self.organizer, Message::Organizer) {
+                    use cosmic::iced::widget::Column;
+                    Column::new().push(t).push(banner).spacing(8).into()
+                } else {
+                    t
+                }
+            },
             right.map(Message::Search),
             crate::network_monitor::view(&self.network).map(Message::Network),
             crate::system_monitor::view(&self.system).map(Message::System),
@@ -287,7 +295,7 @@ impl Soulless {
         Subscription::batch([
             event::listen().map(Message::WindowEvent),
             cosmic::iced::window::open_events().map(Message::WindowOpened),
-            crate::organizer::subscription().map(Message::Organizer),
+            soulless_organizer::subscription().map(Message::Organizer),
             crate::network_monitor::subscription().map(Message::Network),
             crate::system_monitor::subscription().map(Message::System),
             crate::hardware_monitor::subscription().map(Message::Hardware),

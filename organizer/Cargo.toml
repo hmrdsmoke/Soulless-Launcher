@@ -1,0 +1,12 @@
+[package]
+name = "soulless-organizer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dirs = "5"
+notify = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { version = "1", features = ["time"] }
+cosmic = { workspace = true }

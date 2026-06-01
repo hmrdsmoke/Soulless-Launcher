@@ -13,3 +13,4 @@ pub mod widgets;
 pub fn startup_tasks<Message: 'static + Send>(id: cosmic::iced::window::Id) -> cosmic::iced::Task<Message> {
     cosmic::iced::window::enable_blur(id)
 }
+pub mod organizer;

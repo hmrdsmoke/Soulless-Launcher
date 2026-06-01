@@ -37,3 +37,4 @@ once_cell = "1.19.0"
 notify = { workspace = true }
 tokio = { version = "1", features = ["time"] }
 futures-util = { workspace = true }
+soulless-organizer = { path = "../organizer" }

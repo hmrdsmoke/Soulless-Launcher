@@ -9,6 +9,7 @@
 
 pub mod rules;
 
+
 use std::path::PathBuf;
 
 /// A pending move suggestion waiting for user approval.
@@ -38,7 +39,7 @@ pub enum Message {
 
 impl OrganizerState {
     pub fn new() -> Self {
-        Self::default()
+        Self { pending: load_pending() }
     }
 
     pub fn update(&mut self, msg: Message) {
@@ -48,6 +49,7 @@ impl OrganizerState {
                 if let Some(suggestion) = rules::suggest(&path) {
                     eprintln!("organizer: suggestion → {:?}", suggestion.to);
                     self.pending.push(PendingSuggestion { suggestion });
+                    save_pending(&self.pending);
                 }
             }
             Message::ApproveSuggestion(idx) => {
@@ -60,11 +62,13 @@ impl OrganizerState {
                     if let Err(e) = std::fs::rename(&s.suggestion.from, &s.suggestion.to) {
                         eprintln!("organizer: move failed: {}", e);
                     }
+                    save_pending(&self.pending);
                 }
             }
             Message::DismissSuggestion(idx) => {
                 if idx < self.pending.len() {
                     self.pending.remove(idx);
+                    save_pending(&self.pending);
                 }
             }
         }
@@ -123,4 +127,36 @@ fn watcher_stream() -> impl cosmic::iced::futures::Stream<Item = Message> {
             }
         }
     })
+}
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+
+fn pending_path() -> Option<std::path::PathBuf> {
+    Some(dirs::data_local_dir()?.join("soulless").join("organizer_pending.json"))
+}
+
+fn save_pending(pending: &[PendingSuggestion]) {
+    let Some(path) = pending_path() else { return };
+    if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
+    let items: Vec<(String, String)> = pending.iter()
+        .map(|p| (p.suggestion.from.to_string_lossy().to_string(),
+                  p.suggestion.to.to_string_lossy().to_string()))
+        .collect();
+    if let Ok(json) = serde_json::to_string_pretty(&items) {
+        let _ = std::fs::write(&path, json);
+    }
+}
+
+fn load_pending() -> Vec<PendingSuggestion> {
+    let Some(path) = pending_path() else { return vec![] };
+    let Ok(text) = std::fs::read_to_string(&path) else { return vec![] };
+    let Ok(items): Result<Vec<(String, String)>, _> = serde_json::from_str(&text) else { return vec![] };
+    items.into_iter().filter_map(|(from, to)| {
+        let from = std::path::PathBuf::from(&from);
+        let to = std::path::PathBuf::from(&to);
+        let reason = format!("{} looks like it belongs in {}",
+            from.file_name()?.to_str()?,
+            to.parent()?.display());
+        Some(PendingSuggestion { suggestion: rules::MoveSuggestion { from, to, reason } })
+    }).collect()
 }
