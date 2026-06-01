@@ -852,11 +852,13 @@ fn search_results_view<'a>(
         .filter_map(|i| search.app(*i))
         .collect();
 
+    // Cap render to prevent UI freeze with large result sets
+    const SEARCH_MAX_RENDER: usize = 200;
+    let all_apps: Vec<_> = all_apps.into_iter().take(SEARCH_MAX_RENDER).collect();
     let (text_apps, icon_apps): (Vec<_>, Vec<_>) = all_apps
         .into_iter()
         .partition(|app| matches!(app.source, AppSource::Binary | AppSource::File));
 
-    eprintln!("PARTITION: icon={} text={}", icon_apps.len(), text_apps.len());
 
     let mut sections: Vec<Element<'a, SearchMessage>> = Vec::new();
 

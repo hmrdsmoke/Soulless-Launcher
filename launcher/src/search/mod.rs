@@ -184,8 +184,6 @@ impl Search {
         let matcher = Matcher::new(Config::DEFAULT);
 
         let all_apps = build_index();
-        eprintln!("all_apps total: {}", all_apps.len());
-        eprintln!("file entries in all_apps: {}", all_apps.iter().filter(|a| matches!(a.source, indexer::AppSource::File)).count());
 
         let drawer_state =
             load_drawer_state().unwrap_or_default();
@@ -793,15 +791,13 @@ impl Search {
         let query = self.query.trim().to_lowercase();
 
         if query.is_empty() {
-            // Default view — top 36 by priority (apps first, then cli, then files)
+            // Show everything when no query
             self.filtered_apps = self.all_apps
                 .iter()
                 .enumerate()
-                .take(36)
                 .map(|(i, _)| i)
                 .collect();
-            self.show_search_results = false;
-            eprintln!("DEFAULT: all_apps={}, filtered={}", self.all_apps.len(), self.filtered_apps.len());
+            self.show_search_results = true;
             return;
         }
 
@@ -818,7 +814,6 @@ impl Search {
         // If prefix found nothing, go 100% fuzzy
         if prefix_results.is_empty() {
             self.filtered_apps = self.fuzzy_results(&query, usize::MAX, &std::collections::HashSet::new());
-            eprintln!("FINAL: prefix=0, total={}", self.filtered_apps.len());
             return;
         }
 
@@ -826,9 +821,17 @@ impl Search {
         let mut results = prefix_results;
         let fuzzy = self.fuzzy_results(&query, usize::MAX, &prefix_set);
         results.extend(fuzzy);
+        // Substring contains — catches anything missed by prefix/fuzzy
+        let already: std::collections::HashSet<usize> = results.iter().copied().collect();
+        let contains: Vec<usize> = self.all_apps
+            .iter()
+            .enumerate()
+            .filter(|(i, app)| !already.contains(i) && app.lower_name.contains(&query))
+            .map(|(i, _)| i)
+            .collect();
+        results.extend(contains);
 
         self.filtered_apps = results;
-        eprintln!("FINAL: total={}", self.filtered_apps.len());
     }
 
     fn fuzzy_results(
