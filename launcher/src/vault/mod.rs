@@ -83,6 +83,8 @@ pub struct Vault {
 
     /// True while a drag is hovering over the vault drop zone
     pub drag_hover: bool,
+    /// ID of the file whose context menu is open (None = closed)
+    pub context_menu_entry: Option<String>,
     
    
     
@@ -115,6 +117,7 @@ impl Vault {
             error: None,
             status: None,
             drag_hover: false,
+            context_menu_entry: None,
         }
     }
 
@@ -350,6 +353,27 @@ impl Vault {
         Ok(())
     }
 
+
+    // ── Export file from vault to Downloads ───────────────────────────────
+    pub fn export_file(&mut self, entry_id: &str) -> Result<(), String> {
+        let key = self.key_bytes()?;
+        let dir = vault_dir();
+        let enc_path = dir.join(format!("{entry_id}{ENC_EXT}"));
+        let encrypted = fs::read(&enc_path)
+            .map_err(|e| format!("Could not read encrypted file: {e}"))?;
+        let plaintext = encryption::decrypt_data(key, &encrypted)?;
+        let entry = self
+            .entries
+            .iter()
+            .find(|e| e.id == entry_id)
+            .ok_or_else(|| "Entry not found".to_string())?;
+        let downloads = dirs::download_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("~/Downloads"));
+        let dest = downloads.join(&entry.meta.original_name);
+        fs::write(&dest, &plaintext)
+            .map_err(|e| format!("Could not export file: {e}"))?;
+        Ok(())
+    }
     // ── Remove file from vault ────────────────────────────────────────────
 
     pub fn remove_file(&mut self, entry_id: &str) -> Result<(), String> {

@@ -63,9 +63,9 @@ pub enum Message {
     VaultOpenFile(String),
     VaultRemoveFile(String),
 
-    // TODO: vault file context menu — see issue #14
-    #[allow(dead_code)]
     VaultOpenFileMenu(String),
+    VaultCloseContextMenu,
+    VaultExportFile(String),
 
     /// Fired when files are dropped onto the vault drop zone
     VaultFilesDropped(Vec<std::path::PathBuf>),
@@ -642,7 +642,22 @@ impl Search {
                 None
             }
 
-            Message::VaultOpenFileMenu(_) => {
+            Message::VaultOpenFileMenu(id) => {
+                self.vault.context_menu_entry = Some(id);
+                None
+            }
+            Message::VaultCloseContextMenu => {
+                self.vault.context_menu_entry = None;
+                None
+            }
+            Message::VaultExportFile(id) => {
+                self.vault.context_menu_entry = None;
+                // Export: decrypt and save to ~/Downloads
+                if let Err(e) = self.vault.export_file(&id) {
+                    self.vault.error = Some(e);
+                } else {
+                    self.vault.status = Some("File exported to Downloads.".to_string());
+                }
                 None
             }
 

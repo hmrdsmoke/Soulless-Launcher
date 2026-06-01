@@ -282,7 +282,8 @@ fn files_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
             .into()
     };
 
-    container(
+
+    let main_col: Element<'a, SearchMessage> = container(
         column![
             header,
             status_bar,
@@ -298,7 +299,18 @@ fn files_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
     .height(Length::Fill)
     .padding(20)
     .style(vault_bg)
-    .into()
+    .into();
+
+    if let Some(ref entry_id) = vault.context_menu_entry {
+        let entry_name = vault.entries.iter()
+            .find(|e| &e.id == entry_id)
+            .map(|e| e.meta.original_name.as_str())
+            .unwrap_or("File");
+        let menu = vault_context_menu(entry_id.clone(), entry_name);
+        cosmic::iced::widget::stack([main_col, menu]).into()
+    } else {
+        main_col
+    }
 }
 
 // ── Individual file row ───────────────────────────────────────────────────────
@@ -332,7 +344,7 @@ fn file_row<'a>(
         }),
     )
     .on_press(SearchMessage::VaultOpenFile(entry_id))
-    .on_right_press(SearchMessage::VaultRemoveFile(entry_id_remove))
+    .on_right_press(SearchMessage::VaultOpenFileMenu(entry_id_remove))
     .into()
 }
 
@@ -375,4 +387,73 @@ fn format_size(bytes: u64) -> String {
     } else {
         format!("{:.2} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
     }
+}
+
+// ── Vault file context menu ───────────────────────────────────────────────────
+
+fn vault_context_menu<'a>(entry_id: String, name: &'a str) -> Element<'a, SearchMessage> {
+    let id_open = entry_id.clone();
+    let id_export = entry_id.clone();
+    let id_remove = entry_id.clone();
+
+    let open_btn = mouse_area(
+        container(text("📂 Open").size(13))
+            .padding([8, 16])
+            .width(Length::Fill)
+            .style(|_: &Theme| container::Style {
+                background: Some(Color::from_rgba8(255,255,255,0.05).into()),
+                ..Default::default()
+            })
+    ).on_press(SearchMessage::VaultOpenFile(id_open));
+
+    let export_btn = mouse_area(
+        container(text("💾 Export to Downloads").size(13))
+            .padding([8, 16])
+            .width(Length::Fill)
+            .style(|_: &Theme| container::Style {
+                background: Some(Color::from_rgba8(255,255,255,0.05).into()),
+                ..Default::default()
+            })
+    ).on_press(SearchMessage::VaultExportFile(id_export));
+
+    let remove_btn = mouse_area(
+        container(text("🗑 Remove from vault").size(13))
+            .padding([8, 16])
+            .width(Length::Fill)
+            .style(|_: &Theme| container::Style {
+                background: Some(Color::from_rgba8(180,40,40,0.15).into()),
+                ..Default::default()
+            })
+    ).on_press(SearchMessage::VaultRemoveFile(id_remove));
+
+    let menu = container(
+        column![
+            text(name).size(11),
+            open_btn,
+            export_btn,
+            remove_btn,
+        ]
+        .spacing(2)
+        .width(Length::Fixed(200.0)),
+    )
+    .padding(8)
+    .style(|_: &Theme| container::Style {
+        background: Some(Color::from_rgb8(28, 28, 38).into()),
+        border: cosmic::iced::Border {
+            color: Color::from_rgba8(255,255,255,0.15),
+            width: 1.0,
+            radius: cosmic::iced::border::rounded(8).radius,
+        },
+        ..Default::default()
+    });
+
+    mouse_area(
+        container(menu)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+    )
+    .on_press(SearchMessage::VaultCloseContextMenu)
+    .into()
 }
