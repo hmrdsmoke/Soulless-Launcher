@@ -13,6 +13,8 @@ pub mod files;
 pub mod flatpak;
 pub mod path;
 pub mod steam;
+pub mod jetbrains;
+pub mod wine;
 pub mod icon;
 
 #[allow(dead_code)] // issue #6 — launch stats tracking
@@ -38,7 +40,6 @@ pub struct AppEntry {
     pub last_launched: Option<u64>,
 }
 
-#[allow(dead_code)] // issue #4 — Wine/JetBrains app sources
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum AppSource {
     Desktop,
@@ -97,6 +98,24 @@ pub fn build_index() -> Vec<AppEntry> {
             r
         });
     apps.extend(steam_apps);
+
+    let jetbrains_apps = cache::load("jetbrains")
+        .filter(|_| !cache::is_stale("jetbrains", 24))
+        .unwrap_or_else(|| {
+            let r = jetbrains::index();
+            cache::save("jetbrains", &r);
+            r
+        });
+    apps.extend(jetbrains_apps);
+
+    let wine_apps = cache::load("wine")
+        .filter(|_| !cache::is_stale("wine", 24))
+        .unwrap_or_else(|| {
+            let r = wine::index();
+            cache::save("wine", &r);
+            r
+        });
+    apps.extend(wine_apps);
 
     let cli_apps = cache::load("cli")
         .filter(|_| !cache::is_stale("cli", 24))
