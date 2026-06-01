@@ -39,13 +39,6 @@ pub fn view(state: &FpsMonitorState) -> Element<'_, Message> {
     // ── Live FPS — colour-coded big number ────────────────────────────────────
     let live_color = fps_color(fps.fps);
 
-    let fps_col = column![
-        text("fps").size(9).color(live_color),
-        text(fmt_fps(fps.fps)).size(14).color(live_color),
-    ]
-    .spacing(1)
-    .width(Length::Fill);
-
     // ── Average ───────────────────────────────────────────────────────────────
     let avg_col = column![
         text("avg").size(9).color(AVG_COLOR),
@@ -70,26 +63,21 @@ pub fn view(state: &FpsMonitorState) -> Element<'_, Message> {
     .spacing(1)
     .width(Length::Fill);
 
-    // ── Stats row ─────────────────────────────────────────────────────────────
-    let stats = row![fps_col, avg_col, low_col, ft_col].spacing(2);
+    // ── Small stats row ───────────────────────────────────────────────────────
+    let stats = row![avg_col, low_col, ft_col].spacing(2);
+
+    // ── Big FPS bottom line ───────────────────────────────────────────────────
+    let fps_row = row![
+        text("fps").size(9).color(live_color),
+        text(fmt_fps(fps.fps)).size(14).color(live_color),
+    ].spacing(4).align_y(cosmic::iced::alignment::Vertical::Bottom);
 
     container(
-        column![graph, stats].spacing(4)
+        column![graph, stats, fps_row].spacing(2)
     )
-    .width(Length::Fixed(140.0))
-    .height(Length::Fixed(90.0))
-    .padding([4, 6])
-    .style(|_| container::Style {
-        background: Some(
-            cosmic::iced::Color::from_rgba8(45, 45, 45, 0.90).into(),
-        ),
-        border: cosmic::iced::Border {
-            radius: 12.0.into(),
-            width:  1.0,
-            color:  cosmic::iced::Color::from_rgb8(70, 70, 70),
-        },
-        ..Default::default()
-    })
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .padding([4, 12, 6, 12])
     .into()
 }
 

@@ -53,18 +53,7 @@ pub fn view(state: &SystemState) -> Element<'_, Message> {
     )
     .width(Length::Fill)
     .height(Length::Fill)
-    .padding([4, 6])
-    .style(|_| container::Style {
-        background: Some(
-            cosmic::iced::Color::from_rgba8(45, 45, 45, 0.90).into(),
-        ),
-        border: cosmic::iced::Border {
-            radius: 12.0.into(),
-            width: 1.0,
-            color: cosmic::iced::Color::from_rgb8(70, 70, 70),
-        },
-        ..Default::default()
-    })
+    .padding([4, 12, 6, 12])
     .into()
 }
 

@@ -89,20 +89,9 @@ pub fn view(state: &HardwareMonitorState) -> Element<'_, Message> {
     container(
         column![graph, stats].spacing(4)
     )
-    .width(Length::Fixed(140.0))
-    .height(Length::Fixed(90.0))
-    .padding([4, 6])
-    .style(|_| container::Style {
-        background: Some(
-            cosmic::iced::Color::from_rgba8(45, 45, 45, 0.90).into(),
-        ),
-        border: cosmic::iced::Border {
-            radius: 12.0.into(),
-            width:  1.0,
-            color:  cosmic::iced::Color::from_rgb8(70, 70, 70),
-        },
-        ..Default::default()
-    })
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .padding([4, 12, 6, 12])
     .into()
 }
 
