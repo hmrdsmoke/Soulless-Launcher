@@ -32,6 +32,7 @@ pub enum Message {
     Hardware(HardwareMessage),
     Fps(FpsMessage),
     WindowEvent(cosmic::iced::Event),
+    WindowOpened(cosmic::iced::window::Id),
 }
 
 // ── Application model ────────────────────────────────────────────────────────
@@ -112,6 +113,10 @@ impl Soulless {
                 }
             }
 
+            // ── Enable blur when window opens ─────────────────────────
+            Message::WindowOpened(id) => {
+                return crate::ui::startup_tasks(id);
+            }
             // ── Focus search bar on window focus ──────────────────────────
             Message::WindowEvent(cosmic::iced::Event::Window(
                 window::Event::Focused,
@@ -274,6 +279,7 @@ impl Soulless {
     pub fn subscription(&self) -> Subscription<Message> {
         Subscription::batch([
             event::listen().map(Message::WindowEvent),
+            cosmic::iced::window::open_events().map(Message::WindowOpened),
             crate::network_monitor::subscription().map(Message::Network),
             crate::system_monitor::subscription().map(Message::System),
             crate::hardware_monitor::subscription().map(Message::Hardware),
