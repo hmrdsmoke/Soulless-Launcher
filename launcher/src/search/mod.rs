@@ -51,9 +51,6 @@ pub enum Message {
     DeleteDrawer(String),
     MoveDrawerUp(String),
     MoveDrawerDown(String),
-    // TODO: complete rename flow — see issue #13
-    #[allow(dead_code)]
-    RenameDrawer(String, String),
 
     // Vault
     VaultPasswordChanged(String),
@@ -486,33 +483,7 @@ impl Search {
                 None
             }
 
-            Message::RenameDrawer(
-                old,
-                new,
-            ) => {
-                self.drawer_state
-                    .rename_drawer(
-                        &old,
-                        &new,
-                    );
 
-                save_drawer_state(
-                    &self.drawer_state,
-                );
-
-                self.context_menu = None;
-
-                if self.current_open_drawer
-                    == OpenDrawer::Pinned(
-                        old.clone(),
-                    )
-                {
-                    self.current_open_drawer =
-                        OpenDrawer::Pinned(new);
-                }
-
-                None
-            }
 
             // ── Drawer apps ───────────────────────
 
