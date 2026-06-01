@@ -57,18 +57,42 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
         }
     }
 
-    eprintln!("files: indexed {} files across XDG dirs", apps.len());
+    // ── Full home scan with exclusions ──────────────────────────────────────
+    let exclude = [
+        "snap", "flatpak", ".var", "node_modules", "target",
+        ".cargo", ".rustup", ".steam", ".local",
+    ];
+    let vault_dir = crate::vault::vault_dir();
+    let Ok(home_entries) = fs::read_dir(&home) else {
+        return apps;
+    };
+    for entry in home_entries.flatten() {
+        let path = entry.path();
+        if is_hidden(&path) { continue; }
+        if path == vault_dir { continue; }
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+        if exclude.contains(&name.as_str()) { continue; }
+        // Skip dirs already covered by XDG scan
+        if xdg_dirs.contains(&path) { continue; }
+        if path.is_dir() {
+            scan_dir(&path, &folder_icon, &mut apps);
+            let Ok(sub_entries) = fs::read_dir(&path) else { continue };
+            for sub in sub_entries.flatten() {
+                let sub_path = sub.path();
+                if sub_path.is_dir() && !is_hidden(&sub_path) {
+                    scan_dir(&sub_path, &folder_icon, &mut apps);
+                }
+            }
+        }
+    }
     apps
 }
 
 fn scan_dir(dir: &Path, folder_icon: &str, apps: &mut Vec<AppEntry>) {
     let Ok(entries) = fs::read_dir(dir) else {
-        eprintln!("files: skipping missing dir {:?}", dir);
         return;
     };
 
-    let mut file_count = 0usize;
-    let mut dir_count = 0usize;
 
     for entry in entries.flatten() {
         let path = entry.path();
@@ -88,14 +112,11 @@ fn scan_dir(dir: &Path, folder_icon: &str, apps: &mut Vec<AppEntry>) {
         let exec = format!("xdg-open {}", path.display());
 
         let icon_path = if is_dir {
-            dir_count += 1;
             folder_icon.to_string()
         } else {
-            file_count += 1;
             super::icon::fallback_icon()
         };
 
-        eprintln!("files: adding {} {:?} exec={:?}", if is_dir { "dir" } else { "file" }, name, exec);
 
         apps.push(AppEntry {
             id,
@@ -112,7 +133,6 @@ fn scan_dir(dir: &Path, folder_icon: &str, apps: &mut Vec<AppEntry>) {
         });
     }
 
-    eprintln!("files: {} files, {} dirs indexed in {:?}", file_count, dir_count, dir);
 }
 
 fn is_hidden(path: &Path) -> bool {
