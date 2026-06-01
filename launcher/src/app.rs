@@ -108,7 +108,7 @@ impl Soulless {
                 if let Some(exec) = self.search.update(msg) {
                     let clean_exec = crate::utils::strip_desktop_placeholders(&exec);
 
-                    if let Err(e) = std::process::Command::new("sh")
+                    if let Err(_e) = std::process::Command::new("sh")
                         .arg("-c")
                         .arg(&clean_exec)
                         .spawn()
