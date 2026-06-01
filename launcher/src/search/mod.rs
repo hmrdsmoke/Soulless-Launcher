@@ -651,7 +651,7 @@ impl Search {
             }
 
             Message::VaultOpenFile(id) => {
-                if let Err(_e) =
+                if let Err(e) =
                     self.vault.open_file(&id)
                 {
                     self.vault.error = Some(e);
@@ -662,7 +662,7 @@ impl Search {
 
             Message::VaultFilesDropped(paths) => {
                 for path in paths {
-                    if let Err(_e) = self.vault.add_file(&path) {
+                    if let Err(e) = self.vault.add_file(&path) {
                         self.vault.error = Some(e);
                     }
                 }
@@ -673,7 +673,7 @@ impl Search {
             }
 
             Message::VaultRemoveFile(id) => {
-                if let Err(_e) =
+                if let Err(e) =
                     self.vault.remove_file(&id)
                 {
                     self.vault.error = Some(e);
@@ -693,7 +693,7 @@ impl Search {
             Message::VaultExportFile(id) => {
                 self.vault.context_menu_entry = None;
                 // Export: decrypt and save to ~/Downloads
-                if let Err(_e) = self.vault.export_file(&id) {
+                if let Err(e) = self.vault.export_file(&id) {
                     self.vault.error = Some(e);
                 } else {
                     self.vault.status = Some("File exported to Downloads.".to_string());
