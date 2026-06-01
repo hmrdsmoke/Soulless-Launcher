@@ -54,5 +54,6 @@ the shit
  want to so it can be made the way they want last but not least added jetbrains and wine to my search index
  the code base is coming back with little to no warnings and no errors at all compiling clean and working 
  like a champ very happy with my new launcher might add more features not sure yet were i think i should 
- stop
+ stop and then i add keyboard navigation and open app with enter no need for a mouse in the launcher 
+ except for search now how do i get rid of that lol man this is really coming together
  
