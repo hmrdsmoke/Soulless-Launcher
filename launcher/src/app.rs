@@ -317,7 +317,7 @@ impl Soulless {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        let (toolbox, right, drop_zone) = crate::drawers::view(&self.search);
+        let (toolbox, right, _drop_zone) = crate::drawers::view(&self.search);
         let net = if self.config.show_system_monitor {
             crate::network_monitor::view(&self.network).map(Message::Network)
         } else { cosmic::iced::widget::space::horizontal().into() };

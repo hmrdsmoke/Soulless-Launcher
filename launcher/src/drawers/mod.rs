@@ -595,7 +595,6 @@ fn drawer_contents_view<'a>(
             .filter_map(|id| search.app_by_id(id).map(|app| (id, app)))
             .collect();
 
-        let mut content_col = column!().spacing(8);
         let mut apps_col = column!().spacing(8);
 
         // ── Apps grid ─────────────────────────────────────────────────────
@@ -615,29 +614,6 @@ fn drawer_contents_view<'a>(
                     col.push(grid_row)
                 });
             apps_col = apps_col.push(apps_grid);
-        }
-
-        // ── Files grid ────────────────────────────────────────────────────
-        if !drawer_files.is_empty() {
-            if !app_entries.is_empty() {
-                content_col = content_col.push(
-                    container(text("Files").size(11)).padding([8, 0, 4, 0])
-                );
-            }
-
-            let files_grid = drawer_files
-                .chunks(GRID_COLUMNS)
-                .fold(column!().spacing(8), |col, chunk| {
-                    let mut grid_row = row!().spacing(8).width(Length::Fill);
-                    for file in chunk {
-                        grid_row = grid_row.push(
-                            drawer_file_icon(file, drawer_name)
-                        );
-                    }
-                    col.push(grid_row)
-                });
-
-            content_col = content_col.push(files_grid);
         }
 
         let files_section: Element<'a, SearchMessage> = if !drawer_files.is_empty() {
@@ -690,7 +666,7 @@ fn drawer_contents_view<'a>(
     let dn_enter  = drawer_name.to_string();
     let dn_finish = drawer_name.to_string();
 
-    let drop_dest: cosmic::Element<'_, SearchMessage> =
+    let _drop_dest: cosmic::Element<'_, SearchMessage> =
         cosmic::widget::dnd_destination(
             drop_inner,
             vec![std::borrow::Cow::Borrowed("text/uri-list")],
