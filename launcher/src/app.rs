@@ -248,6 +248,28 @@ impl Soulless {
                             }
                         }
 
+                        // Handle drawer file drops
+                        if mime_type == "text/uri-list" {
+                            if let OpenDrawer::Pinned(name) = self.search.current_open_drawer.clone() {
+                                let payload = String::from_utf8_lossy(&data);
+                                let paths: Vec<PathBuf> = payload
+                                    .lines()
+                                    .map(str::trim)
+                                    .filter(|l| l.starts_with("file://"))
+                                    .filter_map(|l| {
+                                        let raw = l.trim_start_matches("file://");
+                                        let decoded = crate::utils::percent_decode_uri(raw);
+                                        let p = PathBuf::from(decoded);
+                                        if p.exists() { Some(p) } else { None }
+                                    })
+                                    .collect();
+                                if !paths.is_empty() {
+                                    self.search.update(
+                                        SearchMessage::FilesDroppedOnDrawer(name, paths),
+                                    );
+                                }
+                            }
+                        }
                         // Clear all hover states after drop
                         self.search
                             .update(SearchMessage::VaultDragHover(false));
@@ -295,7 +317,7 @@ impl Soulless {
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        let (toolbox, right) = crate::drawers::view(&self.search);
+        let (toolbox, right, drop_zone) = crate::drawers::view(&self.search);
         let net = if self.config.show_system_monitor {
             crate::network_monitor::view(&self.network).map(Message::Network)
         } else { cosmic::iced::widget::space::horizontal().into() };
@@ -308,18 +330,18 @@ impl Soulless {
         let fps = if self.config.show_system_monitor {
             crate::fps_monitor::view(&self.fps).map(Message::Fps)
         } else { cosmic::iced::widget::space::horizontal().into() };
+        let banner = if self.config.organizer_enabled {
+            crate::ui::organizer::organizer_banner(&self.organizer, Message::Organizer)
+        } else { None };
         crate::ui::panels::compose(
             {
                 let t = toolbox.map(Message::Search);
-                let banner = if self.config.organizer_enabled {
-                    crate::ui::organizer::organizer_banner(&self.organizer, Message::Organizer)
-                } else { None };
-                if let Some(banner) = banner {
-                    use cosmic::iced::widget::Column;
-                    Column::new().push(t).push(banner).spacing(8).into()
-                } else {
-                    t
+                use cosmic::iced::widget::Column;
+                let mut col = Column::new().push(t);
+                if let Some(b) = banner {
+                    col = col.push(b);
                 }
+                col.into()
             },
             right.map(Message::Search),
             net, sys, hw, fps,

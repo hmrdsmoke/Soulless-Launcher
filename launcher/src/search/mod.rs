@@ -582,6 +582,13 @@ impl Search {
             Message::FilesDroppedOnDrawer(drawer, paths) => {
                 self.drag_hover_drawer = None;
                 self.drawer_file_hover = None;
+                // __toolbox__ means use currently open drawer
+                let target_drawer = if drawer == "__toolbox__" {
+                    match &self.current_open_drawer {
+                        OpenDrawer::Pinned(name) => name.clone(),
+                        _ => { return None; }
+                    }
+                } else { drawer.clone() };
 
                 for path in &paths {
                     let name = path
@@ -591,7 +598,7 @@ impl Search {
                         .to_string();
 
                     self.drawer_state.add_file(
-                        &drawer,
+                        &target_drawer,
                         path.display().to_string(),
                         name,
                     );

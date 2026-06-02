@@ -85,7 +85,7 @@ impl AsMimeTypes for AppIdPayload {
 /// Styling is handled by ui::panels — drawers only provides content.
 pub fn view<'a>(
     search: &'a crate::search::Search,
-) -> (Element<'a, SearchMessage>, Element<'a, SearchMessage>) {
+) -> (Element<'a, SearchMessage>, Element<'a, SearchMessage>, Element<'a, SearchMessage>) {
     let search_bar = text_input("Search all apps...", &search.query)
         .id(cosmic::widget::Id::new("soulless-search-bar"))
         .on_input(SearchMessage::QueryChanged)
@@ -128,6 +128,64 @@ pub fn view<'a>(
             .padding([8, 16])
             .into()
     };
+
+    // ── Drop zone for files/dirs/apps ─────────────────────────────────
+    let is_drop_hover = search.drawer_file_hover.as_deref() == Some("__toolbox__");
+    let drop_label = if is_drop_hover {
+        "Drop to add"
+    } else {
+        "⬇  Drop here"
+    };
+    let drop_inner: cosmic::Element<'_, SearchMessage> = cosmic::widget::container(
+        cosmic::widget::text(drop_label).size(11),
+    )
+    .width(Length::Fill)
+    .padding([8, 14])
+    .into();
+    let toolbox_drop: Element<'_, SearchMessage> = {
+        let dest = cosmic::widget::dnd_destination(
+            drop_inner,
+            vec![
+                std::borrow::Cow::Borrowed("text/uri-list"),
+                std::borrow::Cow::Borrowed("text/plain"),
+            ],
+        )
+        .on_enter(|_x, _y, _mimes| SearchMessage::DrawerFileHover(Some("__toolbox__".to_string())))
+        .on_leave(|| SearchMessage::DrawerFileHover(None))
+        .on_finish(move |_mime, data, _action, _x, _y| {
+            let payload = String::from_utf8_lossy(&data);
+            let paths = payload
+                .lines()
+                .map(str::trim)
+                .filter(|l| l.starts_with("file://"))
+                .filter_map(|l| {
+                    let raw = l.trim_start_matches("file://");
+                    let decoded = crate::utils::percent_decode_uri(raw);
+                    let p = std::path::PathBuf::from(decoded);
+                    if p.exists() { Some(p) } else { None }
+                })
+                .collect::<Vec<_>>();
+            SearchMessage::FilesDroppedOnDrawer("__toolbox__".to_string(), paths)
+        });
+        Themer::new(None::<cosmic::Theme>, dest).into()
+    };
+    let is_hover_copy = is_drop_hover;
+    let toolbox_drop_styled = container(toolbox_drop)
+        .width(Length::Fill)
+        .padding([0, 16])
+        .style(move |_: &cosmic::iced::Theme| cosmic::iced::widget::container::Style {
+            background: Some(if is_hover_copy {
+                crate::ui::theme::STEEL_TOP.into()
+            } else {
+                cosmic::iced::Color::BLACK.into()
+            }),
+            border: cosmic::iced::Border {
+                color: crate::ui::theme::STEEL_TOP,
+                width: 1.0,
+                radius: cosmic::iced::border::rounded(0).radius,
+            },
+            ..Default::default()
+        });
 
     let main_toolbox = column![
         container(search_bar).padding(16),
@@ -266,7 +324,7 @@ pub fn view<'a>(
                 .padding([80, 0, 0, 0]),
         ]
         .into();
-        (full, space::horizontal().width(Length::Fill).into())
+        (full, space::horizontal().width(Length::Fill).into(), space::horizontal().width(Length::Fill).into())
     } else if let Some(menu) = &search.context_menu {
         let menu_widget = context_menu_view(menu);
         let (toolbox, right) = base;
@@ -294,9 +352,12 @@ pub fn view<'a>(
         .on_press(SearchMessage::CloseContextMenu)
         .into();
 
-        (toolbox_dismiss, right_with_menu)
+        let dz2: Element<'a, SearchMessage> = space::horizontal().width(Length::Fill).into();
+        (toolbox_dismiss, right_with_menu, dz2)
     } else {
-        base
+        let (t, r) = base;
+        let dz: Element<'a, SearchMessage> = toolbox_drop_styled.into();
+        (t, r, dz)
     }
 }
 
@@ -450,21 +511,53 @@ fn drawer_contents_view<'a>(
     let is_file_hover = search.drawer_file_hover.as_deref()
         == Some(drawer_name);
 
-    let header = mouse_area(
-        container(
-            row![
-                text(format!("📁  {drawer_name}")).size(22),
-                space::horizontal().width(Length::Fill),
-                text("Drag apps or files here · right-click to add").size(11),
-            ]
-            .padding([0, 0, 12, 0])
-            .align_y(Vertical::Center)
-        )
-        .width(Length::Fill)
+    let dn_name = drawer_name.to_string();
+    let dn_finish = drawer_name.to_string();
+    let header_inner: cosmic::Element<'_, SearchMessage> = cosmic::widget::container(
+        cosmic::widget::column![
+            cosmic::widget::text(drawer_name).size(22),
+            cosmic::widget::text(if is_file_hover { "Drop to add" } else { "Drop files here" }).size(12),
+        ]
+        .spacing(4)
+        .padding([12, 16])
     )
-    .on_right_press(
-        SearchMessage::RightClickDrawerBackground(drawer_name.to_string())
-    );
+    .width(Length::Fill)
+    .into();
+    let header_dest: cosmic::Element<'_, SearchMessage> = cosmic::widget::dnd_destination(
+        header_inner,
+        vec![std::borrow::Cow::Borrowed("text/uri-list")],
+    )
+    .on_enter(move |_x, _y, _mimes| SearchMessage::DrawerFileHover(Some(dn_name.clone())))
+    .on_leave(|| SearchMessage::DrawerFileHover(None))
+    .on_finish(move |_mime, data, _action, _x, _y| {
+        let payload = String::from_utf8_lossy(&data);
+        let paths = payload.lines().map(str::trim)
+            .filter(|l| l.starts_with("file://"))
+            .filter_map(|l| {
+                let raw = l.trim_start_matches("file://");
+                let decoded = crate::utils::percent_decode_uri(raw);
+                let p = std::path::PathBuf::from(decoded);
+                if p.exists() { Some(p) } else { None }
+            }).collect::<Vec<_>>();
+        SearchMessage::FilesDroppedOnDrawer(dn_finish.clone(), paths)
+    })
+    .into();
+    let (hdr_bg, hdr_border) = if is_file_hover {
+        (Color::from_rgba8(30, 80, 30, 0.4), Color::from_rgb8(60, 200, 60))
+    } else {
+        (Color::from_rgba8(255, 255, 255, 0.04), Color::from_rgba8(255, 255, 255, 0.1))
+    };
+    let header = container(Themer::new(None::<cosmic::Theme>, header_dest))
+        .width(Length::Fill)
+        .style(move |_: &Theme| container::Style {
+            background: Some(hdr_bg.into()),
+            border: cosmic::iced::Border {
+                color: hdr_border,
+                width: 1.0,
+                radius: cosmic::iced::border::rounded(8).radius,
+            },
+            ..Default::default()
+        });
 
     let is_empty = pinned_ids.is_empty() && drawer_files.is_empty();
 
@@ -503,6 +596,7 @@ fn drawer_contents_view<'a>(
             .collect();
 
         let mut content_col = column!().spacing(8);
+        let mut apps_col = column!().spacing(8);
 
         // ── Apps grid ─────────────────────────────────────────────────────
         if !app_entries.is_empty() {
@@ -520,7 +614,7 @@ fn drawer_contents_view<'a>(
                     }
                     col.push(grid_row)
                 });
-            content_col = content_col.push(apps_grid);
+            apps_col = apps_col.push(apps_grid);
         }
 
         // ── Files grid ────────────────────────────────────────────────────
@@ -546,15 +640,36 @@ fn drawer_contents_view<'a>(
             content_col = content_col.push(files_grid);
         }
 
-        mouse_area(
-            container(column![header, scrollable(content_col)])
-                .width(Length::Fill)
-                .height(Length::Fill)
+        let files_section: Element<'a, SearchMessage> = if !drawer_files.is_empty() {
+            let files_list = drawer_files
+                .iter()
+                .fold(column!().spacing(4), |col, file| {
+                    col.push(drawer_file_row(file, drawer_name))
+                });
+            container(
+                column![
+                    container(text("Files").size(11)).padding([4, 0]),
+                    files_list,
+                ]
+                .spacing(4)
+            )
+            .width(Length::Fill)
+            .into()
+        } else {
+            space::horizontal().into()
+        };
+
+        let apps_section: Element<'a, SearchMessage> = container(
+            scrollable(apps_col).height(Length::Fill)
         )
-        .on_right_press(
-            SearchMessage::RightClickDrawerBackground(drawer_name.to_string())
-        )
-        .into()
+        .height(Length::FillPortion(1))
+        .width(Length::Fill)
+        .into();
+
+        container(column![header, apps_section, files_section].spacing(8))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
     };
 
     // ── Drop zone — mirrors vault_ui.rs exactly ───────────────────────────
@@ -601,48 +716,10 @@ fn drawer_contents_view<'a>(
         })
         .into();
 
-    // Step 3: Themer bridges cosmic::Theme → cosmic::iced::Theme.
-    // Outer iced container applies the hover highlight styling on top.
-    let (drop_bg, drop_border_color, drop_border_width) = if is_file_hover {
-        (
-            Color::from_rgba8(30, 80, 30, 0.35),
-            Color::from_rgb8(60, 200, 60),
-            2.0_f32,
-        )
-    } else {
-        (
-            Color::from_rgba8(255, 255, 255, 0.03),
-            Color::from_rgba8(255, 255, 255, 0.08),
-            1.0_f32,
-        )
-    };
-
-    // ── Final layout: content above, drop zone strip below ────────────────
-    mouse_area(
-        container(
-            column![
-                content,
-                container(Themer::new(None::<cosmic::Theme>, drop_dest))
-                    .width(Length::Fill)
-                    .style(move |_: &Theme| container::Style {
-                        background: Some(drop_bg.into()),
-                        border: cosmic::iced::Border {
-                            color: drop_border_color,
-                            width: drop_border_width,
-                            radius: cosmic::iced::border::rounded(10).radius,
-                        },
-                        ..Default::default()
-                    }),
-            ]
-            .spacing(8)
-        )
+    container(content)
         .width(Length::Fill)
         .height(Length::Fill)
-    )
-    .on_right_press(
-        SearchMessage::RightClickDrawerBackground(drawer_name.to_string())
-    )
-    .into()
+        .into()
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -682,6 +759,39 @@ fn drawer_app_icon<'a>(
 // ─────────────────────────────────────────────────────────────
 // Drawer File Icon
 // ─────────────────────────────────────────────────────────────
+
+
+fn drawer_file_row<'a>(
+    file: &'a crate::drawers::state::DrawerFile,
+    drawer_name: &'a str,
+) -> Element<'a, SearchMessage> {
+    let emoji = file_emoji(&file.name);
+    let name = text(&file.name).size(13);
+    mouse_area(
+        container(
+            row![
+                text(emoji).size(18),
+                space::horizontal().width(Length::Fixed(10.0)),
+                name,
+                space::horizontal().width(Length::Fill),
+            ]
+            .align_y(Vertical::Center)
+            .padding([6, 10]),
+        )
+        .width(Length::Fill)
+        .style(|_: &Theme| container::Style {
+            background: Some(Color::from_rgba8(255, 255, 255, 0.04).into()),
+            border: cosmic::iced::border::rounded(6),
+            ..Default::default()
+        }),
+    )
+    .on_press(SearchMessage::OpenDrawerFile(file.path.clone()))
+    .on_right_press(SearchMessage::RightClickDrawerFile(
+        drawer_name.to_string(),
+        file.path.clone(),
+    ))
+    .into()
+}
 
 fn drawer_file_icon<'a>(
     file: &'a crate::drawers::state::DrawerFile,
@@ -810,6 +920,11 @@ fn context_menu_view<'a>(menu: &'a ContextMenu) -> Element<'a, SearchMessage> {
                 menu_item(
                     "✖ Remove from Drawer",
                     SearchMessage::RemoveFileFromDrawer(drawer.clone(), file_path.clone()),
+                ),
+                menu_divider(),
+                menu_item(
+                    "🗑 Clear Drawer",
+                    SearchMessage::ClearDrawer(drawer.clone()),
                 ),
             ]
             .spacing(2)
