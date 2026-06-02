@@ -741,7 +741,8 @@ fn drawer_file_row<'a>(
     file: &'a crate::drawers::state::DrawerFile,
     drawer_name: &'a str,
 ) -> Element<'a, SearchMessage> {
-    let emoji = file_emoji(&file.name);
+    let is_dir = std::path::Path::new(&file.path).is_dir();
+    let emoji = if is_dir { "📂" } else { file_emoji(&file.name) };
     let name = text(&file.name).size(13);
     mouse_area(
         container(
