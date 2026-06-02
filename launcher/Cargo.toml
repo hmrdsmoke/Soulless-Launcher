@@ -39,3 +39,4 @@ tokio = { version = "1", features = ["time"] }
 futures-util = { workspace = true }
 soulless-organizer = { path = "../organizer" }
 ron = { workspace = true }
+uuid = { workspace = true }

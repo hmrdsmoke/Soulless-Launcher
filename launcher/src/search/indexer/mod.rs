@@ -15,6 +15,7 @@ pub mod path;
 pub mod steam;
 pub mod jetbrains;
 pub mod wine;
+pub mod appid;
 pub mod icon;
 
 #[allow(dead_code)] // issue #6 — launch stats tracking

@@ -824,9 +824,16 @@ impl Search {
         &self,
         id: &str,
     ) -> Option<&AppEntry> {
-        self.all_apps
-            .iter()
-            .find(|a| a.id == id)
+        // First try direct match (old source IDs)
+        if let Some(app) = self.all_apps.iter().find(|a| a.id == id) {
+            return Some(app);
+        }
+        // Try registry lookup (stable UUIDs)
+        let registry = crate::registry::load();
+        if let Some(entry) = registry.get(id) {
+            return self.all_apps.iter().find(|a| a.id == entry.source_id);
+        }
+        None
     }
 
     #[allow(dead_code)]
@@ -1033,7 +1040,7 @@ fn load_drawer_state() -> Option<DrawerState> {
     serde_json::from_str(&text).ok()
 }
 
-fn save_drawer_state(state: &DrawerState) {
+pub fn save_drawer_state(state: &DrawerState) {
     let Some(path) = drawer_state_path() else {
         return;
     };

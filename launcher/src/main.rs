@@ -51,3 +51,4 @@ fn main() -> cosmic::iced::Result {
     .resizable(false)
     .run()
 }
+pub mod registry;

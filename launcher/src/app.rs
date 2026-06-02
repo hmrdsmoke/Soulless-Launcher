@@ -48,6 +48,7 @@ pub struct Soulless {
     fps:        crate::fps_monitor::FpsMonitorState,
     organizer: soulless_organizer::OrganizerState,
     config: crate::config::SoullessConfig,
+    registry: crate::registry::Registry,
     cursor_pos: Option<cosmic::iced::Point>,
     bg_handle:  Option<cosmic::iced::widget::image::Handle>,
 }
@@ -68,13 +69,27 @@ impl Soulless {
 
         (
             Self {
-                search:     crate::search::Search::new(),
+                search: {
+                    let mut s = crate::search::Search::new();
+                    let mut reg = crate::registry::load();
+                    let changed = crate::registry::migrate::migrate_drawers(
+                        &mut s.drawer_state,
+                        &mut reg,
+                        &s.all_apps,
+                    );
+                    if changed {
+                        crate::registry::save(&reg);
+                        crate::search::save_drawer_state(&s.drawer_state);
+                    }
+                    s
+                },
                 network:    crate::network_monitor::NetworkState::new(),
                 system:     crate::system_monitor::SystemState::new(),
                 hardware:   crate::hardware_monitor::HardwareMonitorState::new(),
                 fps:        crate::fps_monitor::FpsMonitorState::new(),
                 organizer: soulless_organizer::OrganizerState::new(),
                 config,
+                registry: crate::registry::load(),
                 cursor_pos: None,
                 bg_handle,
             },
