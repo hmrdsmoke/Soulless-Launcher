@@ -137,11 +137,3 @@ pub fn unhide(key: &[u8], app: &HiddenApp) -> Result<(), String> {
     Ok(())
 }
 
-/// Launch a hidden app directly from the vault using its stored exec.
-/// No restore needed — the .desktop location is irrelevant to running it.
-pub fn launch(app: &HiddenApp) {
-    let _ = std::process::Command::new("sh")
-        .arg("-c")
-        .arg(&app.meta.exec)
-        .spawn();
-}

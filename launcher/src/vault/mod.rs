@@ -428,12 +428,6 @@ impl Vault {
         Ok(())
     }
 
-    /// Launch a hidden app directly from the vault (no restore needed).
-    pub fn launch_hidden(&self, id: &str) {
-        if let Some(app) = self.hidden_apps.iter().find(|a| a.id == id) {
-            hidden_apps::launch(app);
-        }
-    }
 
     // ── Load entries from disk ────────────────────────────────────────────
 
