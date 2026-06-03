@@ -770,45 +770,6 @@ fn drawer_file_row<'a>(
     .into()
 }
 
-fn drawer_file_icon<'a>(
-    file: &'a crate::drawers::state::DrawerFile,
-    drawer_name: &'a str,
-) -> Element<'a, SearchMessage> {
-    let emoji = file_emoji(&file.name);
-
-    let icon_cell = container(
-        container(text(emoji).size(18))
-            .width(Length::Fixed(ICON_SIZE))
-            .height(Length::Fixed(ICON_SIZE))
-            .center_x(Length::Fill)
-            .center_y(Length::Fill)
-            .style(|_| container::Style {
-                background: Some(
-                    cosmic::iced::Color::from_rgba8(60, 60, 80, 0.9).into(),
-                ),
-                border: cosmic::iced::Border {
-                    radius: 8.0.into(),
-                    width: 1.0,
-                    color: cosmic::iced::Color::from_rgb8(90, 90, 110),
-                },
-                ..Default::default()
-            }),
-    );
-
-    let label = text(crate::utils::truncate_label(&file.name, 12)).size(12);
-
-    let content = column![icon_cell, label]
-        .spacing(4)
-        .align_x(Horizontal::Center);
-
-    mouse_area(container(content).padding(6))
-        .on_press(SearchMessage::OpenDrawerFile(file.path.clone()))
-        .on_right_press(SearchMessage::RightClickDrawerFile(
-            drawer_name.to_string(),
-            file.path.clone(),
-        ))
-        .into()
-}
 
 /// Pick a representative emoji for a file by extension.
 fn file_emoji(name: &str) -> &'static str {
