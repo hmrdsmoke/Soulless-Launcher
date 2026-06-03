@@ -1,5 +1,6 @@
 pub mod ui;
 pub mod encryption;
+pub mod hidden_apps;
 // MIT License - see LICENSE file for full terms
 //
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
