@@ -177,6 +177,8 @@ pub struct Search {
     /// Custom background image path for the right panel (None = default dark red)
     #[allow(dead_code)]
     pub bg_image_path: Option<String>,
+    /// Single loaded registry instance — search owns this; app.rs asks via app_by_id.
+    pub registry: crate::registry::Registry,
 }
 
 pub struct AppPicker {
@@ -226,8 +228,12 @@ impl Search {
 
             drawer_edit: None,
             bg_image_path: crate::config::default_background(),
+            registry: crate::registry::Registry::default(),
         };
 
+        search.registry = crate::registry::load();
+        let changed = crate::registry::migrate::migrate_drawers(&mut search.drawer_state, &mut search.registry, &search.all_apps);
+        if changed { crate::registry::save(&search.registry); save_drawer_state(&search.drawer_state); }
         search.recompute_results();
 
         search
@@ -824,16 +830,8 @@ impl Search {
         &self,
         id: &str,
     ) -> Option<&AppEntry> {
-        // First try direct match (old source IDs)
-        if let Some(app) = self.all_apps.iter().find(|a| a.id == id) {
-            return Some(app);
-        }
-        // Try registry lookup (stable UUIDs)
-        let registry = crate::registry::load();
-        if let Some(entry) = registry.get(id) {
-            return self.all_apps.iter().find(|a| a.id == entry.source_id);
-        }
-        None
+        // Single lookup path — uses the registry instance search owns, no disk load.
+        indexer::appid::resolve(id, &self.all_apps, &self.registry)
     }
 
     #[allow(dead_code)]

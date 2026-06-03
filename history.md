@@ -20,6 +20,7 @@ I Spent all night trying to make Copilot automatically update the GitHub board. 
 even look at the code FML. Switched to stable ID format ( ) even though it was a pain in the ass and wasnt
 worth doing. it did make the code look better since it doesnt have a thousand lines of edits riddle thoughout.
 No it just has those thousand lines at the bottom yelling Dumbass at me.
+
 2026-04-12
 
 Completely rewrote search.rs because the old version was hot garbage. It not only compiles but function holy
@@ -44,7 +45,9 @@ the shit
  big projects which is good and im trying to understand submissions to stores which is going to take awhile 
  Im just shit at this maybe I shouldnt but im falling in love with it thats all for now i guess 
  
- 2026-06-01 last one wasnt as long as i thought it would be here is an actual update of somethings i built 
+ 2026-06-01 
+ 
+ last one wasnt as long as i thought it would be here is an actual update of somethings i built 
  organizer watcher fixed and working end to end so now your files are being watch and will be organized in
  launcher with your approval which means it will suggest creating files to organize your downloads and 
  other files as they are created all created by the soulless-organizer workspace crate it also scans your 

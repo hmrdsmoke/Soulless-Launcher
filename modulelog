@@ -1,0 +1,158 @@
+Soulless-Launcher/
+├── Cargo.toml                    ← workspace root
+├── organizer/                    ← soulless-organizer lib crate
+│   └── src/
+│       ├── lib.rs                ← OrganizerState, subscription, persistence
+│       ├── rules.rs              ← file classification rules (60+ types)
+│       └── scan.rs               ← startup scan of watched dirs
+├── launcher/
+│   └── src/
+│       ├── main.rs               ← mod declarations + fn main()
+│       ├── app.rs                ← Soulless struct, Message enum, update/view/subscription
+│       ├── utils.rs              ← strip_desktop_placeholders, percent_decode_uri
+│       ├── position/             ← window/panel geometry, single instance
+│       ├── config/mod.rs         ← SoullessConfig RON struct, load/save/ensure_config
+│       ├── registry/
+│       │   ├── mod.rs            ← Registry, RegistryEntry, EntryKind, load/save
+│       │   └── migrate.rs        ← migrate old source IDs to stable UUIDs
+│       ├── context_menu/         ← NEW — incomplete, not wired
+│       │   ├── mod.rs            ← ContextMenuKind, MenuItem, MenuAction
+│       │   ├── items.rs          ← builds item lists per context type
+│       │   └── render.rs         ← floating overlay renderer (not yet wired)
+│       ├── keybinds/
+│       │   └── actions.rs        ← Esc, Tab, Arrow, S, V, Enter, Ctrl+1-9
+│       ├── search/
+│       │   ├── mod.rs            ← Search struct, activity tracking, smart queries
+│       │   ├── query.rs          ← interpret(), score_app()
+│       │   └── indexer/          ← mod.rs, appimage, cache, desktop, files, flatpak,
+│       │                            icon, path, steam, jetbrains, wine, appid
+│       ├── drawers/
+│       │   ├── mod.rs            ← full drawer UI, DND, file list, context menus
+│       │   └── state.rs          ← DrawerState, Drawer, DrawerFile, add/remove
+│       ├── vault/
+│       │   ├── mod.rs            ← Vault struct, lock state, hidden_apps field
+│       │   ├── ui.rs             ← vault panel UI
+│       │   ├── encryption.rs     ← AES-256 file encryption
+│       │   └── hidden_apps.rs    ← desktop file hide/show (built, not fully wired)
+│       └── ui/
+│           ├── mod.rs            ← pub mods
+│           ├── panels.rs         ← compose(), launcher_steel(), right_content_panel()
+│           ├── theme.rs          ← all colors + visual constants
+│           └── organizer.rs      ← organizer_banner() UI
+└── applet/                       ← soulless-applet panel button
+Module Status
+search/
+Status: Working
+
+Universal search: desktop, flatpak, appimage, steam, wine, jetbrains, CLI, files
+Activity tracking: launch_count, last_launched stored in activity.json
+Smart queries: today/yesterday/week, never used, last N, filter by source
+app_by_id() resolves both legacy source IDs and stable UUIDs via registry
+OnceLock caches registry after first load
+
+drawers/
+Status: Working
+
+Custom drawers (up to 5) with drag and drop
+App grid (top) + file list (bottom), split scrollable
+File DND via Wayland OfferEvent::Data in app.rs
+Directory DND works (detects via is_dir(), opens with xdg-open)
+Right-click context menus: DrawerApp, DrawerFile, DrawerBackground, DrawerSidebar
+Context menus rendered as overlay in right panel (working for existing contexts)
+Known issue: Context menu dismiss mouse_area intercepts clicks on menu items
+in some cases — needs proper floating overlay system (context_menu/ module)
+
+vault/
+Status: Working (file storage), Partial (hidden apps)
+
+AES-256 encrypted file storage
+Lock/unlock with password
+File list, context menu (open, export, remove)
+hidden_apps.rs built but not fully wired to lock/unlock events
+hidden_apps field added to Vault struct
+VaultHideApp message added but handler is TODO stub
+
+registry/
+Status: Working
+
+Stable UUID registry for all app sources
+Assigns UUIDs on first run, persists to app_registry.json
+migrate.rs converts existing drawer source IDs to UUIDs on startup
+EntryKind: App, File, Dir
+register_app(), register_path() methods
+
+organizer/ (workspace crate)
+Status: Working
+
+Runs as background subscription in applet (always watching)
+Watches: Downloads, Documents, Pictures, Videos, Music, Desktop
+Startup scan catches misplaced files on launcher open
+Persists suggestions to organizer_pending.json
+Queue: one suggestion at a time, approve moves, skip dismisses
+Banner renders in left toolbox below vault button
+Rules cover 60+ file types
+
+config/
+Status: Working
+
+~/.config/soulless/config.ron
+Fields: show_system_monitor, search_file_depth, organizer_enabled,
+organizer_watch_dirs, drawer_icon_size, theme_variant
+Auto-generated on first launch with defaults
+show_system_monitor and organizer_enabled wired to view
+
+context_menu/ (NEW — incomplete)
+Status: Built but not wired
+
+mod.rs: ContextMenuKind, MenuItem, MenuAction structs
+items.rs: builds item lists for each context (SearchApp, DrawerApp, DrawerFile, etc.)
+render.rs: floating overlay renderer using iced stack
+NOT wired into app.rs yet
+The plan: intercept RightClick messages in app.rs, build ContextMenu,
+render as overlay on top of entire window output from compose()
+cursor_pos is already tracked in Soulless struct
+
+keybinds/
+Status: Working
+
+Esc → close
+Tab → cycle drawers
+Arrow up/down → navigate drawers
+Arrow left/right → navigate app grid (highlights focused app)
+Enter → launch focused app (via KeyReleased on keyboard::listen())
+S → focus search bar
+V → open vault
+Ctrl+1-9 → jump to drawer by index
+
+ui/
+Status: Working
+
+Chrome steel gradient theme
+Glassmorphism blur on window open
+Organizer banner with steel border, hover invert buttons
+
+
+Key Paths
+DataPathActivity~/.local/share/soulless/activity.jsonDrawers~/.local/share/soulless/drawers.jsonRegistry~/.local/
+share/soulless/app_registry.jsonOrganizer pending~/.local/share/soulless/organizer_pending.jsonConfig~/.config/
+soulless/config.ronCache~/.cache/soulless/{source}.binVault~/.local/share/soulless/vault/Hidden apps 
+index~/.local/share/soulless/vault/hidden_apps.jsonHidden apps storage~/.local/share/soulless/vault/hidden_apps/
+Backgrounds~/.config/soulless/backgrounds/Lock~/.local/share/soulless/soulless.lock
+
+Layout Constants
+ConstantValueWINDOW_WIDTH700WINDOW_HEIGHT900TOOLBOX_WIDTH220RIGHT_PANEL_WIDTH460PANEL_SPACING12
+
+Open Issues
+#TitleStatus#1Layer shell daemon + get_layer_surface panicBlocked upstream#5Icon cache utilitiesOpen#15Layer shell 
+surface for window placementBlocked upstream#17ArrowDown from last drawer enters app gridOpen#22Code audit: verify 
+module ownershipOpen#23FocusApp(usize) — wire mouse hoverOpen (dead_code suppressed)#24LaunchFocused — wire for 
+search resultsOpen (dead_code suppressed)#25App ID registry — stable universal IDsClosed
+
+Next Up
+
+context_menu/ — wire floating overlay into app.rs, replace old inline menus
+hidden apps — complete wire-up of vault hidden_apps to lock/unlock
+Ctrl+1-9 for drawers — done, but sidebar right-click MoveUp/MoveDown disabled
+#17 — ArrowDown from drawer list enters app grid
+
+Keyboard: LaunchFocused — wire Enter in search results view
