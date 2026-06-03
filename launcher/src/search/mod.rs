@@ -27,6 +27,8 @@ use std::path::PathBuf;
 pub enum Message {
     QueryChanged(String),
     AppClicked(String),
+    /// Launch a hidden app from the vault grid by its hidden-app id.
+    LaunchHiddenApp(String),
 
     DrawerClicked(String),
     VaultClicked,
@@ -262,6 +264,12 @@ impl Search {
             Message::AppClicked(exec) => {
                 self.record_launch_by_exec(&exec);
                 Some(exec)
+            }
+            Message::LaunchHiddenApp(id) => {
+                // Return the stored exec so the normal spawn+exit path runs.
+                self.vault.hidden_apps.iter()
+                    .find(|a| a.id == id)
+                    .map(|a| a.meta.exec.clone())
             }
             Message::FocusApp(idx) => {
                 self.focused_app_idx = Some(idx);

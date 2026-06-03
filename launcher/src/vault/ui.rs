@@ -283,12 +283,16 @@ fn files_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
     };
 
 
+    let hidden_grid: Element<'a, SearchMessage> = hidden_apps_grid(vault)
+        .unwrap_or_else(|| space::vertical().height(Length::Fixed(0.0)).into());
     let main_col: Element<'a, SearchMessage> = container(
         column![
             header,
             status_bar,
             space::vertical().height(Length::Fixed(8.0)),
             drop_zone,
+            space::vertical().height(Length::Fixed(12.0)),
+            hidden_grid,
             space::vertical().height(Length::Fixed(12.0)),
             file_list,
         ]
@@ -456,4 +460,48 @@ fn vault_context_menu<'a>(entry_id: String, name: &'a str) -> Element<'a, Search
     )
     .on_press(SearchMessage::VaultCloseContextMenu)
     .into()
+}
+
+/// A single hidden-app tile: emoji placeholder + name, click to launch.
+fn hidden_app_tile<'a>(app: &'a super::hidden_apps::HiddenApp) -> Element<'a, SearchMessage> {
+    let label = if app.meta.name.chars().count() > 10 {
+        format!("{}...", app.meta.name.chars().take(10).collect::<String>())
+    } else {
+        app.meta.name.clone()
+    };
+    let content = column![
+        text("\u{1F512}").size(28), // lock glyph placeholder; real icons later
+        text(label).size(12),
+    ]
+    .spacing(4)
+    .align_x(Horizontal::Center);
+    mouse_area(container(content).padding(6))
+        .on_press(SearchMessage::LaunchHiddenApp(app.id.clone()))
+        .into()
+}
+
+/// Build the hidden-apps grid (4 columns), or None if there are none.
+fn hidden_apps_grid<'a>(vault: &'a Vault) -> Option<Element<'a, SearchMessage>> {
+    if vault.hidden_apps.is_empty() {
+        return None;
+    }
+    let grid = vault.hidden_apps
+        .chunks(4)
+        .fold(column!().spacing(8), |col, chunk| {
+            let mut grid_row = row!().spacing(8).width(Length::Fill);
+            for app in chunk {
+                grid_row = grid_row.push(hidden_app_tile(app));
+            }
+            col.push(grid_row)
+        });
+    Some(
+        column![
+            text("Hidden apps").size(13),
+            space::vertical().height(Length::Fixed(6.0)),
+            grid,
+        ]
+        .spacing(0)
+        .width(Length::Fill)
+        .into()
+    )
 }
