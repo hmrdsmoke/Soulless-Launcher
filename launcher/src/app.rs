@@ -13,7 +13,6 @@ use cosmic::iced::{
     window,
 };
 use cosmic::iced::clipboard::dnd::{DndEvent, OfferEvent};
-use std::path::PathBuf;
 
 use crate::position::LauncherPosition;
 use crate::search::Message as SearchMessage;
@@ -225,20 +224,7 @@ impl Soulless {
                                 self.search.current_open_drawer,
                                 OpenDrawer::Vault
                             ) {
-                                let payload = String::from_utf8_lossy(&data);
-
-                                let paths: Vec<PathBuf> = payload
-                                    .lines()
-                                    .map(str::trim)
-                                    .filter(|l| l.starts_with("file://"))
-                                    .filter_map(|l| {
-                                        let raw =
-                                            l.trim_start_matches("file://");
-                                        let decoded = crate::utils::percent_decode_uri(raw);
-                                        let p = PathBuf::from(decoded);
-                                        if p.exists() { Some(p) } else { None }
-                                    })
-                                    .collect();
+                                let paths = crate::utils::parse_uri_list(&data);
 
                                 if !paths.is_empty() {
                                     self.search.update(
@@ -251,18 +237,7 @@ impl Soulless {
                         // Handle drawer file drops
                         if mime_type == "text/uri-list" {
                             if let OpenDrawer::Pinned(name) = self.search.current_open_drawer.clone() {
-                                let payload = String::from_utf8_lossy(&data);
-                                let paths: Vec<PathBuf> = payload
-                                    .lines()
-                                    .map(str::trim)
-                                    .filter(|l| l.starts_with("file://"))
-                                    .filter_map(|l| {
-                                        let raw = l.trim_start_matches("file://");
-                                        let decoded = crate::utils::percent_decode_uri(raw);
-                                        let p = PathBuf::from(decoded);
-                                        if p.exists() { Some(p) } else { None }
-                                    })
-                                    .collect();
+                                let paths = crate::utils::parse_uri_list(&data);
                                 if !paths.is_empty() {
                                     self.search.update(
                                         SearchMessage::FilesDroppedOnDrawer(name, paths),

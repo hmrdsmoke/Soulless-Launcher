@@ -70,3 +70,20 @@ pub fn truncate_label(text: &str, max: usize) -> String {
         s
     }
 }
+
+/// Parse a `text/uri-list` DnD payload into existing local file paths.
+/// Decodes percent-encoding and keeps only entries that are existing `file://` paths.
+pub fn parse_uri_list(data: &[u8]) -> Vec<std::path::PathBuf> {
+    let payload = String::from_utf8_lossy(data);
+    payload
+        .lines()
+        .map(str::trim)
+        .filter(|l| l.starts_with("file://"))
+        .filter_map(|l| {
+            let raw = l.trim_start_matches("file://");
+            let decoded = percent_decode_uri(raw);
+            let p = std::path::PathBuf::from(decoded);
+            if p.exists() { Some(p) } else { None }
+        })
+        .collect()
+}
