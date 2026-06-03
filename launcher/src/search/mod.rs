@@ -44,6 +44,8 @@ pub enum Message {
     RightClickDrawerSidebar(String),
     RightClickDrawerApp(String, String),
     RightClickDrawerFile(String, String),   // (drawer_name, file_path)
+    RightClickSearchApp(String, String, String), // (app_id, exec, desktop_path)
+    HideApp(String),                         // desktop_path → move into vault
     CloseContextMenu,
 
     // App picker
@@ -132,6 +134,11 @@ pub enum ContextMenu {
     DrawerFile {
         drawer: String,
         file_path: String,
+    },
+    SearchApp {
+        app_id: String,
+        exec: String,
+        desktop_path: String,
     },
 }
 
@@ -377,6 +384,19 @@ impl Search {
                 None
             }
 
+            Message::RightClickSearchApp(
+                app_id,
+                exec,
+                desktop_path,
+            ) => {
+                self.context_menu =
+                    Some(ContextMenu::SearchApp {
+                        app_id,
+                        exec,
+                        desktop_path,
+                    });
+                None
+            }
             Message::RightClickDrawerFile(
                 drawer,
                 file_path,
@@ -393,6 +413,14 @@ impl Search {
             Message::CloseContextMenu => {
                 self.context_menu = None;
 
+                None
+            }
+            Message::HideApp(desktop_path) => {
+                self.context_menu = None;
+                let path = std::path::PathBuf::from(&desktop_path);
+                if let Err(e) = self.vault.hide_app(&path) {
+                    self.vault.error = Some(e);
+                }
                 None
             }
 

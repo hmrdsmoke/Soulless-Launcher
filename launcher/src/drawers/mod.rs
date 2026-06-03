@@ -326,7 +326,7 @@ pub fn view<'a>(
         .into();
         (full, space::horizontal().width(Length::Fill).into(), space::horizontal().width(Length::Fill).into())
     } else if let Some(menu) = &search.context_menu {
-        let menu_widget = context_menu_view(menu);
+        let menu_widget = context_menu_view(menu, &search.drawer_state.drawer_names());
         let (toolbox, right) = base;
 
         // Clicking the toolbox dismisses the menu
@@ -802,7 +802,7 @@ fn file_emoji(name: &str) -> &'static str {
 // Context Menus
 // ─────────────────────────────────────────────────────────────
 
-fn context_menu_view<'a>(menu: &'a ContextMenu) -> Element<'a, SearchMessage> {
+fn context_menu_view<'a>(menu: &'a ContextMenu, drawer_names: &[String]) -> Element<'a, SearchMessage> {
     match menu {
         ContextMenu::DrawerBackground { drawer } => container(
             column![
@@ -871,12 +871,34 @@ fn context_menu_view<'a>(menu: &'a ContextMenu) -> Element<'a, SearchMessage> {
         .padding(8)
         .width(Length::Fixed(260.0))
         .into(),
+        ContextMenu::SearchApp { app_id, exec, desktop_path } => {
+            let mut items = column![
+                menu_item("↗ Launch", SearchMessage::AppClicked(exec.clone())),
+            ]
+            .spacing(2);
+            for name in drawer_names {
+                items = items.push(menu_item(
+                    format!("➕ Add to {name}"),
+                    SearchMessage::AddAppToDrawer(name.clone(), app_id.clone()),
+                ));
+            }
+            items = items.push(menu_divider());
+            items = items.push(menu_item(
+                "🔒 Add to vault",
+                SearchMessage::HideApp(desktop_path.clone()),
+            ));
+            container(items)
+                .style(context_menu_style)
+                .padding(8)
+                .width(Length::Fixed(260.0))
+                .into()
+        }
     }
 }
 
-fn menu_item<'a>(label: &'a str, msg: SearchMessage) -> Element<'a, SearchMessage> {
+fn menu_item<'a>(label: impl Into<String>, msg: SearchMessage) -> Element<'a, SearchMessage> {
     mouse_area(
-        container(text(label).size(14))
+        container(text(label.into()).size(14))
             .padding([8, 12])
             .width(Length::Fill)
     )
