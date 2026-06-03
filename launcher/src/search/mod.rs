@@ -46,6 +46,8 @@ pub enum Message {
     RightClickDrawerFile(String, String),   // (drawer_name, file_path)
     RightClickSearchApp(String, String, String), // (app_id, exec, desktop_path)
     HideApp(String),                         // desktop_path → move into vault
+    ShowHiddenMenu(String),                  // hidden-app id → open its menu
+    RemoveFromVault(String),                 // hidden-app id → restore .desktop
     CloseContextMenu,
 
     // App picker
@@ -418,8 +420,36 @@ impl Search {
             Message::HideApp(desktop_path) => {
                 self.context_menu = None;
                 let path = std::path::PathBuf::from(&desktop_path);
-                if let Err(e) = self.vault.hide_app(&path) {
-                    self.vault.error = Some(e);
+                match self.vault.hide_app(&path) {
+                    Ok(()) => {
+                        // Drop it from the live index and clear the desktop
+                        // cache so it stays gone on the next launch.
+                        self.all_apps.retain(|a| {
+                            a.desktop_path.as_deref() != Some(desktop_path.as_str())
+                        });
+                        indexer::cache::invalidate("desktop");
+                        self.recompute_results();
+                    }
+                    Err(e) => self.vault.error = Some(e),
+                }
+                None
+            }
+            Message::ShowHiddenMenu(id) => {
+                self.vault.hidden_context_menu = Some(id);
+                None
+            }
+            Message::RemoveFromVault(id) => {
+                self.vault.hidden_context_menu = None;
+                match self.vault.unhide_app(&id) {
+                    Ok(()) => {
+                        // Restored to ~/.local/share/applications — re-index
+                        // so it reappears in search.
+                        indexer::cache::invalidate("desktop");
+                        self.all_apps = indexer::build_index();
+                        load_activity(&mut self.all_apps);
+                        self.recompute_results();
+                    }
+                    Err(e) => self.vault.error = Some(e),
                 }
                 None
             }

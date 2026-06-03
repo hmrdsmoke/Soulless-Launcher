@@ -34,6 +34,11 @@ pub fn save(source: &str, apps: &[AppEntry]) {
     }
 }
 
+pub fn invalidate(source: &str) {
+    let path = cache_path(source);
+    let _ = fs::remove_file(path);
+}
+
 pub fn load(source: &str) -> Option<Vec<AppEntry>> {
     let path = cache_path(source);
     let bytes = fs::read(&path).ok()?;

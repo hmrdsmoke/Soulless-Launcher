@@ -477,7 +477,40 @@ fn hidden_app_tile<'a>(app: &'a super::hidden_apps::HiddenApp) -> Element<'a, Se
     .align_x(Horizontal::Center);
     mouse_area(container(content).padding(6))
         .on_press(SearchMessage::LaunchHiddenApp(app.id.clone()))
+        .on_right_press(SearchMessage::ShowHiddenMenu(app.id.clone()))
         .into()
+}
+
+/// Small menu shown under a hidden app when right-clicked: Launch / Remove.
+fn hidden_app_menu<'a>(app: &'a super::hidden_apps::HiddenApp) -> Element<'a, SearchMessage> {
+    let item = |label: &'static str, msg: SearchMessage| -> Element<'a, SearchMessage> {
+        mouse_area(
+            container(text(label).size(13))
+                .padding([6, 10])
+                .width(Length::Fill),
+        )
+        .on_press(msg)
+        .into()
+    };
+    container(
+        column![
+            item("↗ Launch", SearchMessage::LaunchHiddenApp(app.id.clone())),
+            item("📤 Remove from vault", SearchMessage::RemoveFromVault(app.id.clone())),
+        ]
+        .spacing(2),
+    )
+    .padding(6)
+    .width(Length::Fixed(180.0))
+    .style(|_: &Theme| container::Style {
+        background: Some(Color::from_rgb8(30, 30, 38).into()),
+        border: cosmic::iced::Border {
+            radius: 8.0.into(),
+            width: 1.0,
+            color: Color::from_rgb8(90, 90, 110),
+        },
+        ..Default::default()
+    })
+    .into()
 }
 
 /// Build the hidden-apps grid (4 columns), or None if there are none.
@@ -494,14 +527,18 @@ fn hidden_apps_grid<'a>(vault: &'a Vault) -> Option<Element<'a, SearchMessage>> 
             }
             col.push(grid_row)
         });
-    Some(
-        column![
-            text("Hidden apps").size(13),
-            space::vertical().height(Length::Fixed(6.0)),
-            grid,
-        ]
-        .spacing(0)
-        .width(Length::Fill)
-        .into()
-    )
+    let mut col = column![
+        text("Hidden apps").size(13),
+        space::vertical().height(Length::Fixed(6.0)),
+        grid,
+    ]
+    .spacing(0)
+    .width(Length::Fill);
+    if let Some(id) = &vault.hidden_context_menu {
+        if let Some(app) = vault.hidden_apps.iter().find(|a| &a.id == id) {
+            col = col.push(space::vertical().height(Length::Fixed(8.0)));
+            col = col.push(hidden_app_menu(app));
+        }
+    }
+    Some(col.into())
 }
