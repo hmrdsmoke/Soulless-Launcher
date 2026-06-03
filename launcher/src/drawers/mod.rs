@@ -1044,9 +1044,16 @@ fn app_icon_button<'a>(
     .spacing(4)
     .align_x(Horizontal::Center);
 
-    mouse_area(container(content).padding(6))
-        .on_press(SearchMessage::AppClicked(exec))
-        .into()
+    let mut area = mouse_area(container(content).padding(6))
+        .on_press(SearchMessage::AppClicked(exec));
+    if let Some(dp) = &app.desktop_path {
+        area = area.on_right_press(SearchMessage::RightClickSearchApp(
+            app.id.clone(),
+            app.exec.clone(),
+            dp.clone(),
+        ));
+    }
+    area.into()
 }
 
 // ─────────────────────────────────────────────────────────────

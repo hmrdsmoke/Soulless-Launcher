@@ -100,6 +100,7 @@ pub fn index(
                 icon_path,
 
                 source: AppSource::Flatpak,
+                desktop_path: None,
 
                 lower_name,
 

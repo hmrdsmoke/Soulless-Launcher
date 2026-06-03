@@ -39,6 +39,10 @@ pub struct AppEntry {
 
     pub launch_count: u32,
     pub last_launched: Option<u64>,
+    /// Path to the source .desktop file, if this app has one (user apps).
+    /// Used to hide the app into the vault. None for non-.desktop sources.
+    #[serde(default)]
+    pub desktop_path: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]

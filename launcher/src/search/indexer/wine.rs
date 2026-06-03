@@ -80,6 +80,7 @@ fn scan_shortcuts(dir: &Path, apps: &mut Vec<AppEntry>) {
             exec: format!("wine start /unix \"{}\"", path.display()),
             icon_path: super::icon::fallback_icon(),
             source: AppSource::Wine,
+            desktop_path: None,
             lower_name: lower,
             haystack: Utf32String::from(name.as_str()),
             keywords: vec!["wine".to_string(), "windows".to_string()],

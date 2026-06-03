@@ -55,6 +55,7 @@ pub fn index() -> Vec<AppEntry> {
             exec: format!("steam steam://rungameid/{}", appid),
             icon_path,
             source: AppSource::Steam,
+            desktop_path: None,
             lower_name,
             haystack: Utf32String::from(game_name.as_str()),
             keywords: vec!["steam".to_string(), "game".to_string()],

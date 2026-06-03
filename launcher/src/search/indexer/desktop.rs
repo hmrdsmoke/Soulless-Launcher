@@ -103,6 +103,7 @@ pub fn index(
                 icon_path,
 
                 source: AppSource::Desktop,
+                desktop_path: Some(path.display().to_string()),
 
                 lower_name,
 

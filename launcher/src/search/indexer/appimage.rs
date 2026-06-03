@@ -48,6 +48,7 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
                 exec: path.display().to_string(),
                 icon_path,
                 source: AppSource::AppImage,
+                desktop_path: None,
                 lower_name,
                 haystack: Utf32String::from(name.as_str()),
                 keywords: vec!["appimage".to_string()],

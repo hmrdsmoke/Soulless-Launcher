@@ -74,6 +74,7 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
                 exec: path.display().to_string(),
                 icon_path: icons.resolve(Some(name)),
                 source: AppSource::Binary,
+                desktop_path: None,
                 lower_name,
                 haystack: Utf32String::from(name),
                 keywords: Vec::new(),
