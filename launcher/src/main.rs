@@ -17,6 +17,7 @@ mod keybinds;
 mod position;
 mod search;
 mod vault;
+pub mod registry;
 use cosmic::iced::window;
 use crate::position::LauncherPosition;
 
@@ -51,4 +52,4 @@ fn main() -> cosmic::iced::Result {
     .resizable(false)
     .run()
 }
-pub mod registry;
+

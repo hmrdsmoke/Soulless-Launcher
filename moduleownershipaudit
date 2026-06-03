@@ -62,15 +62,15 @@ without an issue behind it.
 
 1. Registry consolidation: move the loaded instance + migration into search;
    remove the dead field and the registry calls from app.rs.                                        :: MRV :: Done
-2. `app_by_id` → use `resolve` (single lookup path, no disk load).
-3. drawers `drawer_file_icon` — wire into file list, or remove + issue.
+2. `app_by_id` → use `resolve` (single lookup path, no disk load).                                  :: MRV :: Done
+3. drawers `drawer_file_icon` — wire into file list, or remove + issue.                             :: MRV :: Done
 4. Keyboard navigation feature (wire FocusApp / LaunchFocused) — built on the
    clean foundation, designed around the compositor constraint.
 5. Vault hidden-apps feature (rebuild + wire to lock/unlock).
 6. Logic-depth polish on app.rs fat arms (DnD parsing, launch spawning → front
    doors).
 7. Cosmetic: stranded `pub mod registry;`, empty `ui/widgets.rs`, WIDGET_SCALE,
-   applet duplicate subscription/handler.
+   applet duplicate subscription/handler.                                                           :: MRV :: Done  
 
 ---
 
