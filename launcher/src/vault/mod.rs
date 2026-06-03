@@ -86,6 +86,10 @@ pub struct Vault {
     pub drag_hover: bool,
     /// ID of the file whose context menu is open (None = closed)
     pub context_menu_entry: Option<String>,
+    /// Hidden apps — populated when unlocked (encrypted .desktop files).
+    pub hidden_apps: Vec<hidden_apps::HiddenApp>,
+    /// ID of the hidden app whose context menu is open (None = closed)
+    pub hidden_context_menu: Option<String>,
     
    
     
@@ -119,6 +123,8 @@ impl Vault {
             status: None,
             drag_hover: false,
             context_menu_entry: None,
+            hidden_apps: Vec::new(),
+            hidden_context_menu: None,
         }
     }
 
@@ -213,6 +219,7 @@ impl Vault {
                 self.error = None;
                 self.wipe_inputs();
                 self.load_entries();
+                self.hidden_apps = hidden_apps::load_all(self.key_bytes().unwrap_or(&[]));
                 true
             }
             Err(e) => {
@@ -227,6 +234,7 @@ impl Vault {
     pub fn lock(&mut self) {
         self.derived_key = None;
         self.entries.clear();
+        self.hidden_apps.clear();
         self.lock_state = VaultLockState::Locked;
         self.error = None;
         self.status = None;
@@ -395,6 +403,35 @@ impl Vault {
     pub fn cleanup_temp(&self) {
         for dir in &self.temp_dirs {
             let _ = fs::remove_dir_all(dir);
+        }
+    }
+
+    // ── Hidden apps ───────────────────────────────────────────────────────
+    /// Hide a user app by its .desktop path: encrypt + relocate, update list.
+    pub fn hide_app(&mut self, desktop_path: &Path) -> Result<(), String> {
+        let key = self.key_bytes()?;
+        let app = hidden_apps::hide(key, desktop_path)?;
+        let name = app.meta.name.clone();
+        self.hidden_apps.push(app);
+        self.status = Some(format!("'{name}' hidden in vault."));
+        Ok(())
+    }
+
+    /// Restore a hidden app to its original location and drop it from the list.
+    pub fn unhide_app(&mut self, id: &str) -> Result<(), String> {
+        let key = self.key_bytes()?;
+        if let Some(pos) = self.hidden_apps.iter().position(|a| a.id == id) {
+            hidden_apps::unhide(key, &self.hidden_apps[pos])?;
+            let app = self.hidden_apps.remove(pos);
+            self.status = Some(format!("'{}' restored.", app.meta.name));
+        }
+        Ok(())
+    }
+
+    /// Launch a hidden app directly from the vault (no restore needed).
+    pub fn launch_hidden(&self, id: &str) {
+        if let Some(app) = self.hidden_apps.iter().find(|a| a.id == id) {
+            hidden_apps::launch(app);
         }
     }
 

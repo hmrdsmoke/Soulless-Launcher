@@ -76,9 +76,10 @@ pub fn hide(key: &[u8], desktop_path: &std::path::Path) -> Result<HiddenApp, Str
         exec,
         hidden_at: encryption::unix_now(),
     };
-    let meta_json = serde_json::to_string_pretty(&meta)
+    let meta_json = serde_json::to_string(&meta)
         .map_err(|e| format!("Could not serialize metadata: {e}"))?;
-    std::fs::write(dir.join(format!("{id}{HIDDEN_META_EXT}")), meta_json)
+    let meta_enc = encryption::encrypt_data(key, meta_json.as_bytes())?;
+    std::fs::write(dir.join(format!("{id}{HIDDEN_META_EXT}")), meta_enc)
         .map_err(|e| format!("Could not write metadata: {e}"))?;
 
     std::fs::remove_file(desktop_path)
@@ -94,4 +95,53 @@ fn field(contents: &str, key: &str) -> Option<String> {
         .lines()
         .find(|l| l.starts_with(&prefix))
         .map(|l| l[prefix.len()..].trim().to_string())
+}
+
+/// Decrypt and load all hidden-app metadata for the grid. Requires the key
+/// (metadata is encrypted), so this only works when the vault is unlocked.
+pub fn load_all(key: &[u8]) -> Vec<HiddenApp> {
+    let mut out = Vec::new();
+    let dir = hidden_dir();
+    let Ok(read_dir) = std::fs::read_dir(&dir) else {
+        return out;
+    };
+    for entry in read_dir.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("meta") {
+            continue;
+        }
+        let Ok(enc) = std::fs::read(&path) else { continue };
+        let Ok(plain) = encryption::decrypt_data(key, &enc) else { continue };
+        let Ok(meta) = serde_json::from_slice::<HiddenAppMeta>(&plain) else { continue };
+        let id = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
+        // Only include if the encrypted .desktop blob still exists
+        if dir.join(format!("{id}{HIDDEN_ENC_EXT}")).exists() {
+            out.push(HiddenApp { id, meta });
+        }
+    }
+    out
+}
+
+/// Restore a hidden app: decrypt the stored .desktop, write it back to its
+/// original path, and delete the encrypted blob + metadata.
+pub fn unhide(key: &[u8], app: &HiddenApp) -> Result<(), String> {
+    let dir = hidden_dir();
+    let enc_path = dir.join(format!("{}{}", app.id, HIDDEN_ENC_EXT));
+    let enc = std::fs::read(&enc_path)
+        .map_err(|e| format!("Could not read hidden app: {e}"))?;
+    let contents = encryption::decrypt_data(key, &enc)?;
+    std::fs::write(&app.meta.original_path, &contents)
+        .map_err(|e| format!("Could not restore .desktop: {e}"))?;
+    let _ = std::fs::remove_file(&enc_path);
+    let _ = std::fs::remove_file(dir.join(format!("{}{}", app.id, HIDDEN_META_EXT)));
+    Ok(())
+}
+
+/// Launch a hidden app directly from the vault using its stored exec.
+/// No restore needed — the .desktop location is irrelevant to running it.
+pub fn launch(app: &HiddenApp) {
+    let _ = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(&app.meta.exec)
+        .spawn();
 }
