@@ -939,12 +939,25 @@ impl Search {
             return;
         }
         if query.is_empty() {
-            // Show everything when no query
-            self.filtered_apps = self.all_apps
-                .iter()
-                .enumerate()
-                .map(|(i, _)| i)
-                .collect();
+            // Show everything when no query, apps before files so the
+            // default selection (index 0) lands on an app, not a file.
+            use crate::search::indexer::AppSource;
+            let mut idxs: Vec<usize> = (0..self.all_apps.len()).collect();
+            idxs.sort_by_key(|&i| match self.all_apps[i].source {
+                // GUI apps first
+                AppSource::Desktop
+                | AppSource::Flatpak
+                | AppSource::Steam
+                | AppSource::AppImage
+                | AppSource::JetBrains
+                | AppSource::Wine
+                | AppSource::Proton => 0,
+                // CLI tools next
+                AppSource::Binary | AppSource::Script => 1,
+                // Files last
+                AppSource::File => 2,
+            });
+            self.filtered_apps = idxs;
             self.show_search_results = true;
             return;
         }
@@ -1067,10 +1080,8 @@ impl Search {
         }
         if let OpenDrawer::Pinned(name) = &self.current_open_drawer {
             let ids = self.drawer_state.apps_in_drawer(name);
-            let app_id = ids.get(idx)?;
-            return self.all_apps.iter()
-                .find(|a| &a.id == app_id)
-                .map(|a| a.exec.clone());
+            let app_id = ids.get(idx)?.clone();
+            return self.app_by_id(&app_id).map(|a| a.exec.clone());
         }
         None
     }
