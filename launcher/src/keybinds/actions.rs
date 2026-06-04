@@ -52,8 +52,22 @@ where
             )
         }
 
-        // ── ArrowDown → next drawer ───────────────────────────────────────
+        // ── ArrowDown → into search results, else next drawer ─────────────
         keyboard::Key::Named(Named::ArrowDown) => {
+            // If search results are showing, Arrow Down navigates into/through
+            // them instead of jumping to drawers.
+            if search.show_search_results {
+                let len = search.current_grid_len();
+                if len > 0 {
+                    let next_idx = match search.focused_app_idx {
+                        None => 0,
+                        Some(i) if i + 1 < len => i + 1,
+                        Some(i) => i, // already at last result, stay
+                    };
+                    search.update(search::Message::FocusApp(next_idx));
+                }
+                return Task::none();
+            }
             let next = {
                 let drawers = search.drawer_state.drawers();
                 if let search::OpenDrawer::Pinned(name) = &search.current_open_drawer {
@@ -76,8 +90,23 @@ where
             Task::none()
         }
 
-        // ── ArrowUp → previous drawer ─────────────────────────────────────
+        // ── ArrowUp → up through results (top returns to search), else prev drawer ─
         keyboard::Key::Named(Named::ArrowUp) => {
+            if search.show_search_results {
+                match search.focused_app_idx {
+                    Some(0) | None => {
+                        // At the top of results — return focus to the search bar.
+                        search.update(search::Message::ClearFocus);
+                        return cosmic::widget::text_input::focus(
+                            cosmic::widget::Id::new("soulless-search-bar")
+                        );
+                    }
+                    Some(i) => {
+                        search.update(search::Message::FocusApp(i - 1));
+                        return Task::none();
+                    }
+                }
+            }
             let prev = {
                 let drawers = search.drawer_state.drawers();
                 if let search::OpenDrawer::Pinned(name) = &search.current_open_drawer {

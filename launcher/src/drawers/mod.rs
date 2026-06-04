@@ -931,18 +931,23 @@ fn context_menu_style(_: &Theme) -> container::Style {
 fn search_results_view<'a>(
     search: &'a crate::search::Search,
 ) -> Element<'a, SearchMessage> {
-    let all_apps: Vec<_> = search
+    let focused = search.focused_app_idx;
+
+    // Pair each app with its flat filtered_apps index so the index survives
+    // the partition below — needed to highlight the focused item correctly.
+    let pairs: Vec<(usize, _)> = search
         .filtered_apps()
         .iter()
-        .filter_map(|i| search.app(*i))
+        .enumerate()
+        .filter_map(|(flat, i)| search.app(*i).map(|a| (flat, a)))
         .collect();
 
     // Cap render to prevent UI freeze with large result sets
     const SEARCH_MAX_RENDER: usize = 200;
-    let all_apps: Vec<_> = all_apps.into_iter().take(SEARCH_MAX_RENDER).collect();
-    let (text_apps, icon_apps): (Vec<_>, Vec<_>) = all_apps
+    let pairs: Vec<_> = pairs.into_iter().take(SEARCH_MAX_RENDER).collect();
+    let (text_apps, icon_apps): (Vec<_>, Vec<_>) = pairs
         .into_iter()
-        .partition(|app| matches!(app.source, AppSource::Binary | AppSource::File));
+        .partition(|(_, app)| matches!(app.source, AppSource::Binary | AppSource::File));
 
 
     let mut sections: Vec<Element<'a, SearchMessage>> = Vec::new();
@@ -952,8 +957,8 @@ fn search_results_view<'a>(
             .chunks(GRID_COLUMNS)
             .fold(column!().spacing(8), |col, chunk| {
                 let mut grid_row = row!().spacing(8);
-                for app in chunk {
-                    grid_row = grid_row.push(app_icon_button(app));
+                for (flat, app) in chunk {
+                    grid_row = grid_row.push(app_icon_button(app, *flat == focused.unwrap_or(usize::MAX)));
                 }
                 col.push(grid_row)
             });
@@ -963,7 +968,8 @@ fn search_results_view<'a>(
     if !text_apps.is_empty() {
         let cli_rows: Vec<cosmic::Element<'a, SearchMessage>> = text_apps
             .iter()
-            .map(|app| {
+            .map(|(flat, app)| {
+                let row_focused = Some(*flat) == focused;
                 let row_content = row![
                     text("$ ").size(11),
                     text(&app.name).size(14),
@@ -1005,7 +1011,22 @@ fn search_results_view<'a>(
                             disabled: Box::new(|_| cosmic::widget::button::Style::default()),
                         })
                         .into();
-                btn
+                cosmic::widget::container(btn)
+                    .style(move |_: &cosmic::Theme| {
+                        if row_focused {
+                            cosmic::widget::container::Style {
+                                border: cosmic::iced::Border {
+                                    color: crate::ui::theme::STEEL_TOP,
+                                    width: 2.0,
+                                    radius: cosmic::iced::border::rounded(0).radius,
+                                },
+                                ..Default::default()
+                            }
+                        } else {
+                            cosmic::widget::container::Style::default()
+                        }
+                    })
+                    .into()
             })
             .collect();
         let cli_col: cosmic::Element<'a, SearchMessage> =
@@ -1026,6 +1047,7 @@ fn search_results_view<'a>(
 
 fn app_icon_button<'a>(
     app: &'a crate::search::indexer::AppEntry,
+    is_focused: bool,
 ) -> Element<'a, SearchMessage> {
     let exec = app.exec.clone();
 
@@ -1044,7 +1066,15 @@ fn app_icon_button<'a>(
     .spacing(4)
     .align_x(Horizontal::Center);
 
-    let mut area = mouse_area(container(content).padding(6))
+    let bg = if is_focused {
+        Some(crate::ui::theme::STEEL_TOP.into())
+    } else {
+        None
+    };
+    let tile = container(content).padding(6).style(move |_: &cosmic::iced::Theme| {
+        cosmic::iced::widget::container::Style { background: bg, ..Default::default() }
+    });
+    let mut area = mouse_area(tile)
         .on_press(SearchMessage::AppClicked(exec));
     if let Some(dp) = &app.desktop_path {
         area = area.on_right_press(SearchMessage::RightClickSearchApp(

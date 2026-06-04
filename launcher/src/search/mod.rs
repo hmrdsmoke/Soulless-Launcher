@@ -35,9 +35,9 @@ pub enum Message {
     SearchBarClicked,
     // Keyboard grid navigation
     FocusApp(usize),
+    ClearFocus,
     FocusNext,
     FocusPrev,
-    LaunchFocused,
 
     // Context menu
     RightClickDrawerBackground(String),
@@ -284,6 +284,10 @@ impl Search {
                 self.focused_app_idx = Some(idx);
                 None
             }
+            Message::ClearFocus => {
+                self.focused_app_idx = None;
+                None
+            }
             Message::FocusNext => {
                 let len = self.current_grid_len();
                 if len > 0 {
@@ -299,15 +303,6 @@ impl Search {
                     self.focused_app_idx = Some(
                         self.focused_app_idx.map(|i| if i == 0 { len - 1 } else { i - 1 }).unwrap_or(0)
                     );
-                }
-                None
-            }
-            Message::LaunchFocused => {
-                if let Some(idx) = self.focused_app_idx {
-                    if let Some(exec) = self.focused_exec(idx) {
-                        self.record_launch_by_exec(&exec);
-                        return Some(exec);
-                    }
                 }
                 None
             }
@@ -921,6 +916,24 @@ impl Search {
         }
         save_activity(&self.all_apps);
     }
+
+    /// Stable-sort result indices into tiers: GUI apps, then files, then CLI.
+    /// Stable preserves score order within each tier.
+    fn tier_sort(&self, idxs: &mut Vec<usize>) {
+        use crate::search::indexer::AppSource;
+        idxs.sort_by_key(|&i| match self.all_apps[i].source {
+            AppSource::Desktop
+            | AppSource::Flatpak
+            | AppSource::Steam
+            | AppSource::AppImage
+            | AppSource::JetBrains
+            | AppSource::Wine
+            | AppSource::Proton => 0,
+            AppSource::File => 1,
+            AppSource::Binary | AppSource::Script => 2,
+        });
+    }
+
     fn recompute_results(&mut self) {
         let query = self.query.trim().to_lowercase();
         // ── Smart query interpretation ─────────────────────────────────────
@@ -934,6 +947,7 @@ impl Search {
                 let score_b = query::score_app(&self.all_apps[*b], &self.query, now);
                 score_b.cmp(&score_a)
             });
+            self.tier_sort(&mut results);
             self.filtered_apps = results;
             self.show_search_results = true;
             return;
@@ -941,22 +955,8 @@ impl Search {
         if query.is_empty() {
             // Show everything when no query, apps before files so the
             // default selection (index 0) lands on an app, not a file.
-            use crate::search::indexer::AppSource;
             let mut idxs: Vec<usize> = (0..self.all_apps.len()).collect();
-            idxs.sort_by_key(|&i| match self.all_apps[i].source {
-                // GUI apps first
-                AppSource::Desktop
-                | AppSource::Flatpak
-                | AppSource::Steam
-                | AppSource::AppImage
-                | AppSource::JetBrains
-                | AppSource::Wine
-                | AppSource::Proton => 0,
-                // CLI tools next
-                AppSource::Binary | AppSource::Script => 1,
-                // Files last
-                AppSource::File => 2,
-            });
+            self.tier_sort(&mut idxs);
             self.filtered_apps = idxs;
             self.show_search_results = true;
             return;
@@ -977,6 +977,7 @@ impl Search {
             let mut fuzzy_only = self.fuzzy_results(&query, usize::MAX, &std::collections::HashSet::new());
             let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
             fuzzy_only.sort_by(|a, b| query::score_app(&self.all_apps[*b], &self.query, now).cmp(&query::score_app(&self.all_apps[*a], &self.query, now)));
+            self.tier_sort(&mut fuzzy_only);
             self.filtered_apps = fuzzy_only;
             return;
         }
@@ -997,6 +998,7 @@ impl Search {
 
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
         results.sort_by(|a, b| query::score_app(&self.all_apps[*b], &self.query, now).cmp(&query::score_app(&self.all_apps[*a], &self.query, now)));
+        self.tier_sort(&mut results);
         self.filtered_apps = results;
     }
 
