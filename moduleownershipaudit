@@ -64,11 +64,11 @@ without an issue behind it.
    remove the dead field and the registry calls from app.rs.                                        :: MRV :: Done
 2. `app_by_id` → use `resolve` (single lookup path, no disk load).                                  :: MRV :: Done
 3. drawers `drawer_file_icon` — wire into file list, or remove + issue.                             :: MRV :: Done
-4. Keyboard navigation feature (wire FocusApp / LaunchFocused) — built on the
-   clean foundation, designed around the compositor constraint.
-5. Vault hidden-apps feature (rebuild + wire to lock/unlock).
+4. Keyboard navigation feature (wire FocusApp / LaunchFocused) — built on the                       
+   clean foundation, designed around the compositor constraint.                                     :: MRV :: Done
+5. Vault hidden-apps feature (rebuild + wire to lock/unlock).                                       :: MRV :: Done
 6. Logic-depth polish on app.rs fat arms (DnD parsing, launch spawning → front
-   doors).
+   doors).                                                                                          
 7. Cosmetic: stranded `pub mod registry;`, empty `ui/widgets.rs`, WIDGET_SCALE,
    applet duplicate subscription/handler.                                                           :: MRV :: Done  
 
