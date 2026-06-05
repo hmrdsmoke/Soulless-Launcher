@@ -102,6 +102,7 @@ fn unlock_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
     let title = text("🔒 Vault").size(24);
 
     let password_field = text_input("Enter password", &vault.password_input)
+        .id(cosmic::widget::Id::new("vault-password"))
         .on_input(SearchMessage::VaultPasswordChanged)
         .on_submit(SearchMessage::VaultUnlock)
         .secure(true)

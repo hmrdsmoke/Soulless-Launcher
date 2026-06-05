@@ -188,7 +188,9 @@ where
         // ── V → open vault (only when not in search/typing mode) ─────────
         keyboard::Key::Character(c) if c.as_str() == "v" && !in_search => {
             search.update(search::Message::VaultClicked);
-            Task::none()
+            cosmic::widget::text_input::focus(
+                cosmic::widget::Id::new("vault-password")
+            )
         }
 
         _ => Task::none(),
