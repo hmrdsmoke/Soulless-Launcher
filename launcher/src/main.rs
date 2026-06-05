@@ -23,6 +23,7 @@ use crate::position::LauncherPosition;
 
 mod app;
 mod utils;
+mod easter_egg;
 
 
 

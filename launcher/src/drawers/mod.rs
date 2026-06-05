@@ -213,7 +213,9 @@ pub fn view<'a>(
     .height(Length::Fill);
 
     let right_panel_content: Element<'a, SearchMessage> =
-        if let Some(picker) = &search.app_picker {
+        if search.show_origin_egg {
+            origin_egg_view()
+        } else if let Some(picker) = &search.app_picker {
             app_picker_view(search, picker)
         } else if search.show_search_results {
             search_results_view(search)
@@ -1038,6 +1040,46 @@ fn search_results_view<'a>(
         .scrollbar_width(4)
         .scrollbar_padding(0)
         .scroller_width(4)
+        .into()
+}
+
+// -------------------------------------------------------------
+// Origin vault -- hidden easter egg revealed by the passphrase.
+// The skull is baked into the binary so it can never be stripped.
+// -------------------------------------------------------------
+fn origin_egg_view<'a>() -> Element<'a, SearchMessage> {
+    const SKULL: &[u8] = include_bytes!(
+        "../../../assets/com.github.hmrdsmoke.soulless-launcher.png"
+    );
+    let skull = image(image::Handle::from_bytes(SKULL.to_vec()))
+        .width(Length::Fixed(160.0))
+        .height(Length::Fixed(160.0));
+
+    let sig = crate::easter_egg::ORIGIN;
+
+    let content = column![
+        skull,
+        space::vertical().height(Length::Fixed(16.0)),
+        text("HMRDSmoke").size(28),
+        space::vertical().height(Length::Fixed(12.0)),
+        text("US Army Veteran").size(15),
+        text("Father of A Young Man And Sweet Daughter").size(15),
+        text("Family Man - Funny Guy").size(15),
+        space::vertical().height(Length::Fixed(4.0)),
+        text("- bio by my son -").size(12),
+        space::vertical().height(Length::Fixed(20.0)),
+        text("Soulless - where it started").size(13),
+        space::vertical().height(Length::Fixed(8.0)),
+        text(sig).size(13),
+    ]
+    .spacing(2)
+    .align_x(Horizontal::Center);
+
+    container(content)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
         .into()
 }
 

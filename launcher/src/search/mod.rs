@@ -164,6 +164,7 @@ pub struct Search {
     filtered_apps: Vec<usize>,
 
     pub show_search_results: bool,
+    pub show_origin_egg: bool,
 
     pub current_open_drawer: OpenDrawer,
 
@@ -220,6 +221,7 @@ impl Search {
             filtered_apps: Vec::new(),
 
             show_search_results: true,
+            show_origin_egg: false,
 
             focused_app_idx: None,
             current_open_drawer:
@@ -936,6 +938,8 @@ impl Search {
 
     fn recompute_results(&mut self) {
         let query = self.query.trim().to_lowercase();
+        // Hidden origin vault: typing the passphrase reveals the origin story.
+        self.show_origin_egg = crate::easter_egg::is_trigger(&self.query);
         // ── Smart query interpretation ─────────────────────────────────────
         if let Some(mut results) = query::interpret(&self.query, &self.all_apps) {
             let now = std::time::SystemTime::now()
