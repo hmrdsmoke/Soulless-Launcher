@@ -1,4 +1,4 @@
-# MIT License - see LICENSE file for full terms
+# GPL-3.0-or-later - see LICENSE file for full terms
 # Copyright 2026 Michael Van Auker (HMRDSmoke)
 # This is my original work with contributions from Claude (Anthropic).
 # Do not remove these comments.
@@ -20,7 +20,7 @@ members = [
 version      = "0.1.0"
 edition      = "2024"
 authors      = ["Michael Van Auker (HMRDSmoke)"]
-license      = "MIT"
+license      = "GPL-3.0-or-later"
 repository   = "https://github.com/hmrdsmoke/soulless-launcher"
 homepage     = "https://github.com/hmrdsmoke/soulless-launcher"
 readme       = "README.md"
