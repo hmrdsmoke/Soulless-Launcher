@@ -43,7 +43,7 @@
                 {
                     "type": "git",
                     "url": "https://github.com/hmrdsmoke/Soulless-Launcher",
-                    "tag": "v0.1.0",
+                    "tag": "v0.1.1",
                     "commit": "5ee91cbc28265851893cddb5d4cc15176b051fac",
                     "disable-submodules": false
                 },
