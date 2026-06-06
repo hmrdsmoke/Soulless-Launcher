@@ -55,11 +55,54 @@ pub fn is_stale(source: &str, hours: u64) -> bool {
     let Ok(meta) = fs::metadata(&path) else {
         return true; // missing = stale
     };
-    let Ok(modified) = meta.modified() else {
+    let Ok(cache_modified) = meta.modified() else {
         return true;
     };
+
+    // Time-based ceiling: rebuild at least every `hours`.
     let age = SystemTime::now()
-        .duration_since(modified)
+        .duration_since(cache_modified)
         .unwrap_or(Duration::MAX);
-    age > Duration::from_secs(hours * 3600)
+    if age > Duration::from_secs(hours * 3600) {
+        return true;
+    }
+
+    // Change-based: if any application directory for this source has been
+    // modified more recently than the cache, an app was installed/removed —
+    // rebuild so new apps show up immediately (don't wait out the window).
+    for dir in source_dirs(source) {
+        if let Ok(dir_meta) = fs::metadata(&dir) {
+            if let Ok(dir_modified) = dir_meta.modified() {
+                if dir_modified > cache_modified {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
+
+/// The directories whose changes should invalidate a given source's cache.
+/// Installing/removing an app updates its directory's mtime, so comparing
+/// these against the cache's mtime detects new installs without a 24h wait.
+fn source_dirs(source: &str) -> Vec<PathBuf> {
+    let home = dirs::home_dir().unwrap_or_default();
+    match source {
+        "desktop" => {
+            let mut v = Vec::new();
+            let xdg = std::env::var("XDG_DATA_DIRS")
+                .unwrap_or_else(|_| "/usr/local/share:/usr/share".to_string());
+            for d in xdg.split(':') {
+                v.push(PathBuf::from(format!("{}/applications", d)));
+            }
+            v.push(home.join(".local/share/applications"));
+            v
+        }
+        "flatpak" => vec![
+            PathBuf::from("/var/lib/flatpak/exports/share/applications"),
+            home.join(".local/share/flatpak/exports/share/applications"),
+        ],
+        _ => Vec::new(), // other sources keep time-based-only for now
+    }
 }
