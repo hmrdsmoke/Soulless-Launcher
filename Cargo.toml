@@ -27,7 +27,16 @@ readme       = "README.md"
 
 [workspace.dependencies]
 # ── UI framework ─────────────────────────────────────────────────────────────
-cosmic = { git = "https://github.com/pop-os/libcosmic", branch = "master", package = "libcosmic", features = ["tokio", "wayland", "winit"] }
+cosmic = { git = "https://github.com/pop-os/libcosmic", branch = "master", package = "libcosmic", features = [
+    "tokio",
+    "wayland",
+    "winit",
+    "wgpu",           # for launcher performance
+    "applet",
+    "applet-token",
+    "dbus-config",
+    "multi-window",
+] }
 
 # ── Search ────────────────────────────────────────────────────────────────────
 nucleo-matcher = "0.3.1"                    # pinned exact :: MRV
