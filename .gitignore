@@ -1,38 +1,15 @@
-# Rust build artifacts
-/target
-**/target
-debug/
-release/
+# Rust build output
+/target/
+**/target/
 
-# Cargo
-
-# Editor / IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*.swn
-*~
-
-# profiling
-flamegraph.svg
-perf.data
-perf.data.old
-
-# OS generated files
-.DS_Store
-Thumbs.db
-
-# Temporary / log files
-*.log
-*.tmp
-
-# Soulless specific
-soulless.lock       # our single-instance lock file (optional, but clean to ignore)
-~/.local/share/soulless/   # vault data & lock (but usually we don't commit user data)
-
-# Rustfmt backups
-**/*.rs.bk
+# Flatpak build output
+/build-dir/
 .flatpak-builder/
-gen_err*.txt
-generate_errors.txt
+
+# Vendored dependencies (regenerated on demand)
+/vendor/
+
+# OS / editor cruft
+.DS_Store
+*.swp
+*~
