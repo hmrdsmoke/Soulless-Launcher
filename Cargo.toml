@@ -10,6 +10,10 @@ members = [
     "launcher",
     "applet",
 ]
+exclude = [
+    "vendor/cosmic-panel-config",
+    "vendor/xdg-shell-wrapper-config",
+]
 
 # ===========================================================================
 # Shared dependency versions — single source of truth for the whole workspace.
@@ -115,3 +119,9 @@ lto           = "thin"
 codegen-units = 4
 strip         = false
 debug         = false
+
+# Override the cosmic-panel git source (bare, unpinnable for offline flatpak
+# vendoring) with our vendored copies — see vendor/cosmic-panel-config/Cargo.toml
+[patch.'https://github.com/pop-os/cosmic-panel']
+cosmic-panel-config = { path = "vendor/cosmic-panel-config" }
+xdg-shell-wrapper-config = { path = "vendor/xdg-shell-wrapper-config" }

@@ -1,0 +1,28 @@
+# Vendored from https://github.com/pop-os/cosmic-panel @ 6119bb106255b2cd51cd281919662de3b6d8b433
+# Changes from upstream:
+#   - cosmic-config pinned to rev 4657b6a (upstream uses a bare git URL,
+#     which breaks offline flatpak vendoring — see pop-os/cosmic-flatpak#195)
+#   - sctk workspace dep inlined (we're outside the cosmic-panel workspace)
+[package]
+name = "cosmic-panel-config"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = ["wayland-rs"]
+wayland-rs = ["wayland-protocols-wlr", "xdg-shell-wrapper-config", "sctk"]
+
+[dependencies]
+anyhow = "1.0.102"
+serde = { version = "1.0", features = ["derive"] }
+tracing = "0.1.44"
+wayland-protocols-wlr = { version = "0.3.12", features = [
+    "server",
+    "client",
+], optional = true }
+cosmic-config = { git = "https://github.com/pop-os/libcosmic", rev = "4657b6a7259e6ecdbf0af6f956de163e3d49dc1a" }
+xdg-shell-wrapper-config = { path = "../xdg-shell-wrapper-config", optional = true }
+sctk = { package = "smithay-client-toolkit", version = "0.20.0", features = [
+    "calloop",
+    "xkbcommon",
+], optional = true }
