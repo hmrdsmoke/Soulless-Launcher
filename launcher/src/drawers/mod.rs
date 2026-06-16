@@ -973,7 +973,9 @@ fn search_results_view<'a>(
             .map(|(flat, app)| {
                 let row_focused = Some(*flat) == focused;
                 let row_content = row![
-                    text("$ ").size(11),
+                    image(&app.icon_path)
+                        .width(Length::Fixed(16.0))
+                        .height(Length::Fixed(16.0)),
                     text(&app.name).size(14),
                 ]
                 .spacing(8)

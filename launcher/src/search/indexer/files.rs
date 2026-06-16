@@ -24,6 +24,7 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
     ];
 
     let folder_icon = icons.resolve(Some("folder"));
+    let file_icon = icons.resolve(Some("text-x-generic"));
 
     for dir in &xdg_dirs {
         // Add the XDG dir itself as an entry
@@ -46,14 +47,14 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
             });
         }
 
-        scan_dir(dir, &folder_icon, &mut apps);
+        scan_dir(dir, &folder_icon, &file_icon, &mut apps);
 
         // One level deeper — scan subdirectories
         let Ok(entries) = fs::read_dir(dir) else { continue };
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() && !is_hidden(&path) {
-                scan_dir(&path, &folder_icon, &mut apps);
+                scan_dir(&path, &folder_icon, &file_icon, &mut apps);
             }
         }
     }
@@ -76,12 +77,12 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
         // Skip dirs already covered by XDG scan
         if xdg_dirs.contains(&path) { continue; }
         if path.is_dir() {
-            scan_dir(&path, &folder_icon, &mut apps);
+            scan_dir(&path, &folder_icon, &file_icon, &mut apps);
             let Ok(sub_entries) = fs::read_dir(&path) else { continue };
             for sub in sub_entries.flatten() {
                 let sub_path = sub.path();
                 if sub_path.is_dir() && !is_hidden(&sub_path) {
-                    scan_dir(&sub_path, &folder_icon, &mut apps);
+                    scan_dir(&sub_path, &folder_icon, &file_icon, &mut apps);
                 }
             }
         }
@@ -89,7 +90,7 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
     apps
 }
 
-fn scan_dir(dir: &Path, folder_icon: &str, apps: &mut Vec<AppEntry>) {
+fn scan_dir(dir: &Path, folder_icon: &str, file_icon: &str, apps: &mut Vec<AppEntry>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
     };
@@ -115,7 +116,7 @@ fn scan_dir(dir: &Path, folder_icon: &str, apps: &mut Vec<AppEntry>) {
         let icon_path = if is_dir {
             folder_icon.to_string()
         } else {
-            super::icon::fallback_icon()
+            file_icon.to_string()
         };
 
 
