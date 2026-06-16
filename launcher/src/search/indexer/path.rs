@@ -72,7 +72,9 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
                 id: format!("binary:{}", path.display()),
                 name: name.to_string(),
                 exec: path.display().to_string(),
-                icon_path: icons.resolve(Some(name)),
+                // CLI tools all share the utilities (wrench) icon instead of a
+                // mostly-failing per-command name lookup.
+                icon_path: icons.resolve(Some("applications-utilities")),
                 source: AppSource::Binary,
                 desktop_path: None,
                 lower_name,
