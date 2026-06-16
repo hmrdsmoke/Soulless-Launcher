@@ -71,7 +71,8 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
             apps.push(AppEntry {
                 id: format!("binary:{}", path.display()),
                 name: name.to_string(),
-                exec: path.display().to_string(),
+                // CLI tools open their --help in a terminal pager on click.
+                exec: format!("cosmic-term -e sh -c '{} --help 2>&1 | less'", name),
                 // CLI tools all share the utilities (wrench) icon instead of a
                 // mostly-failing per-command name lookup.
                 icon_path: icons.resolve(Some("applications-utilities")),
