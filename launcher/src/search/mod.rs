@@ -246,7 +246,8 @@ impl Search {
 
         search.registry = crate::registry::load();
         let changed = crate::registry::migrate::migrate_drawers(&mut search.drawer_state, &mut search.registry, &search.all_apps);
-        if changed { crate::registry::save(&search.registry); save_drawer_state(&search.drawer_state); }
+        let pruned = crate::registry::migrate::prune_dead_apps(&mut search.drawer_state, &search.registry, &search.all_apps);
+        if changed || pruned { crate::registry::save(&search.registry); save_drawer_state(&search.drawer_state); }
         search.recompute_results();
 
         search

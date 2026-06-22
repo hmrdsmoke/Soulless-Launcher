@@ -50,3 +50,23 @@ pub fn migrate_drawers(
     }
     changed
 }
+
+/// Remove drawer app entries that no longer resolve to any installed app.
+/// Returns true if anything was removed.
+pub fn prune_dead_apps(
+    drawer_state: &mut DrawerState,
+    registry: &Registry,
+    all_apps: &[AppEntry],
+) -> bool {
+    let mut changed = false;
+    for drawer in drawer_state.drawers.iter_mut() {
+        let before = drawer.apps.len();
+        drawer.apps.retain(|app_id| {
+            crate::search::indexer::appid::resolve(app_id, all_apps, registry).is_some()
+        });
+        if drawer.apps.len() != before {
+            changed = true;
+        }
+    }
+    changed
+}
