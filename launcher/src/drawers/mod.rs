@@ -232,7 +232,7 @@ pub fn view<'a>(
     let right: Element<'a, SearchMessage> = container(right_panel_content)
         .width(Length::Fill)
         .height(Length::Fill)
-        .padding([16, 0, 16, 16])
+        .padding([16, 16, 16, 16])
         .into();
     let base = (toolbox, right);
     if let Some(modal) = &search.drawer_edit {
