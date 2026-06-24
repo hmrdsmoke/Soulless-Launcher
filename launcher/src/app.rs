@@ -1,20 +1,21 @@
 // GPL-3.0-or-later - see LICENSE file for full terms
 //
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
-// This is my original work with contributions from Grok (xAI).
+// This is my original work with contributions from Grok (xAI) and Claude (Anthropic).
 // Do not remove these comments.
 
 // src/app.rs
 // Application model, message types, update logic, view, and subscriptions.
+// Migrated to the cosmic::Application trait (Step 1: normal window, no layer shell yet).
 
+use cosmic::prelude::*;
 use cosmic::iced::{
-    Element, Subscription, Task, Theme,
+    Subscription, Task,
     event, keyboard,
     window,
 };
 use cosmic::iced::clipboard::dnd::{DndEvent, OfferEvent};
 
-use crate::position::LauncherPosition;
 use crate::search::Message as SearchMessage;
 use crate::network_monitor::Message as NetworkMessage;
 use crate::system_monitor::Message as SystemMessage;
@@ -34,25 +35,43 @@ pub enum Message {
     WindowOpened(cosmic::iced::window::Id),
     Organizer(soulless_organizer::Message),
     EnterPressed,
+    RequestClose,
     Noop,
 }
 
 // ── Application model ────────────────────────────────────────────────────────
 
 pub struct Soulless {
+    core:       cosmic::Core,
     search:     crate::search::Search,
     network:    crate::network_monitor::NetworkState,
     system:     crate::system_monitor::SystemState,
     hardware:   crate::hardware_monitor::HardwareMonitorState,
     fps:        crate::fps_monitor::FpsMonitorState,
-    organizer: soulless_organizer::OrganizerState,
-    config: crate::config::SoullessConfig,
+    organizer:  soulless_organizer::OrganizerState,
+    config:     crate::config::SoullessConfig,
     cursor_pos: Option<cosmic::iced::Point>,
     bg_handle:  Option<cosmic::iced::widget::image::Handle>,
 }
 
-impl Soulless {
-    pub fn new() -> (Self, Task<Message>) {
+impl cosmic::Application for Soulless {
+    type Executor = cosmic::executor::Default;
+    type Flags = ();
+    type Message = Message;
+    const APP_ID: &'static str = "com.github.hmrdsmoke.soulless-launcher";
+
+    fn core(&self) -> &cosmic::Core {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut cosmic::Core {
+        &mut self.core
+    }
+
+    fn init(
+        core: cosmic::Core,
+        _flags: Self::Flags,
+    ) -> (Self, Task<cosmic::Action<Self::Message>>) {
         crate::config::ensure_dirs();
         crate::config::ensure_config();
         let config = crate::config::load_config();
@@ -67,6 +86,7 @@ impl Soulless {
 
         (
             Self {
+                core,
                 search: crate::search::Search::new(),
                 network:    crate::network_monitor::NetworkState::new(),
                 system:     crate::system_monitor::SystemState::new(),
@@ -81,7 +101,7 @@ impl Soulless {
         )
     }
 
-    pub fn update(&mut self, message: Message) -> Task<Message> {
+    fn update(&mut self, message: Self::Message) -> Task<cosmic::Action<Self::Message>> {
         match message {
             Message::Network(msg) => {
                 self.network.update(msg);
@@ -114,7 +134,9 @@ impl Soulless {
                     {
                     }
 
-                    cosmic::iced::exit::<Message>()
+                    cosmic::task::message(cosmic::Action::Cosmic(
+                        cosmic::app::Action::Close,
+                    ))
                 } else {
                     Task::none()
                 }
@@ -122,15 +144,15 @@ impl Soulless {
 
             // ── Enable blur when window opens ─────────────────────────
             Message::WindowOpened(id) => {
-                return crate::ui::startup_tasks(id);
+                crate::ui::startup_tasks(id).map(cosmic::Action::App)
             }
             // ── Focus search bar on window focus ──────────────────────────
             Message::WindowEvent(cosmic::iced::Event::Window(
                 window::Event::Focused,
             )) => {
-                return cosmic::widget::text_input::focus(
+                cosmic::widget::text_input::focus(
                     cosmic::widget::Id::new("soulless-search-bar")
-                );
+                ).map(cosmic::Action::App)
             }
             // ── Keyboard ──────────────────────────────────────────────────
             Message::WindowEvent(
@@ -138,13 +160,13 @@ impl Soulless {
                     keyboard::Event::KeyPressed { key, modifiers, .. },
                 ),
             ) => {
-                return crate::keybinds::actions::handle_key(
+                crate::keybinds::actions::handle_key(
                     &key,
                     modifiers,
                     &mut self.search,
                     Message::Search,
-                    || cosmic::iced::exit::<Message>(),
-                );
+                    || cosmic::task::message(Message::RequestClose),
+                ).map(cosmic::Action::App)
             }
 
             // ── Track cursor position ────────────────────────────────────
@@ -159,7 +181,7 @@ impl Soulless {
             Message::WindowEvent(cosmic::iced::Event::Mouse(
                 cosmic::iced::mouse::Event::ButtonPressed(_),
             )) => {
-                let size = LauncherPosition.window_size();
+                let size = crate::position::LauncherPosition.window_size();
 
                 let outside = self.cursor_pos.map_or(false, |p| {
                     p.x < 0.0
@@ -169,16 +191,15 @@ impl Soulless {
                 });
 
                 if outside {
-                    return cosmic::iced::exit::<Message>();
+                    return cosmic::task::message(cosmic::Action::Cosmic(
+                        cosmic::app::Action::Close,
+                    ));
                 }
 
                 Task::none()
             }
 
             // ── Drag-and-drop ────────────────────────────────────────────
-            // NOTE: drawer file drops are handled entirely by drawers.rs via
-            // dnd_destination on_finish. main.rs only handles vault drops and
-            // hover state updates here.
             Message::WindowEvent(cosmic::iced::Event::Dnd(dnd_event)) => {
                 use crate::search::OpenDrawer;
 
@@ -217,8 +238,6 @@ impl Soulless {
                         data,
                         mime_type,
                     }) => {
-                        // Only handle vault drops here — drawer drops are
-                        // handled by dnd_destination on_finish in drawers.rs.
                         if mime_type == "text/uri-list" {
                             if matches!(
                                 self.search.current_open_drawer,
@@ -234,7 +253,6 @@ impl Soulless {
                             }
                         }
 
-                        // Handle drawer file drops
                         if mime_type == "text/uri-list" {
                             if let OpenDrawer::Pinned(name) = self.search.current_open_drawer.clone() {
                                 let paths = crate::utils::parse_uri_list(&data);
@@ -245,7 +263,6 @@ impl Soulless {
                                 }
                             }
                         }
-                        // Clear all hover states after drop
                         self.search
                             .update(SearchMessage::VaultDragHover(false));
                         self.search
@@ -260,6 +277,11 @@ impl Soulless {
                 Task::none()
             }
 
+            Message::RequestClose => {
+                cosmic::task::message(cosmic::Action::Cosmic(
+                    cosmic::app::Action::Close,
+                ))
+            }
             Message::Noop => Task::none(),
             Message::EnterPressed => {
                 if let Some(idx) = self.search.focused_app_idx {
@@ -268,17 +290,20 @@ impl Soulless {
                         let clean = crate::utils::strip_desktop_placeholders(&exec);
                         let _ = std::process::Command::new("sh")
                             .arg("-c").arg(&clean).spawn();
-                        return cosmic::iced::exit();
+                        return cosmic::task::message(cosmic::Action::Cosmic(
+                            cosmic::app::Action::Close,
+                        ));
                     }
                 }
-                // No focused app — launch top search result if searching
                 if self.search.show_search_results {
                     if let Some(exec) = self.search.focused_exec(0) {
                         self.search.record_launch_by_exec(&exec);
                         let clean = crate::utils::strip_desktop_placeholders(&exec);
                         let _ = std::process::Command::new("sh")
                             .arg("-c").arg(&clean).spawn();
-                        return cosmic::iced::exit();
+                        return cosmic::task::message(cosmic::Action::Cosmic(
+                            cosmic::app::Action::Close,
+                        ));
                     }
                 }
                 Task::none()
@@ -291,7 +316,7 @@ impl Soulless {
         }
     }
 
-    pub fn view(&self) -> Element<'_, Message> {
+    fn view(&self) -> Element<'_, Self::Message> {
         let (toolbox, right, _drop_zone) = crate::drawers::view(&self.search);
         let net = if self.config.show_system_monitor {
             crate::network_monitor::view(&self.network).map(Message::Network)
@@ -308,7 +333,7 @@ impl Soulless {
         let banner = if self.config.organizer_enabled {
             crate::ui::organizer::organizer_banner(&self.organizer, Message::Organizer)
         } else { None };
-        crate::ui::panels::compose(
+        let composed = crate::ui::panels::compose(
             {
                 let t = toolbox.map(Message::Search);
                 use cosmic::iced::widget::Column;
@@ -321,14 +346,19 @@ impl Soulless {
             right.map(Message::Search),
             net, sys, hw, fps,
             self.bg_handle.clone(),
+        );
+        // Bridge: compose() yields a cosmic::iced::Theme element; the
+        // cosmic::Application trait's view() expects a cosmic::Theme element.
+        // Themer wraps the inner (iced-themed) tree so it can live in the
+        // cosmic-themed outer tree.
+        cosmic::iced::widget::Themer::new(
+            None::<cosmic::iced::Theme>,
+            composed,
         )
+        .into()
     }
 
-    pub fn theme(_: &Self) -> Theme {
-        Theme::Dark
-    }
-
-    pub fn subscription(&self) -> Subscription<Message> {
+    fn subscription(&self) -> Subscription<Self::Message> {
         Subscription::batch([
             event::listen().map(Message::WindowEvent),
             cosmic::iced::keyboard::listen().map(|event| {
