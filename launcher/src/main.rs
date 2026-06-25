@@ -18,6 +18,7 @@ mod vault;
 pub mod registry;
 
 mod app;
+mod keep_alive;
 mod utils;
 mod easter_egg;
 

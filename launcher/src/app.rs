@@ -415,6 +415,7 @@ impl cosmic::Application for Soulless {
 
     fn subscription(&self) -> Subscription<Self::Message> {
         Subscription::batch([
+            crate::keep_alive::subscription(),
             event::listen().map(|ev| {
                 // DIAGNOSTIC: log window + wayland events to see what fires on click-away.
                 match &ev {
