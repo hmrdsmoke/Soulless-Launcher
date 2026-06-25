@@ -44,21 +44,32 @@ impl LauncherPosition {
     }
 
     /// Build the layer shell settings for this launcher.
-    fn surface_settings(id: window::Id) -> SctkLayerSurfaceSettings {
+    fn surface_settings(id: window::Id, screen: Option<(u32, u32)>) -> SctkLayerSurfaceSettings {
+        // Screen-aware sizing: the launcher now knows the monitor dimensions (from
+        // captured Output events) so it can request a concrete size that FITS the
+        // screen, instead of guessing. Theory: the resize loop was the surface
+        // unable to reconcile an unknown-relative size with the compositor.
+        let (sw, sh) = screen.unwrap_or((1920, 1080));
+        let w = (WINDOW_WIDTH as u32).min(sw);
+        let h = (WINDOW_HEIGHT as u32).min(sh);
+
         let mut surface = SctkLayerSurfaceSettings::default();
-        surface.id = id; // stable, stored id so cosmic tracks the surface
+        surface.id = id;
         surface.keyboard_interactivity = KeyboardInteractivity::Exclusive;
-        surface.layer = Layer::Overlay;
-        // Anchor to BOTTOM edge only. With no left/right anchor, the compositor
-        // centers the surface horizontally along that edge => bottom-middle.
-        surface.anchor = Anchor::BOTTOM;
+        surface.layer = Layer::Top;
+        surface.anchor = Anchor::BOTTOM; // bottom edge, compositor centers horizontally
         surface.margin.bottom = PANEL_HEIGHT as i32;
-        surface.size = Some((Some(WINDOW_WIDTH as u32), Some(WINDOW_HEIGHT as u32)));
+        // size: None so autosize controls sizing AND acks the compositor's configure
+        // events (the ack completes the layer-shell handshake; without it the
+        // compositor re-sends configure forever = the RequestResize flood).
+        let _ = (w, h);
+        surface.size = None;
+        // Limits bounded by the actual screen, not pinned to the surface size.
         surface.size_limits = Limits::NONE
-            .min_width(WINDOW_WIDTH)
-            .min_height(WINDOW_HEIGHT)
-            .max_width(WINDOW_WIDTH)
-            .max_height(WINDOW_HEIGHT);
+            .min_width(1.0)
+            .min_height(1.0)
+            .max_width(sw as f32)
+            .max_height(sh as f32);
         surface.exclusive_zone = -1;
         surface.namespace = "soulless-launcher".to_string();
         surface
@@ -66,11 +77,11 @@ impl LauncherPosition {
 
     /// Open the launcher: create the layer shell surface.
     /// Call this from the subscription after the event loop is running.
-    pub fn open<M>(id: window::Id, on_open: impl Fn(window::Id) -> M + Send + 'static) -> Task<M>
+    pub fn open<M>(id: window::Id, screen: Option<(u32, u32)>, on_open: impl Fn(window::Id) -> M + Send + 'static) -> Task<M>
     where
         M: Send + 'static,
     {
-        get_layer_surface(Self::surface_settings(id)).map(on_open)
+        get_layer_surface(Self::surface_settings(id, screen)).map(on_open)
     }
 
     /// Focus the search bar. Call after open() completes.

@@ -86,13 +86,19 @@ pub struct Soulless {
     cursor_pos: Option<cosmic::iced::Point>,
     bg_handle:  Option<cosmic::iced::widget::image::Handle>,
     window_id:  cosmic::iced::window::Id,
+    screen_size: Option<(u32, u32)>,
 }
 
 impl cosmic::Application for Soulless {
     type Executor = cosmic::executor::Default;
     type Flags = SoullessFlags;
     type Message = Message;
-    const APP_ID: &'static str = "com.github.hmrdsmoke.soulless-launcher";
+    // NOTE: hyphen-free APP_ID is REQUIRED for run_single_instance. cosmic derives a
+    // D-Bus object path (APP_ID.replace('.', "/")) and a well-known name from this,
+    // and D-Bus forbids hyphens in both. The external identity (repo, metainfo <id>,
+    // .desktop, binary) keeps "soulless-launcher" — none of those read this const.
+    // This only changes the Wayland app_id and the D-Bus names cosmic registers.
+    const APP_ID: &'static str = "com.github.hmrdsmoke.SoullessLauncher";
 
     fn core(&self) -> &cosmic::Core {
         &self.core
@@ -136,9 +142,11 @@ impl cosmic::Application for Soulless {
                 cursor_pos: None,
                 bg_handle,
                 window_id,
+                screen_size: None,
             },
-            crate::position::placement::LauncherPosition::open(window_id, Message::WindowOpened)
-                .map(cosmic::Action::App),
+            // Stage 2 TEST: do NOT create the surface at init. Create it on-demand
+            // in dbus_activation (warm daemon) to test whether that kills the flood.
+            Task::none(),
         )
     }
 
@@ -224,6 +232,28 @@ impl cosmic::Application for Soulless {
             // platform-specific event channel. This is how cosmic-launcher
             // itself detects click-away dismiss. Matching window::Event here
             // never fires for a layer surface — must match the wayland path.
+            // Capture monitor geometry from Output events so the surface can be sized
+            // and anchored relative to the real screen instead of blind hardcoded
+            // constants. Both Created and InfoUpdate carry OutputInfo.logical_size.
+            Message::WindowEvent(cosmic::iced::Event::PlatformSpecific(
+                cosmic::iced::event::PlatformSpecific::Wayland(
+                    cosmic::iced::event::wayland::Event::Output(output_event, _wl_output),
+                ),
+            )) => {
+                use cosmic::iced::event::wayland::OutputEvent;
+                let info = match output_event {
+                    OutputEvent::Created(Some(i)) => Some(i),
+                    OutputEvent::InfoUpdate(i) => Some(i),
+                    _ => None,
+                };
+                if let Some(info) = info {
+                    if let Some((w, h)) = info.logical_size {
+                        self.screen_size = Some((w as u32, h as u32));
+                        eprintln!("[GEOM] screen now {}x{}", w, h);
+                    }
+                }
+                Task::none()
+            }
             Message::WindowEvent(cosmic::iced::Event::PlatformSpecific(
                 cosmic::iced::event::PlatformSpecific::Wayland(
                     cosmic::iced::event::wayland::Event::Layer(
@@ -400,17 +430,37 @@ impl cosmic::Application for Soulless {
 
     fn dbus_activation(
         &mut self,
-        _msg: cosmic::dbus_activation::Message,
+        msg: cosmic::dbus_activation::Message,
     ) -> Task<cosmic::Action<Self::Message>> {
+        use cosmic::dbus_activation::Details;
         eprintln!("[DBUS] activation received");
-        Task::none()
+        match msg.msg {
+            Details::Activate => {
+                eprintln!("[DBUS] Activate -> creating surface on-demand (warm daemon)");
+                crate::position::placement::LauncherPosition::open(
+                    self.window_id,
+                    self.screen_size,
+                    Message::WindowOpened,
+                )
+                .map(cosmic::Action::App)
+            }
+            _ => Task::none(),
+        }
     }
 
     fn view_window(&self, _id: cosmic::iced::window::Id) -> Element<'_, Self::Message> {
-        // Under no_main_window (layer shell), cosmic renders our surface through
-        // view_window(), NOT view(). The trait default panics, so we MUST override
-        // it. Delegate to the same content view() produces.
-        self.view()
+        // autosize wrapping the view DIRECTLY (no fixed-size container). The fixed
+        // container interferes with autosize's measurement/ack. With size:None the
+        // surface lets autosize drive — testing if direct wrap gives the low count.
+        use cosmic::widget::autosize;
+        static AUTOSIZE_ID: std::sync::LazyLock<cosmic::widget::Id> =
+            std::sync::LazyLock::new(|| cosmic::widget::Id::new("soulless-autosize"));
+        autosize::autosize(self.view(), AUTOSIZE_ID.clone())
+            .max_width(crate::position::layout::WINDOW_WIDTH)
+            .max_height(crate::position::layout::WINDOW_HEIGHT)
+            .auto_width(false)
+            .auto_height(false)
+            .into()
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {

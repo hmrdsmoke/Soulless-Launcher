@@ -37,6 +37,8 @@ once_cell = "1.19.0"
 notify = { workspace = true }
 tokio = { version = "1", features = ["time"] }
 futures-util = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 soulless-organizer = { path = "../organizer" }
 ron = { workspace = true }
 uuid = { workspace = true }
