@@ -44,30 +44,33 @@ impl LauncherPosition {
     }
 
     /// Build the layer shell settings for this launcher.
-    fn surface_settings() -> SctkLayerSurfaceSettings {
+    fn surface_settings(id: window::Id) -> SctkLayerSurfaceSettings {
         let mut surface = SctkLayerSurfaceSettings::default();
+        surface.id = id; // stable, stored id so cosmic tracks the surface
         surface.keyboard_interactivity = KeyboardInteractivity::Exclusive;
         surface.layer = Layer::Overlay;
-        surface.anchor = Anchor::BOTTOM.union(Anchor::RIGHT);
+        // Anchor to BOTTOM edge only. With no left/right anchor, the compositor
+        // centers the surface horizontally along that edge => bottom-middle.
+        surface.anchor = Anchor::BOTTOM;
         surface.margin.bottom = PANEL_HEIGHT as i32;
-        surface.margin.right = 0;
         surface.size = Some((Some(WINDOW_WIDTH as u32), Some(WINDOW_HEIGHT as u32)));
         surface.size_limits = Limits::NONE
-            .min_width(1.0)
-            .min_height(1.0)
+            .min_width(WINDOW_WIDTH)
+            .min_height(WINDOW_HEIGHT)
             .max_width(WINDOW_WIDTH)
             .max_height(WINDOW_HEIGHT);
+        surface.exclusive_zone = -1;
         surface.namespace = "soulless-launcher".to_string();
         surface
     }
 
     /// Open the launcher: create the layer shell surface.
     /// Call this from the subscription after the event loop is running.
-    pub fn open<M>(on_open: impl Fn(window::Id) -> M + Send + 'static) -> Task<M>
+    pub fn open<M>(id: window::Id, on_open: impl Fn(window::Id) -> M + Send + 'static) -> Task<M>
     where
         M: Send + 'static,
     {
-        get_layer_surface(Self::surface_settings()).map(on_open)
+        get_layer_surface(Self::surface_settings(id)).map(on_open)
     }
 
     /// Focus the search bar. Call after open() completes.

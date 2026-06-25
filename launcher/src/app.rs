@@ -39,6 +39,39 @@ pub enum Message {
     Noop,
 }
 
+// ── Single-instance flags (minimal, no clap) ─────────────────────────────────
+// run_single_instance requires App::Flags: CosmicFlags. We don't need CLI parsing
+// yet — the applet activates via D-Bus, not CLI args — so this is a minimal impl
+// that satisfies the trait bounds with default args(). (CosmicFlags structure
+// informed by pop-os/cosmic-launcher, GPL-3.0.)
+
+#[derive(Debug, Clone)]
+pub enum SoullessSubCommand {
+    Toggle,
+}
+
+impl std::fmt::Display for SoullessSubCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SoullessSubCommand::Toggle => write!(f, "Toggle"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SoullessFlags {
+    pub subcommand: Option<SoullessSubCommand>,
+}
+
+impl cosmic::app::CosmicFlags for SoullessFlags {
+    type SubCommand = SoullessSubCommand;
+    type Args = Vec<String>;
+
+    fn action(&self) -> Option<&Self::SubCommand> {
+        self.subcommand.as_ref()
+    }
+}
+
 // ── Application model ────────────────────────────────────────────────────────
 
 pub struct Soulless {
@@ -52,11 +85,12 @@ pub struct Soulless {
     config:     crate::config::SoullessConfig,
     cursor_pos: Option<cosmic::iced::Point>,
     bg_handle:  Option<cosmic::iced::widget::image::Handle>,
+    window_id:  cosmic::iced::window::Id,
 }
 
 impl cosmic::Application for Soulless {
     type Executor = cosmic::executor::Default;
-    type Flags = ();
+    type Flags = SoullessFlags;
     type Message = Message;
     const APP_ID: &'static str = "com.github.hmrdsmoke.soulless-launcher";
 
@@ -84,6 +118,11 @@ impl cosmic::Application for Soulless {
             }
         });
 
+        // Generate ONE stable surface id, store it, and create the surface with it.
+        // cosmic's daemon tracks surfaces by id; an untracked (freshly-random) id is
+        // why the surface floods RequestResize and won't render. Reuse this id for
+        // creation and destruction. (Approach informed by pop-os/cosmic-launcher.)
+        let window_id = cosmic::iced::window::Id::unique();
         (
             Self {
                 core,
@@ -96,13 +135,9 @@ impl cosmic::Application for Soulless {
                 config,
                 cursor_pos: None,
                 bg_handle,
+                window_id,
             },
-            // Step 2: create the layer-shell surface as a post-loop task.
-            // get_layer_surface is a fire-and-forget effect (emits no message);
-            // the on_open closure is phantom — the real "opened" signal arrives
-            // via the open_events() subscription. We just need the effect to run
-            // once the daemon event loop is alive, which init()'s task guarantees.
-            crate::position::placement::LauncherPosition::open(Message::WindowOpened)
+            crate::position::placement::LauncherPosition::open(window_id, Message::WindowOpened)
                 .map(cosmic::Action::App),
         )
     }
@@ -156,9 +191,9 @@ impl cosmic::Application for Soulless {
             Message::WindowEvent(cosmic::iced::Event::Window(
                 window::Event::Focused,
             )) => {
-                cosmic::widget::text_input::focus(
-                    cosmic::widget::Id::new("soulless-search-bar")
-                ).map(cosmic::Action::App)
+                // DIAGNOSTIC: auto-focus disabled to test if it drives a focus->rebuild loop
+                eprintln!("[FOCUSED] received (auto-focus disabled for test)");
+                Task::none()
             }
             // ── Keyboard ──────────────────────────────────────────────────
             Message::WindowEvent(
@@ -198,6 +233,7 @@ impl cosmic::Application for Soulless {
                     ),
                 ),
             )) => {
+                eprintln!("[HANDLER] LayerEvent::Unfocused HIT -> issuing Close");
                 cosmic::task::message(cosmic::Action::Cosmic(
                     cosmic::app::Action::Close,
                 ))
@@ -362,6 +398,14 @@ impl cosmic::Application for Soulless {
         .into()
     }
 
+    fn dbus_activation(
+        &mut self,
+        _msg: cosmic::dbus_activation::Message,
+    ) -> Task<cosmic::Action<Self::Message>> {
+        eprintln!("[DBUS] activation received");
+        Task::none()
+    }
+
     fn view_window(&self, _id: cosmic::iced::window::Id) -> Element<'_, Self::Message> {
         // Under no_main_window (layer shell), cosmic renders our surface through
         // view_window(), NOT view(). The trait default panics, so we MUST override
@@ -371,7 +415,21 @@ impl cosmic::Application for Soulless {
 
     fn subscription(&self) -> Subscription<Self::Message> {
         Subscription::batch([
-            event::listen().map(Message::WindowEvent),
+            event::listen().map(|ev| {
+                // DIAGNOSTIC: log window + wayland events to see what fires on click-away.
+                match &ev {
+                    cosmic::iced::Event::Window(we) => {
+                        eprintln!("[EVT] Window: {:?}", we);
+                    }
+                    cosmic::iced::Event::PlatformSpecific(
+                        cosmic::iced::event::PlatformSpecific::Wayland(we),
+                    ) => {
+                        eprintln!("[EVT] Wayland: {:?}", we);
+                    }
+                    _ => {}
+                }
+                Message::WindowEvent(ev)
+            }),
             cosmic::iced::keyboard::listen().map(|event| {
                 match event {
                     cosmic::iced::keyboard::Event::KeyReleased {
@@ -383,11 +441,12 @@ impl cosmic::Application for Soulless {
             }),
 
             cosmic::iced::window::open_events().map(Message::WindowOpened),
-            soulless_organizer::subscription().map(Message::Organizer),
-            crate::network_monitor::subscription().map(Message::Network),
-            crate::system_monitor::subscription().map(Message::System),
-            crate::hardware_monitor::subscription().map(Message::Hardware),
-            crate::fps_monitor::subscription().map(Message::Fps),
+            // DIAGNOSTIC: monitors disabled to test RequestResize spam source
+            // soulless_organizer::subscription().map(Message::Organizer),
+            // crate::network_monitor::subscription().map(Message::Network),
+            // crate::system_monitor::subscription().map(Message::System),
+            // crate::hardware_monitor::subscription().map(Message::Hardware),
+            // crate::fps_monitor::subscription().map(Message::Fps),
         ])
     }
 }
