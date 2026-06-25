@@ -97,7 +97,13 @@ impl cosmic::Application for Soulless {
                 cursor_pos: None,
                 bg_handle,
             },
-            Task::none(),
+            // Step 2: create the layer-shell surface as a post-loop task.
+            // get_layer_surface is a fire-and-forget effect (emits no message);
+            // the on_open closure is phantom — the real "opened" signal arrives
+            // via the open_events() subscription. We just need the effect to run
+            // once the daemon event loop is alive, which init()'s task guarantees.
+            crate::position::placement::LauncherPosition::open(Message::WindowOpened)
+                .map(cosmic::Action::App),
         )
     }
 
@@ -177,26 +183,24 @@ impl cosmic::Application for Soulless {
                 Task::none()
             }
 
-            // ── Click outside → exit ─────────────────────────────────────
-            Message::WindowEvent(cosmic::iced::Event::Mouse(
-                cosmic::iced::mouse::Event::ButtonPressed(_),
+            // ── Layer surface lost focus → close (layer-shell dismiss) ───
+            // CRITICAL: a layer surface does NOT emit window::Event::Unfocused.
+            // It emits its own LayerEvent::Unfocused through the Wayland
+            // platform-specific event channel. This is how cosmic-launcher
+            // itself detects click-away dismiss. Matching window::Event here
+            // never fires for a layer surface — must match the wayland path.
+            Message::WindowEvent(cosmic::iced::Event::PlatformSpecific(
+                cosmic::iced::event::PlatformSpecific::Wayland(
+                    cosmic::iced::event::wayland::Event::Layer(
+                        cosmic::iced::event::wayland::LayerEvent::Unfocused,
+                        _surface,
+                        _id,
+                    ),
+                ),
             )) => {
-                let size = crate::position::LauncherPosition.window_size();
-
-                let outside = self.cursor_pos.map_or(false, |p| {
-                    p.x < 0.0
-                        || p.y < 0.0
-                        || p.x > size.width
-                        || p.y > size.height
-                });
-
-                if outside {
-                    return cosmic::task::message(cosmic::Action::Cosmic(
-                        cosmic::app::Action::Close,
-                    ));
-                }
-
-                Task::none()
+                cosmic::task::message(cosmic::Action::Cosmic(
+                    cosmic::app::Action::Close,
+                ))
             }
 
             // ── Drag-and-drop ────────────────────────────────────────────
@@ -356,6 +360,13 @@ impl cosmic::Application for Soulless {
             composed,
         )
         .into()
+    }
+
+    fn view_window(&self, _id: cosmic::iced::window::Id) -> Element<'_, Self::Message> {
+        // Under no_main_window (layer shell), cosmic renders our surface through
+        // view_window(), NOT view(). The trait default panics, so we MUST override
+        // it. Delegate to the same content view() produces.
+        self.view()
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {

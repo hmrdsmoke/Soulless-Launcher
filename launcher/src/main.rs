@@ -36,7 +36,8 @@ fn main() -> cosmic::iced::Result {
         ))
         .client_decorations(false)
         .transparent(true)
-        .resizable(None);
+        .resizable(None)
+        .no_main_window(true);
 
     cosmic::app::run::<app::Soulless>(settings, ())
 }
