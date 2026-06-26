@@ -937,6 +937,21 @@ impl Search {
         });
     }
 
+    /// Reset to the fresh-launch state. The warm daemon keeps this process
+    /// (and all its state) alive across closes, so without an explicit reset the
+    /// launcher reopens on the previous session's drawer/search/vault. Mirrors
+    /// the struct's initial defaults; also re-locks the vault for security.
+    pub fn reset_to_default(&mut self) {
+        self.query.clear();
+        self.current_open_drawer = OpenDrawer::Search;
+        self.focused_app_idx = None;
+        self.show_search_results = true; // matches initial default
+        self.show_origin_egg = false;
+        self.app_picker = None;
+        self.vault.lock(); // security: never reopen with an unlocked vault
+        self.recompute_results();
+    }
+
     fn recompute_results(&mut self) {
         let query = self.query.trim().to_lowercase();
         // Hidden origin vault: typing the passphrase reveals the origin story.

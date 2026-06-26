@@ -502,6 +502,8 @@ impl cosmic::Application for Soulless {
         match msg.msg {
             Details::Activate => {
                 eprintln!("[DBUS] Activate -> creating surface on-demand (warm daemon)");
+                // Warm daemon retains last session's state; reset to fresh on open.
+                self.search.reset_to_default();
                 crate::position::placement::LauncherPosition::open(
                     self.window_id,
                     self.screen_size,
