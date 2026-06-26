@@ -62,8 +62,7 @@ impl LauncherPosition {
         // size: None so autosize controls sizing AND acks the compositor's configure
         // events (the ack completes the layer-shell handshake; without it the
         // compositor re-sends configure forever = the RequestResize flood).
-        let _ = (w, h);
-        surface.size = None;
+        surface.size = Some((Some(w), Some(h)));
         // Limits bounded by the actual screen, not pinned to the surface size.
         surface.size_limits = Limits::NONE
             .min_width(1.0)

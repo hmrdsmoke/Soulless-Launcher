@@ -220,9 +220,12 @@ impl cosmic::Application for Soulless {
 
             // ── Track cursor position ────────────────────────────────────
             Message::WindowEvent(cosmic::iced::Event::Mouse(
-                cosmic::iced::mouse::Event::CursorMoved { position },
+                cosmic::iced::mouse::Event::CursorMoved { position: _ },
             )) => {
-                self.cursor_pos = Some(position);
+                // FLOOD TEST: do NOT update cursor_pos on motion. On a layer surface,
+                // a state change per motion -> re-render -> perturbs surface ->
+                // compositor re-emits motion -> loop. Testing if skipping the update
+                // breaks the pointer storm.
                 Task::none()
             }
 
@@ -421,11 +424,22 @@ impl cosmic::Application for Soulless {
         // cosmic::Application trait's view() expects a cosmic::Theme element.
         // Themer wraps the inner (iced-themed) tree so it can live in the
         // cosmic-themed outer tree.
-        cosmic::iced::widget::Themer::new(
+        let themed = cosmic::iced::widget::Themer::new(
             None::<cosmic::iced::Theme>,
             composed,
-        )
-        .into()
+        );
+        // Constrain the view root to a HARD fixed size (no Fill at the outermost
+        // level). This gives autosize a STABLE measurement that doesn't change
+        // frame-to-frame, so it acks the compositor once and settles instead of
+        // re-requesting every frame (the flood). Fill content lives inside.
+        cosmic::iced::widget::container(themed)
+            .width(cosmic::iced::Length::Fixed(
+                crate::position::layout::WINDOW_WIDTH,
+            ))
+            .height(cosmic::iced::Length::Fixed(
+                crate::position::layout::WINDOW_HEIGHT,
+            ))
+            .into()
     }
 
     fn dbus_activation(
@@ -449,37 +463,40 @@ impl cosmic::Application for Soulless {
     }
 
     fn view_window(&self, _id: cosmic::iced::window::Id) -> Element<'_, Self::Message> {
-        // autosize wrapping the view DIRECTLY (no fixed-size container). The fixed
-        // container interferes with autosize's measurement/ack. With size:None the
-        // surface lets autosize drive — testing if direct wrap gives the low count.
-        use cosmic::widget::autosize;
-        static AUTOSIZE_ID: std::sync::LazyLock<cosmic::widget::Id> =
-            std::sync::LazyLock::new(|| cosmic::widget::Id::new("soulless-autosize"));
-        autosize::autosize(self.view(), AUTOSIZE_ID.clone())
-            .max_width(crate::position::layout::WINDOW_WIDTH)
-            .max_height(crate::position::layout::WINDOW_HEIGHT)
-            .auto_width(false)
-            .auto_height(false)
-            .into()
+        // NO autosize, explicit surface size. Testing if autosize itself is
+        // generating internal RequestResize (size-request -> internal resize event
+        // -> autosize responds -> loop, never hitting the wire).
+        self.view()
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
         Subscription::batch([
             crate::keep_alive::subscription(),
-            event::listen().map(|ev| {
-                // DIAGNOSTIC: log window + wayland events to see what fires on click-away.
-                match &ev {
-                    cosmic::iced::Event::Window(we) => {
-                        eprintln!("[EVT] Window: {:?}", we);
-                    }
-                    cosmic::iced::Event::PlatformSpecific(
-                        cosmic::iced::event::PlatformSpecific::Wayland(we),
-                    ) => {
-                        eprintln!("[EVT] Wayland: {:?}", we);
-                    }
-                    _ => {}
+            // CRITICAL: filter events. A blanket listen().map(WindowEvent) forwards
+            // EVERY event — including per-frame redraw events — back into the message
+            // loop, and each message re-arms a render => self-sustaining ~110fps
+            // invalidation flood. Return Some ONLY for events we actually handle;
+            // everything else (frame events especially) returns None and the loop
+            // settles. (Matches cosmic-launcher's listen_raw filtering.)
+            event::listen_with(|ev, _status, _id| match &ev {
+                // Layer surface events (dismiss on Unfocused)
+                cosmic::iced::Event::PlatformSpecific(
+                    cosmic::iced::event::PlatformSpecific::Wayland(
+                        cosmic::iced::event::wayland::Event::Layer(..),
+                    ),
+                ) => Some(Message::WindowEvent(ev)),
+                // Output events (monitor geometry capture)
+                cosmic::iced::Event::PlatformSpecific(
+                    cosmic::iced::event::PlatformSpecific::Wayland(
+                        cosmic::iced::event::wayland::Event::Output(..),
+                    ),
+                ) => Some(Message::WindowEvent(ev)),
+                // Mouse motion (cursor tracking)
+                cosmic::iced::Event::Mouse(cosmic::iced::mouse::Event::CursorMoved { .. }) => {
+                    Some(Message::WindowEvent(ev))
                 }
-                Message::WindowEvent(ev)
+                // Everything else (frame/redraw/etc.) -> None. Breaks the flood.
+                _ => None,
             }),
             cosmic::iced::keyboard::listen().map(|event| {
                 match event {
