@@ -30,6 +30,13 @@ use crate::position::layout::TOOLBOX_WIDTH;
 use crate::search::indexer::AppSource;
 const GRID_COLUMNS: usize = 4;
 const ICON_SIZE: f32 = 42.0;
+// Fixed cell width so every app tile is identical and columns align across rows.
+// 460px panel / 4 cols, minus gaps/padding, leaves ~100px per cell.
+const CELL_WIDTH: f32 = 100.0;
+const CELL_HEIGHT: f32 = 100.0; // square tiles
+// Faint glass background behind each app tile (matches the left rail / file rows)
+// so icons sit in a consistent container instead of floating on the wallpaper.
+const TILE_BG_IDLE: cosmic::iced::Color = cosmic::iced::Color { r: 1.0, g: 1.0, b: 1.0, a: 0.04 };
 
 // Cap picker render to prevent the freeze — was building 200+ widget trees
 // per frame. 50 is plenty; typing filters it down fast.
@@ -717,15 +724,27 @@ fn drawer_app_icon<'a>(
     let label = text(crate::utils::truncate_label(&app.name, 12)).size(12);
 
     let content = column![icon_widget, label]
-        .spacing(4)
-        .align_x(Horizontal::Center);
+        .spacing(6)
+        .align_x(Horizontal::Center)
+        .width(Length::Fill);
 
     let bg = if is_focused {
-        Some(crate::ui::theme::STEEL_TOP.into())
+        crate::ui::theme::STEEL_TOP
     } else {
-        None
+        TILE_BG_IDLE
     };
-    mouse_area(container(content).padding(6).style(move |_: &cosmic::iced::Theme| cosmic::iced::widget::container::Style { background: bg, ..Default::default() }))
+    let tile = container(content)
+        .width(Length::Fixed(CELL_WIDTH))
+        .height(Length::Fixed(CELL_HEIGHT))
+        .padding(8)
+        .center_y(Length::Fixed(CELL_HEIGHT))
+        .style(move |_: &cosmic::iced::Theme| cosmic::iced::widget::container::Style {
+            background: Some(bg.into()),
+            // sharp corners (radius 0) — matches the hard-edged identity
+            border: cosmic::iced::Border { radius: 0.0.into(), ..Default::default() },
+            ..Default::default()
+        });
+    mouse_area(tile)
         .on_press(SearchMessage::AppClicked(app.exec.clone()))
         .on_right_press(SearchMessage::RightClickDrawerApp(
             drawer_name.to_string(),
@@ -1107,17 +1126,27 @@ fn app_icon_button<'a>(
             .height(Length::Fixed(ICON_SIZE)),
         text(label).size(12),
     ]
-    .spacing(4)
-    .align_x(Horizontal::Center);
+    .spacing(6)
+    .align_x(Horizontal::Center)
+    .width(Length::Fill);
 
     let bg = if is_focused {
-        Some(crate::ui::theme::STEEL_TOP.into())
+        crate::ui::theme::STEEL_TOP
     } else {
-        None
+        TILE_BG_IDLE
     };
-    let tile = container(content).padding(6).style(move |_: &cosmic::iced::Theme| {
-        cosmic::iced::widget::container::Style { background: bg, ..Default::default() }
-    });
+    let tile = container(content)
+        .width(Length::Fixed(CELL_WIDTH))
+        .height(Length::Fixed(CELL_HEIGHT))
+        .padding(8)
+        .center_y(Length::Fixed(CELL_HEIGHT))
+        .style(move |_: &cosmic::iced::Theme| {
+            cosmic::iced::widget::container::Style {
+                background: Some(bg.into()),
+                border: cosmic::iced::Border { radius: 0.0.into(), ..Default::default() },
+                ..Default::default()
+            }
+        });
     let mut area = mouse_area(tile)
         .on_press(SearchMessage::AppClicked(exec));
     if let Some(dp) = &app.desktop_path {
