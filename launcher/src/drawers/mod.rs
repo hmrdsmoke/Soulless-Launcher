@@ -617,7 +617,7 @@ fn drawer_contents_view<'a>(
                         let flat_idx = row_i * GRID_COLUMNS + col_i;
                         let is_focused = focused_idx == Some(flat_idx);
                         grid_row = grid_row.push(
-                            drawer_app_icon(app, drawer_name, app_id, is_focused)
+                            drawer_app_icon(app, drawer_name, app_id, is_focused, flat_idx)
                         );
                     }
                     col.push(grid_row)
@@ -716,6 +716,7 @@ fn drawer_app_icon<'a>(
     drawer_name: &'a str,
     app_id: &'a str,
     is_focused: bool,
+    idx: usize,
 ) -> Element<'a, SearchMessage> {
     let icon_widget = image(&app.icon_path)
         .width(Length::Fixed(ICON_SIZE))
@@ -753,6 +754,8 @@ fn drawer_app_icon<'a>(
             ..Default::default()
         });
     mouse_area(tile)
+        // Hover sets focus -> bright steel highlight + black label (see #23).
+        .on_enter(SearchMessage::FocusApp(idx))
         .on_press(SearchMessage::AppClicked(app.exec.clone()))
         .on_right_press(SearchMessage::RightClickDrawerApp(
             drawer_name.to_string(),
@@ -987,7 +990,7 @@ fn search_results_view<'a>(
             .fold(column!().spacing(8), |col, chunk| {
                 let mut grid_row = row!().spacing(8);
                 for (flat, app) in chunk {
-                    grid_row = grid_row.push(app_icon_button(app, *flat == focused.unwrap_or(usize::MAX)));
+                    grid_row = grid_row.push(app_icon_button(app, *flat == focused.unwrap_or(usize::MAX), *flat));
                 }
                 col.push(grid_row)
             });
@@ -1119,6 +1122,7 @@ fn origin_egg_view<'a>() -> Element<'a, SearchMessage> {
 fn app_icon_button<'a>(
     app: &'a crate::search::indexer::AppEntry,
     is_focused: bool,
+    idx: usize,
 ) -> Element<'a, SearchMessage> {
     let exec = app.exec.clone();
 
@@ -1161,6 +1165,8 @@ fn app_icon_button<'a>(
             }
         });
     let mut area = mouse_area(tile)
+        // Hover sets focus -> steel highlight + black label (see #23).
+        .on_enter(SearchMessage::FocusApp(idx))
         .on_press(SearchMessage::AppClicked(exec));
     if let Some(dp) = &app.desktop_path {
         area = area.on_right_press(SearchMessage::RightClickSearchApp(
