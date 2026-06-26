@@ -90,6 +90,24 @@ pub struct Soulless {
     bg_handle:  Option<cosmic::iced::widget::image::Handle>,
     window_id:  cosmic::iced::window::Id,
     screen_size: Option<(u32, u32)>,
+    /// Whether the layer surface is currently open. Guards destroy_layer_surface
+    /// so a second dismiss trigger (e.g. Unfocused right after Esc) is a no-op
+    /// instead of destroying an already-destroyed surface.
+    surface_open: bool,
+}
+
+impl Soulless {
+    /// Guarded dismiss: only destroys the layer surface if it's currently open,
+    /// so a second dismiss trigger (e.g. Unfocused right after Esc) is a safe
+    /// no-op instead of destroying an already-destroyed surface.
+    fn dismiss(&mut self) -> Task<cosmic::Action<Message>> {
+        if self.surface_open {
+            self.surface_open = false;
+            destroy_layer_surface(self.window_id)
+        } else {
+            Task::none()
+        }
+    }
 }
 
 impl cosmic::Application for Soulless {
@@ -145,6 +163,7 @@ impl cosmic::Application for Soulless {
                 bg_handle,
                 window_id,
                 screen_size: None,
+                surface_open: false,
             },
             // Stage 2 TEST: do NOT create the surface at init. Create it on-demand
             // in dbus_activation (warm daemon) to test whether that kills the flood.
@@ -185,7 +204,7 @@ impl cosmic::Application for Soulless {
                     {
                     }
 
-                    destroy_layer_surface(self.window_id)
+                    self.dismiss()
                 } else {
                     Task::none()
                 }
@@ -264,7 +283,7 @@ impl cosmic::Application for Soulless {
                     ),
                 ),
             )) => {
-                destroy_layer_surface(self.window_id)
+                self.dismiss()
             }
 
             // ── Drag-and-drop ────────────────────────────────────────────
@@ -346,7 +365,7 @@ impl cosmic::Application for Soulless {
             }
 
             Message::RequestClose => {
-                destroy_layer_surface(self.window_id)
+                self.dismiss()
             }
             Message::Noop => Task::none(),
             Message::TabPressed => {
@@ -415,7 +434,7 @@ impl cosmic::Application for Soulless {
                         let clean = crate::utils::strip_desktop_placeholders(&exec);
                         let _ = std::process::Command::new("sh")
                             .arg("-c").arg(&clean).spawn();
-                        return destroy_layer_surface(self.window_id);
+                        return self.dismiss();
                     }
                 }
                 if self.search.show_search_results {
@@ -424,7 +443,7 @@ impl cosmic::Application for Soulless {
                         let clean = crate::utils::strip_desktop_placeholders(&exec);
                         let _ = std::process::Command::new("sh")
                             .arg("-c").arg(&clean).spawn();
-                        return destroy_layer_surface(self.window_id);
+                        return self.dismiss();
                     }
                 }
                 Task::none()
@@ -499,6 +518,7 @@ impl cosmic::Application for Soulless {
             Details::Activate => {
                 // Warm daemon retains last session's state; reset to fresh on open.
                 self.search.reset_to_default();
+                self.surface_open = true;
                 crate::position::placement::LauncherPosition::open(
                     self.window_id,
                     self.screen_size,
