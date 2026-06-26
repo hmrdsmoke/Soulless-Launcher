@@ -43,6 +43,47 @@ impl LauncherPosition {
         cosmic::iced::Point::new(x, y)
     }
 
+    /// Read COSMIC panel's anchor edge from config (plain one-word file:
+    /// "Top"/"Bottom"/"Left"/"Right"). Falls back to Bottom if unreadable.
+    /// This makes the launcher follow the panel to whichever screen edge it's on.
+    fn panel_anchor() -> Anchor {
+        match Self::read_panel_str("anchor").trim() {
+            "Top" => Anchor::TOP,
+            "Left" => Anchor::LEFT,
+            "Right" => Anchor::RIGHT,
+            _ => Anchor::BOTTOM, // "Bottom" or unknown
+        }
+    }
+
+    /// Read a single COSMIC panel config value (plain one-word files).
+    fn read_panel_str(key: &str) -> String {
+        dirs::config_dir()
+            .map(|p| p.join(format!("cosmic/com.system76.CosmicPanel.Panel/v1/{key}")))
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .unwrap_or_default()
+    }
+
+    /// Panel thickness in px, derived from the COSMIC size enum (XS..XL).
+    /// Used as a margin so the launcher clears the panel instead of overlapping.
+    fn panel_size_px() -> i32 {
+        // Complete clearance per panel size (visual height incl. border/spacing).
+        // Tuned by observation: bigger panels need proportionally more, smaller less.
+        let raw = Self::read_panel_str("size");
+        match raw.trim() {
+            "XS" => 32,
+            "S" => 40,
+            "M" => 52,
+            "L" => 64,
+            "XL" => 78,
+            other => other
+                .strip_prefix("Custom(")
+                .and_then(|s| s.strip_suffix(")"))
+                .and_then(|s| s.trim().parse::<i32>().ok())
+                .map(|s| s + 12) // custom px + small border allowance
+                .unwrap_or(44),
+        }
+    }
+
     /// Build the layer shell settings for this launcher.
     fn surface_settings(id: window::Id, screen: Option<(u32, u32)>) -> SctkLayerSurfaceSettings {
         // Screen-aware sizing: the launcher now knows the monitor dimensions (from
@@ -57,8 +98,23 @@ impl LauncherPosition {
         surface.id = id;
         surface.keyboard_interactivity = KeyboardInteractivity::OnDemand;
         surface.layer = Layer::Top;
-        surface.anchor = Anchor::BOTTOM; // bottom edge, compositor centers horizontally
-        surface.margin.bottom = PANEL_HEIGHT as i32;
+        // Panel-aware: anchor to whichever edge the COSMIC panel is on.
+        // Panel sets exclusive_zone=true so the compositor reserves its space;
+        // our exclusive_zone=-1 respects that reservation, so the compositor
+        // automatically offsets us past the panel — no manual margin needed.
+        let anchor = Self::panel_anchor();
+        let gap = Self::panel_size_px();
+        surface.anchor = anchor;
+        // Clear the panel: offset on whichever edge it's anchored to.
+        if anchor == Anchor::TOP {
+            surface.margin.top = gap;
+        } else if anchor == Anchor::LEFT {
+            surface.margin.left = gap;
+        } else if anchor == Anchor::RIGHT {
+            surface.margin.right = gap;
+        } else {
+            surface.margin.bottom = gap;
+        }
         // size: None so autosize controls sizing AND acks the compositor's configure
         // events (the ack completes the layer-shell handshake; without it the
         // compositor re-sends configure forever = the RequestResize flood).
