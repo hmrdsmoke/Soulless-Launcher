@@ -13,7 +13,7 @@
 use super::layout::{PANEL_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use cosmic::iced::advanced::layout::Limits;
 use cosmic::iced::platform_specific::shell::commands::layer_surface::{
-    Anchor, KeyboardInteractivity, Layer, get_layer_surface,
+    Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
 };
 use cosmic::iced::platform_specific::runtime::wayland::layer_surface::SctkLayerSurfaceSettings;
 use cosmic::iced::window;
@@ -33,7 +33,6 @@ enum Wing {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct LauncherPosition;
 
-#[allow(dead_code)] // TODO: layer shell — see issue #15
 impl LauncherPosition {
     // Fallback screen size — replaced by runtime detection in future.
     // === IN PROGRESS ===
@@ -190,6 +189,15 @@ impl LauncherPosition {
         get_layer_surface(Self::surface_settings(id, screen)).map(on_open)
     }
 
+
+    /// Destroys the layer shell surface. Mirrors open() so all surface
+    /// lifecycle stays in this module (per the file's open/close contract).
+    pub fn close<M>(id: window::Id) -> Task<M>
+    where
+        M: Send + 'static,
+    {
+        destroy_layer_surface(id)
+    }
     /// Focus the search bar. Call after open() completes.
     pub fn focus_search<M: 'static>() -> Task<M> {
         cosmic::widget::text_input::focus(

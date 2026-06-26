@@ -10,7 +10,6 @@
 
 use cosmic::prelude::*;
 use cosmic::iced::{
-    platform_specific::shell::commands::layer_surface::destroy_layer_surface,
     Subscription, Task,
     event, keyboard,
     window,
@@ -103,7 +102,7 @@ impl Soulless {
     fn dismiss(&mut self) -> Task<cosmic::Action<Message>> {
         if self.surface_open {
             self.surface_open = false;
-            destroy_layer_surface(self.window_id)
+            crate::position::placement::LauncherPosition::close(self.window_id)
         } else {
             Task::none()
         }
