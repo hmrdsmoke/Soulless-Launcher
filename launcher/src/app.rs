@@ -49,6 +49,8 @@ pub enum Message {
 
 #[derive(Debug, Clone)]
 pub enum SoullessSubCommand {
+    /// Reserved for a future `soulless toggle` CLI command (warm-daemon show/hide).
+    #[allow(dead_code)]
     Toggle,
 }
 
@@ -85,7 +87,6 @@ pub struct Soulless {
     fps:        crate::fps_monitor::FpsMonitorState,
     organizer:  soulless_organizer::OrganizerState,
     config:     crate::config::SoullessConfig,
-    cursor_pos: Option<cosmic::iced::Point>,
     bg_handle:  Option<cosmic::iced::widget::image::Handle>,
     window_id:  cosmic::iced::window::Id,
     screen_size: Option<(u32, u32)>,
@@ -141,7 +142,6 @@ impl cosmic::Application for Soulless {
                 fps:        crate::fps_monitor::FpsMonitorState::new(),
                 organizer: soulless_organizer::OrganizerState::new(),
                 config,
-                cursor_pos: None,
                 bg_handle,
                 window_id,
                 screen_size: None,
