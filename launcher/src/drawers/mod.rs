@@ -721,7 +721,15 @@ fn drawer_app_icon<'a>(
         .width(Length::Fixed(ICON_SIZE))
         .height(Length::Fixed(ICON_SIZE));
 
-    let label = text(crate::utils::truncate_label(&app.name, 12)).size(12);
+    // Bright STEEL_TOP highlight on focus/hover would wash out light text,
+    // so flip the label to near-black when focused for readable contrast.
+    let label = text(crate::utils::truncate_label(&app.name, 12))
+        .size(12)
+        .color(if is_focused {
+            cosmic::iced::Color::from_rgb(0.05, 0.05, 0.07)
+        } else {
+            cosmic::iced::Color::from_rgb(0.92, 0.92, 0.95)
+        });
 
     let content = column![icon_widget, label]
         .spacing(6)
@@ -1120,11 +1128,16 @@ fn app_icon_button<'a>(
         app.name.clone()
     };
 
+    let label_color = if is_focused {
+        cosmic::iced::Color::from_rgb(0.05, 0.05, 0.07) // near-black on bright steel
+    } else {
+        cosmic::iced::Color::from_rgb(0.92, 0.92, 0.95) // light on dark glass
+    };
     let content = column![
         image(&app.icon_path)
             .width(Length::Fixed(ICON_SIZE))
             .height(Length::Fixed(ICON_SIZE)),
-        text(label).size(12),
+        text(label).size(12).color(label_color),
     ]
     .spacing(6)
     .align_x(Horizontal::Center)
