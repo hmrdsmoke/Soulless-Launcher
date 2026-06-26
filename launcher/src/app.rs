@@ -508,7 +508,7 @@ impl cosmic::Application for Soulless {
             // crate::network_monitor::subscription().map(Message::Network),
             // crate::system_monitor::subscription().map(Message::System),
             // crate::hardware_monitor::subscription().map(Message::Hardware),
-            // crate::fps_monitor::subscription().map(Message::Fps),
+            crate::fps_monitor::subscription().map(Message::Fps),
         ])
     }
 }
