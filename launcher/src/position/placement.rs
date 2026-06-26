@@ -19,11 +19,14 @@ use cosmic::iced::platform_specific::runtime::wayland::layer_surface::SctkLayerS
 use cosmic::iced::window;
 use cosmic::iced::Task;
 
-/// Which COSMIC bar wing the applet is in (drives launcher corner anchoring).
+/// Which array of a COSMIC bar's wings the applet is in.
+/// First/Second are orientation-neutral: for a horizontal bar (top/bottom)
+/// First=left, Second=right; for a vertical bar (left/right) First=top,
+/// Second=bottom. The mapping to a screen direction happens at anchor time.
 #[derive(Clone, Copy)]
 enum Wing {
-    Left,
-    Right,
+    First,
+    Second,
     Center,
 }
 
@@ -75,9 +78,9 @@ impl LauncherPosition {
                 let pos = wings.find(Self::APPLET_ID).unwrap();
                 let boundary = wings.find("], [").or_else(|| wings.find("],["));
                 let wing = match boundary {
-                    Some(b) if pos < b => Wing::Left,
-                    Some(_) => Wing::Right,
-                    None => Wing::Left, // single array, treat as left
+                    Some(b) if pos < b => Wing::First,
+                    Some(_) => Wing::Second,
+                    None => Wing::First, // single array, treat as first
                 };
                 return (bar, wing);
             }
@@ -137,13 +140,26 @@ impl LauncherPosition {
         let (bar, wing) = Self::find_applet_bar();
         let edge = Self::bar_anchor(bar);
         let gap = Self::bar_size_px(bar);
+        eprintln!(
+            "[PLACEMENT] bar={} wing={} edge_raw={:?} gap={}",
+            bar,
+            match wing { Wing::First => "First", Wing::Second => "Second", Wing::Center => "Center" },
+            Self::read_bar_str(bar, "anchor"),
+            gap
+        );
 
-        // Edge flag = the bar's screen edge. Wing flag = left/right hug.
+        // Map the wing to a screen direction based on the bar's orientation.
+        // Horizontal bar (Top/Bottom): wings run left/right.
+        // Vertical bar (Left/Right):   wings run top/bottom.
+        // First array = start of the bar (left for horizontal, top for vertical).
+        let horizontal_bar = edge == Anchor::TOP || edge == Anchor::BOTTOM;
         let mut anchor = edge;
-        match wing {
-            Wing::Left => anchor = anchor | Anchor::LEFT,
-            Wing::Right => anchor = anchor | Anchor::RIGHT,
-            Wing::Center => {} // no horizontal flag -> compositor centers
+        match (wing, horizontal_bar) {
+            (Wing::First, true) => anchor = anchor | Anchor::LEFT,
+            (Wing::Second, true) => anchor = anchor | Anchor::RIGHT,
+            (Wing::First, false) => anchor = anchor | Anchor::TOP,
+            (Wing::Second, false) => anchor = anchor | Anchor::BOTTOM,
+            (Wing::Center, _) => {} // center on the bar's axis
         }
         surface.anchor = anchor;
 
