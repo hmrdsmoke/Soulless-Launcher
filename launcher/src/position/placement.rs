@@ -55,7 +55,7 @@ impl LauncherPosition {
 
         let mut surface = SctkLayerSurfaceSettings::default();
         surface.id = id;
-        surface.keyboard_interactivity = KeyboardInteractivity::Exclusive;
+        surface.keyboard_interactivity = KeyboardInteractivity::OnDemand;
         surface.layer = Layer::Top;
         surface.anchor = Anchor::BOTTOM; // bottom edge, compositor centers horizontally
         surface.margin.bottom = PANEL_HEIGHT as i32;

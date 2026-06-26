@@ -10,6 +10,7 @@
 
 use cosmic::prelude::*;
 use cosmic::iced::{
+    platform_specific::shell::commands::layer_surface::destroy_layer_surface,
     Subscription, Task,
     event, keyboard,
     window,
@@ -183,9 +184,7 @@ impl cosmic::Application for Soulless {
                     {
                     }
 
-                    cosmic::task::message(cosmic::Action::Cosmic(
-                        cosmic::app::Action::Close,
-                    ))
+                    destroy_layer_surface(self.window_id)
                 } else {
                     Task::none()
                 }
@@ -267,9 +266,7 @@ impl cosmic::Application for Soulless {
                 ),
             )) => {
                 eprintln!("[HANDLER] LayerEvent::Unfocused HIT -> issuing Close");
-                cosmic::task::message(cosmic::Action::Cosmic(
-                    cosmic::app::Action::Close,
-                ))
+                destroy_layer_surface(self.window_id)
             }
 
             // ── Drag-and-drop ────────────────────────────────────────────
@@ -351,9 +348,7 @@ impl cosmic::Application for Soulless {
             }
 
             Message::RequestClose => {
-                cosmic::task::message(cosmic::Action::Cosmic(
-                    cosmic::app::Action::Close,
-                ))
+                destroy_layer_surface(self.window_id)
             }
             Message::Noop => Task::none(),
             Message::EnterPressed => {
@@ -363,9 +358,7 @@ impl cosmic::Application for Soulless {
                         let clean = crate::utils::strip_desktop_placeholders(&exec);
                         let _ = std::process::Command::new("sh")
                             .arg("-c").arg(&clean).spawn();
-                        return cosmic::task::message(cosmic::Action::Cosmic(
-                            cosmic::app::Action::Close,
-                        ));
+                        return destroy_layer_surface(self.window_id);
                     }
                 }
                 if self.search.show_search_results {
@@ -374,9 +367,7 @@ impl cosmic::Application for Soulless {
                         let clean = crate::utils::strip_desktop_placeholders(&exec);
                         let _ = std::process::Command::new("sh")
                             .arg("-c").arg(&clean).spawn();
-                        return cosmic::task::message(cosmic::Action::Cosmic(
-                            cosmic::app::Action::Close,
-                        ));
+                        return destroy_layer_surface(self.window_id);
                     }
                 }
                 Task::none()
@@ -495,6 +486,9 @@ impl cosmic::Application for Soulless {
                 cosmic::iced::Event::Mouse(cosmic::iced::mouse::Event::CursorMoved { .. }) => {
                     Some(Message::WindowEvent(ev))
                 }
+                cosmic::iced::Event::Keyboard(
+                    cosmic::iced::keyboard::Event::KeyPressed { .. },
+                ) => Some(Message::WindowEvent(ev)),
                 // Everything else (frame/redraw/etc.) -> None. Breaks the flood.
                 _ => None,
             }),
