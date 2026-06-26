@@ -51,5 +51,6 @@
         "cargo-sources.json"
       ]
     }
-  ]
+  ],
+  "appstream-compose": false
 }
