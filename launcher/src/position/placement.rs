@@ -10,7 +10,7 @@
 //   - focus() → focuses the search bar
 // main.rs calls these; placement.rs owns the how and where.
 
-use super::layout::{PANEL_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
+use super::layout::{WINDOW_HEIGHT, WINDOW_WIDTH};
 use cosmic::iced::advanced::layout::Limits;
 use cosmic::iced::platform_specific::shell::commands::layer_surface::{
     Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
@@ -38,20 +38,10 @@ impl LauncherPosition {
     // === IN PROGRESS ===
     // real monitor geometry detection (winit/wayland) :: in progress
     // configurable dock position via settings :: in progress
-    const SCREEN_WIDTH: f32 = 2560.0;
-    const SCREEN_HEIGHT: f32 = 1440.0;
 
     /// Fallback: used only when layer shell is unavailable.
-    pub fn window_size(self) -> cosmic::iced::Size {
-        cosmic::iced::Size::new(WINDOW_WIDTH, WINDOW_HEIGHT)
-    }
 
     /// Fallback: used only when layer shell is unavailable.
-    pub fn window_position(self) -> cosmic::iced::Point {
-        let x = Self::SCREEN_WIDTH - WINDOW_WIDTH;
-        let y = Self::SCREEN_HEIGHT - WINDOW_HEIGHT - PANEL_HEIGHT;
-        cosmic::iced::Point::new(x, y)
-    }
 
     /// Read a single config value from a given bar ("Panel" or "Dock").
     fn read_bar_str(bar: &str, key: &str) -> String {
@@ -197,11 +187,5 @@ impl LauncherPosition {
         M: Send + 'static,
     {
         destroy_layer_surface(id)
-    }
-    /// Focus the search bar. Call after open() completes.
-    pub fn focus_search<M: 'static>() -> Task<M> {
-        cosmic::widget::text_input::focus(
-            cosmic::widget::Id::new("soulless-search-bar")
-        )
     }
 }

@@ -22,5 +22,3 @@ pub const RIGHT_PANEL_WIDTH: f32 = 460.0;
 /// Gap between left and right panels
 pub const PANEL_SPACING: f32 = 12.0;
 
-/// Estimated panel/dock height at bottom of screen (used for placement offset)
-pub const PANEL_HEIGHT: f32 = 0.0;
