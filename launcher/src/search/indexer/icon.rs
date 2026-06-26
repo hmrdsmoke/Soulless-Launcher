@@ -35,12 +35,6 @@ impl IconCache {
 
         let _ = std::fs::create_dir_all(&svg_cache_dir);
 
-        eprintln!(
-            "Icon cache dir: {} files",
-            std::fs::read_dir(&svg_cache_dir)
-                .map(|d| d.count())
-                .unwrap_or(0)
-        );
 
         Self {
             cache: HashMap::new(),
@@ -71,7 +65,6 @@ impl IconCache {
                 }
             })
             .unwrap_or_else(|| {
-                eprintln!("ICON MISS: {}", icon_name);
                 fallback_icon()
             });
 

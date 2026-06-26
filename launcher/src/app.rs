@@ -200,7 +200,6 @@ impl cosmic::Application for Soulless {
                 window::Event::Focused,
             )) => {
                 // DIAGNOSTIC: auto-focus disabled to test if it drives a focus->rebuild loop
-                eprintln!("[FOCUSED] received (auto-focus disabled for test)");
                 Task::none()
             }
             // ── Keyboard ──────────────────────────────────────────────────
@@ -252,7 +251,6 @@ impl cosmic::Application for Soulless {
                 if let Some(info) = info {
                     if let Some((w, h)) = info.logical_size {
                         self.screen_size = Some((w as u32, h as u32));
-                        eprintln!("[GEOM] screen now {}x{}", w, h);
                     }
                 }
                 Task::none()
@@ -266,7 +264,6 @@ impl cosmic::Application for Soulless {
                     ),
                 ),
             )) => {
-                eprintln!("[HANDLER] LayerEvent::Unfocused HIT -> issuing Close");
                 destroy_layer_surface(self.window_id)
             }
 
@@ -498,10 +495,8 @@ impl cosmic::Application for Soulless {
         msg: cosmic::dbus_activation::Message,
     ) -> Task<cosmic::Action<Self::Message>> {
         use cosmic::dbus_activation::Details;
-        eprintln!("[DBUS] activation received");
         match msg.msg {
             Details::Activate => {
-                eprintln!("[DBUS] Activate -> creating surface on-demand (warm daemon)");
                 // Warm daemon retains last session's state; reset to fresh on open.
                 self.search.reset_to_default();
                 crate::position::placement::LauncherPosition::open(

@@ -140,13 +140,6 @@ impl LauncherPosition {
         let (bar, wing) = Self::find_applet_bar();
         let edge = Self::bar_anchor(bar);
         let gap = Self::bar_size_px(bar);
-        eprintln!(
-            "[PLACEMENT] bar={} wing={} edge_raw={:?} gap={}",
-            bar,
-            match wing { Wing::First => "First", Wing::Second => "Second", Wing::Center => "Center" },
-            Self::read_bar_str(bar, "anchor"),
-            gap
-        );
 
         // Map the wing to a screen direction based on the bar's orientation.
         // Horizontal bar (Top/Bottom): wings run left/right.
