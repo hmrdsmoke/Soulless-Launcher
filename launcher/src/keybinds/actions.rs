@@ -28,30 +28,6 @@ where
         // ── Esc → close launcher ─────────────────────────────────────────
         keyboard::Key::Named(Named::Escape) => f_exit(),
 
-        // ── Tab → cycle to next drawer, Shift+Tab passes through ─────────
-        keyboard::Key::Named(Named::Tab) => {
-            if modifiers.shift() {
-                return Task::none();
-            }
-            let next_name = {
-                let drawers = search.drawer_state.drawers();
-                if drawers.is_empty() {
-                    return Task::none();
-                }
-                let current_idx = if let search::OpenDrawer::Pinned(name) = &search.current_open_drawer {
-                    drawers.iter().position(|d| &d.name == name)
-                } else {
-                    None
-                };
-                let next_idx = current_idx.map(|i| (i + 1) % drawers.len()).unwrap_or(0);
-                drawers[next_idx].name.clone()
-            };
-            search.update(search::Message::DrawerClicked(next_name.clone()));
-            cosmic::widget::button::focus(
-                cosmic::widget::Id::new(format!("drawer-btn-{}", next_name))
-            )
-        }
-
         // ── ArrowDown → into search results, else next drawer ─────────────
         keyboard::Key::Named(Named::ArrowDown) => {
             // If search results are showing, Arrow Down navigates into/through

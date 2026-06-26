@@ -36,6 +36,7 @@ pub enum Message {
     WindowOpened(cosmic::iced::window::Id),
     Organizer(soulless_organizer::Message),
     EnterPressed,
+    TabPressed,
     RequestClose,
     Noop,
 }
@@ -351,6 +352,65 @@ impl cosmic::Application for Soulless {
                 destroy_layer_surface(self.window_id)
             }
             Message::Noop => Task::none(),
+            Message::TabPressed => {
+                // Tab cycles: Search -> drawer0 -> ... -> lastDrawer -> Search ...
+                // Handled on KEY RELEASE so autorepeat can't skip stops per press.
+                // The search bar is a real stop in the loop (after the last drawer).
+                let drawers = self.search.drawer_state.drawers();
+                if drawers.is_empty() {
+                    // No drawers: Tab just focuses the search bar.
+                    self.search
+                        .update(crate::search::Message::DrawerClicked(String::new()));
+                    return cosmic::widget::text_input::focus(cosmic::widget::Id::new(
+                        "soulless-search-bar",
+                    ))
+                    .map(cosmic::Action::App);
+                }
+
+                // Where are we now? Some(i) = on drawer i; None = on Search/other.
+                let current_idx = if let crate::search::OpenDrawer::Pinned(name) =
+                    &self.search.current_open_drawer
+                {
+                    drawers.iter().position(|d| &d.name == name)
+                } else {
+                    None
+                };
+
+                match current_idx {
+                    // On a drawer that's NOT the last -> next drawer.
+                    Some(i) if i + 1 < drawers.len() => {
+                        let next_name = drawers[i + 1].name.clone();
+                        self.search.update(crate::search::Message::DrawerClicked(
+                            next_name.clone(),
+                        ));
+                        cosmic::widget::button::focus(cosmic::widget::Id::new(format!(
+                            "drawer-btn-{}",
+                            next_name
+                        )))
+                        .map(cosmic::Action::App)
+                    }
+                    // On the LAST drawer -> wrap to the search bar.
+                    Some(_) => {
+                        self.search.current_open_drawer = crate::search::OpenDrawer::Search;
+                        cosmic::widget::text_input::focus(cosmic::widget::Id::new(
+                            "soulless-search-bar",
+                        ))
+                        .map(cosmic::Action::App)
+                    }
+                    // On Search (or anything else) -> first drawer.
+                    None => {
+                        let next_name = drawers[0].name.clone();
+                        self.search.update(crate::search::Message::DrawerClicked(
+                            next_name.clone(),
+                        ));
+                        cosmic::widget::button::focus(cosmic::widget::Id::new(format!(
+                            "drawer-btn-{}",
+                            next_name
+                        )))
+                        .map(cosmic::Action::App)
+                    }
+                }
+            }
             Message::EnterPressed => {
                 if let Some(idx) = self.search.focused_app_idx {
                     if let Some(exec) = self.search.focused_exec(idx) {
@@ -498,6 +558,11 @@ impl cosmic::Application for Soulless {
                         key: cosmic::iced::keyboard::Key::Named(cosmic::iced::keyboard::key::Named::Enter),
                         ..
                     } => Message::EnterPressed,
+                    cosmic::iced::keyboard::Event::KeyReleased {
+                        key: cosmic::iced::keyboard::Key::Named(cosmic::iced::keyboard::key::Named::Tab),
+                        modifiers,
+                        ..
+                    } if !modifiers.shift() => Message::TabPressed,
                     _ => Message::Noop,
                 }
             }),
