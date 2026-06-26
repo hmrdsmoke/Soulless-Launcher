@@ -32,7 +32,7 @@ const GRID_COLUMNS: usize = 4;
 const ICON_SIZE: f32 = 42.0;
 // Fixed cell width so every app tile is identical and columns align across rows.
 // 460px panel / 4 cols, minus gaps/padding, leaves ~100px per cell.
-const CELL_WIDTH: f32 = 100.0;
+const CELL_WIDTH: f32 = 96.0;
 const CELL_HEIGHT: f32 = 100.0; // square tiles
 // Faint glass background behind each app tile (matches the left rail / file rows)
 // so icons sit in a consistent container instead of floating on the wallpaper.
@@ -612,7 +612,7 @@ fn drawer_contents_view<'a>(
                 .chunks(GRID_COLUMNS)
                 .enumerate()
                 .fold(column!().spacing(8), |col, (row_i, chunk)| {
-                    let mut grid_row = row!().spacing(8).width(Length::Fill);
+                    let mut grid_row = row!().spacing(8);
                     for (col_i, (app_id, app)) in chunk.iter().enumerate() {
                         let flat_idx = row_i * GRID_COLUMNS + col_i;
                         let is_focused = focused_idx == Some(flat_idx);
