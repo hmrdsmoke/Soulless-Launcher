@@ -19,6 +19,14 @@ use cosmic::iced::platform_specific::runtime::wayland::layer_surface::SctkLayerS
 use cosmic::iced::window;
 use cosmic::iced::Task;
 
+/// Which COSMIC bar wing the applet is in (drives launcher corner anchoring).
+#[derive(Clone, Copy)]
+enum Wing {
+    Left,
+    Right,
+    Center,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct LauncherPosition;
 
@@ -43,33 +51,47 @@ impl LauncherPosition {
         cosmic::iced::Point::new(x, y)
     }
 
-    /// Read COSMIC panel's anchor edge from config (plain one-word file:
-    /// "Top"/"Bottom"/"Left"/"Right"). Falls back to Bottom if unreadable.
-    /// This makes the launcher follow the panel to whichever screen edge it's on.
-    fn panel_anchor() -> Anchor {
-        match Self::read_panel_str("anchor").trim() {
-            "Top" => Anchor::TOP,
-            "Left" => Anchor::LEFT,
-            "Right" => Anchor::RIGHT,
-            _ => Anchor::BOTTOM, // "Bottom" or unknown
-        }
-    }
-
-    /// Read a single COSMIC panel config value (plain one-word files).
-    fn read_panel_str(key: &str) -> String {
+    /// Read a single config value from a given bar ("Panel" or "Dock").
+    fn read_bar_str(bar: &str, key: &str) -> String {
         dirs::config_dir()
-            .map(|p| p.join(format!("cosmic/com.system76.CosmicPanel.Panel/v1/{key}")))
+            .map(|p| p.join(format!("cosmic/com.system76.CosmicPanel.{bar}/v1/{key}")))
             .and_then(|p| std::fs::read_to_string(p).ok())
             .unwrap_or_default()
     }
 
-    /// Panel thickness in px, derived from the COSMIC size enum (XS..XL).
-    /// Used as a margin so the launcher clears the panel instead of overlapping.
-    fn panel_size_px() -> i32 {
-        // Complete clearance per panel size (visual height incl. border/spacing).
-        // Tuned by observation: bigger panels need proportionally more, smaller less.
-        let raw = Self::read_panel_str("size");
-        match raw.trim() {
+    const APPLET_ID: &'static str = "com.github.hmrdsmoke.soulless-applet";
+
+    /// Find which bar + wing the soulless applet is in.
+    /// Searches Panel first, then Dock. plugins_wings format is
+    /// `Some(([left...], [right...]))`; plugins_center is `Some([...])`.
+    /// Returns (bar, wing). Defaults to ("Panel", Center) if not found.
+    fn find_applet_bar() -> (&'static str, Wing) {
+        for bar in ["Panel", "Dock"] {
+            let wings = Self::read_bar_str(bar, "plugins_wings");
+            // Split the two wing arrays. The file has the left array first,
+            // then the right. Find the boundary between `]` and the next `[`.
+            if wings.contains(Self::APPLET_ID) {
+                // Locate applet position and the array boundary "], ["
+                let pos = wings.find(Self::APPLET_ID).unwrap();
+                let boundary = wings.find("], [").or_else(|| wings.find("],["));
+                let wing = match boundary {
+                    Some(b) if pos < b => Wing::Left,
+                    Some(_) => Wing::Right,
+                    None => Wing::Left, // single array, treat as left
+                };
+                return (bar, wing);
+            }
+            let center = Self::read_bar_str(bar, "plugins_center");
+            if center.contains(Self::APPLET_ID) {
+                return (bar, Wing::Center);
+            }
+        }
+        ("Panel", Wing::Center)
+    }
+
+    /// Bar thickness in px from the COSMIC size enum (XS..XL or Custom).
+    fn bar_size_px(bar: &str) -> i32 {
+        match Self::read_bar_str(bar, "size").trim() {
             "XS" => 32,
             "S" => 40,
             "M" => 52,
@@ -79,8 +101,18 @@ impl LauncherPosition {
                 .strip_prefix("Custom(")
                 .and_then(|s| s.strip_suffix(")"))
                 .and_then(|s| s.trim().parse::<i32>().ok())
-                .map(|s| s + 12) // custom px + small border allowance
+                .map(|s| s + 12)
                 .unwrap_or(44),
+        }
+    }
+
+    /// Read a bar's edge anchor.
+    fn bar_anchor(bar: &str) -> Anchor {
+        match Self::read_bar_str(bar, "anchor").trim() {
+            "Top" => Anchor::TOP,
+            "Left" => Anchor::LEFT,
+            "Right" => Anchor::RIGHT,
+            _ => Anchor::BOTTOM,
         }
     }
 
@@ -98,19 +130,29 @@ impl LauncherPosition {
         surface.id = id;
         surface.keyboard_interactivity = KeyboardInteractivity::OnDemand;
         surface.layer = Layer::Top;
-        // Panel-aware: anchor to whichever edge the COSMIC panel is on.
-        // Panel sets exclusive_zone=true so the compositor reserves its space;
-        // our exclusive_zone=-1 respects that reservation, so the compositor
-        // automatically offsets us past the panel — no manual margin needed.
-        let anchor = Self::panel_anchor();
-        let gap = Self::panel_size_px();
+        // Applet-aware placement: find which bar (Panel/Dock) + wing the applet
+        // is in, anchor the launcher to that bar's edge AND that wing's side so
+        // it pops up from the corner where the button lives. Clear the bar with
+        // its size-derived margin.
+        let (bar, wing) = Self::find_applet_bar();
+        let edge = Self::bar_anchor(bar);
+        let gap = Self::bar_size_px(bar);
+
+        // Edge flag = the bar's screen edge. Wing flag = left/right hug.
+        let mut anchor = edge;
+        match wing {
+            Wing::Left => anchor = anchor | Anchor::LEFT,
+            Wing::Right => anchor = anchor | Anchor::RIGHT,
+            Wing::Center => {} // no horizontal flag -> compositor centers
+        }
         surface.anchor = anchor;
-        // Clear the panel: offset on whichever edge it's anchored to.
-        if anchor == Anchor::TOP {
+
+        // Clear the bar on whichever edge it occupies.
+        if edge == Anchor::TOP {
             surface.margin.top = gap;
-        } else if anchor == Anchor::LEFT {
+        } else if edge == Anchor::LEFT {
             surface.margin.left = gap;
-        } else if anchor == Anchor::RIGHT {
+        } else if edge == Anchor::RIGHT {
             surface.margin.right = gap;
         } else {
             surface.margin.bottom = gap;
