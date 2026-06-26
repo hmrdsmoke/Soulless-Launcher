@@ -504,7 +504,7 @@ impl cosmic::Application for Soulless {
 
             cosmic::iced::window::open_events().map(Message::WindowOpened),
             // DIAGNOSTIC: monitors disabled to test RequestResize spam source
-            // soulless_organizer::subscription().map(Message::Organizer),
+            soulless_organizer::subscription().map(Message::Organizer),
             crate::network_monitor::subscription().map(Message::Network),
             crate::system_monitor::subscription().map(Message::System),
             crate::hardware_monitor::subscription().map(Message::Hardware),
