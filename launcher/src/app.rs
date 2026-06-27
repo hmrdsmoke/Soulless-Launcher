@@ -77,6 +77,20 @@ impl cosmic::app::CosmicFlags for SoullessFlags {
 
 // ── Application model ────────────────────────────────────────────────────────
 
+/// Identifies what a secondary window (popup surface) is showing, so
+/// view_window can render the correct content and update() can clean up
+/// the right state when the compositor closes it.
+#[derive(Clone, Debug)]
+pub enum WindowKind {
+    /// A right-click context menu popup. Carries the menu payload so the
+    /// popup surface can render it independently of the main launcher view.
+    ContextMenu(crate::search::ContextMenu),
+    /// A vault file-entry context menu popup (entry id + display name).
+    VaultMenu(String, String),
+    /// A vault hidden-app context menu popup (hidden app id).
+    VaultHiddenMenu(String),
+}
+
 pub struct Soulless {
     core:       cosmic::Core,
     search:     crate::search::Search,
@@ -96,6 +110,9 @@ pub struct Soulless {
     /// Last known cursor position (surface-relative). Updated from the existing
     /// CursorMoved subscription; used to position the context menu at the cursor.
     cursor_pos: cosmic::iced::Point,
+    /// Active popup surfaces (context menus), keyed by their window id. Lets
+    /// view_window render the right menu and update() clear state on close.
+    windows: std::collections::HashMap<cosmic::iced::window::Id, WindowKind>,
 }
 
 impl Soulless {
@@ -167,6 +184,7 @@ impl cosmic::Application for Soulless {
                 screen_size: None,
                 surface_open: false,
                 cursor_pos: cosmic::iced::Point::ORIGIN,
+                windows: std::collections::HashMap::new(),
             },
             // Stage 2 TEST: do NOT create the surface at init. Create it on-demand
             // in dbus_activation (warm daemon) to test whether that kills the flood.
