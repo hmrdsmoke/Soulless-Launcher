@@ -154,6 +154,11 @@ pub enum DrawerEditModal {
 
 // ── Search model ──────────────────────────────────────────────────────────────
 
+/// Max search results kept (after smart-ranking + tier sort). Fuzzy fills the
+/// depth so a broad query shows up to this many, ordered best-first. Caps both
+/// render AND keyboard nav (they read filtered_apps), keeping them in sync.
+const SEARCH_RESULT_CAP: usize = 800;
+
 pub struct Search {
     pub query: String,
 
@@ -968,6 +973,7 @@ impl Search {
                 score_b.cmp(&score_a)
             });
             self.tier_sort(&mut results);
+            results.truncate(SEARCH_RESULT_CAP);
             self.filtered_apps = results;
             self.show_search_results = true;
             return;
@@ -977,6 +983,7 @@ impl Search {
             // default selection (index 0) lands on an app, not a file.
             let mut idxs: Vec<usize> = (0..self.all_apps.len()).collect();
             self.tier_sort(&mut idxs);
+            idxs.truncate(SEARCH_RESULT_CAP);
             self.filtered_apps = idxs;
             self.show_search_results = true;
             return;
@@ -998,6 +1005,7 @@ impl Search {
             let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
             fuzzy_only.sort_by(|a, b| query::score_app(&self.all_apps[*b], &self.query, now).cmp(&query::score_app(&self.all_apps[*a], &self.query, now)));
             self.tier_sort(&mut fuzzy_only);
+            fuzzy_only.truncate(SEARCH_RESULT_CAP);
             self.filtered_apps = fuzzy_only;
             return;
         }
@@ -1019,6 +1027,7 @@ impl Search {
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
         results.sort_by(|a, b| query::score_app(&self.all_apps[*b], &self.query, now).cmp(&query::score_app(&self.all_apps[*a], &self.query, now)));
         self.tier_sort(&mut results);
+        results.truncate(SEARCH_RESULT_CAP);
         self.filtered_apps = results;
     }
 
@@ -1092,6 +1101,22 @@ impl Search {
             return self.drawer_state.apps_in_drawer(name).len();
         }
         0
+    }
+
+    /// Pixel scroll offset to keep the focused search-result item visible.
+    /// The results render in TWO sections: an icon-app grid (4-col, tall tiles)
+    /// on top, then a thin text-row list (binaries/files, 1-col) below. The flat
+    /// focused index spans both, but they have different geometry, so we compute
+    /// the focused item's real Y position section-aware.
+    pub fn focused_scroll_offset(&self) -> Option<f32> {
+        // All search results now render as uniform square tiles in one 4-column
+        // grid, so the focused item's pixel position is a simple row calc.
+        const GRID_COLUMNS: usize = 4;
+        const ROW_H: f32 = 108.0; // tile (100) + grid spacing (8)
+        let idx = self.focused_app_idx?;
+        let row = (idx / GRID_COLUMNS) as f32;
+        // Bias up one row so the focused row isn't glued to the top edge.
+        Some((row - 1.0).max(0.0) * ROW_H)
     }
 
     /// Exec string for the app at a given grid index.

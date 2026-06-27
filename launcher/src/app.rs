@@ -193,6 +193,13 @@ impl cosmic::Application for Soulless {
             }
 
             Message::Search(msg) => {
+                // Capture keyboard focus-nav BEFORE msg moves into update().
+                // Only keyboard nav scroll-follows; hover (FocusApp) must NOT
+                // scroll or it would yank the view on mouse-over.
+                let is_kbd_nav = matches!(
+                    msg,
+                    crate::search::Message::FocusNext | crate::search::Message::FocusPrev
+                );
                 if let Some(exec) = self.search.update(msg) {
                     let clean_exec = crate::utils::strip_desktop_placeholders(&exec);
 
@@ -204,6 +211,22 @@ impl cosmic::Application for Soulless {
                     }
 
                     self.dismiss()
+                } else if is_kbd_nav {
+                    // One discrete snap per keypress keeps the focused item in
+                    // view without continuous re-render (no flood).
+                    if let Some(idx) = self.search.focused_app_idx {
+                        let len = self.search.current_grid_len();
+                        eprintln!("[SCROLL] kbd_nav idx={} len={}", idx, len);
+                        if len > 1 {
+                            let y = idx as f32 / (len - 1) as f32;
+                            return cosmic::iced::widget::scrollable::snap_to(
+                                cosmic::widget::Id::new("soulless-results-scroll"),
+                                cosmic::iced::widget::scrollable::RelativeOffset { x: Some(0.0), y: Some(y) },
+                            )
+                            .map(cosmic::Action::App);
+                        }
+                    }
+                    Task::none()
                 } else {
                     Task::none()
                 }

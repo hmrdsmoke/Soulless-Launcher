@@ -27,7 +27,6 @@ use cosmic::iced::clipboard::mime::{AllowedMimeTypes, AsMimeTypes};
 use cosmic::widget::dnd_destination::dnd_destination_for_data;
 
 use crate::position::layout::TOOLBOX_WIDTH;
-use crate::search::indexer::AppSource;
 const GRID_COLUMNS: usize = 4;
 const ICON_SIZE: f32 = 42.0;
 // Fixed cell width so every app tile is identical and columns align across rows.
@@ -753,9 +752,8 @@ fn drawer_app_icon<'a>(
             border: cosmic::iced::Border { radius: 0.0.into(), ..Default::default() },
             ..Default::default()
         });
+    let _ = idx; // hover-focus removed (rebuild lag); highlight is keyboard-only
     mouse_area(tile)
-        // Hover sets focus -> bright steel highlight + black label (see #23).
-        .on_enter(SearchMessage::FocusApp(idx))
         .on_press(SearchMessage::AppClicked(app.exec.clone()))
         .on_right_press(SearchMessage::RightClickDrawerApp(
             drawer_name.to_string(),
@@ -974,18 +972,15 @@ fn search_results_view<'a>(
         .filter_map(|(flat, i)| search.app(*i).map(|a| (flat, a)))
         .collect();
 
-    // Cap render to prevent UI freeze with large result sets
-    const SEARCH_MAX_RENDER: usize = 200;
-    let pairs: Vec<_> = pairs.into_iter().take(SEARCH_MAX_RENDER).collect();
-    let (text_apps, icon_apps): (Vec<_>, Vec<_>) = pairs
-        .into_iter()
-        .partition(|(_, app)| matches!(app.source, AppSource::Binary | AppSource::File));
-
-
+    // No render cap — wgpu handles large grids. (Pre-wgpu this was capped at
+    // 200 to avoid UI freeze; rendering the full result set now.)
     let mut sections: Vec<Element<'a, SearchMessage>> = Vec::new();
 
-    if !icon_apps.is_empty() {
-        let grid = icon_apps
+    // ALL results (apps, binaries, files) render as uniform square tiles in one
+    // 4-column grid. Uniform geometry is what makes keyboard scroll-follow work
+    // (mixed grid+list geometry made it impossible to compute a correct offset).
+    if !pairs.is_empty() {
+        let grid = pairs
             .chunks(GRID_COLUMNS)
             .fold(column!().spacing(8), |col, chunk| {
                 let mut grid_row = row!().spacing(8);
@@ -997,78 +992,10 @@ fn search_results_view<'a>(
         sections.push(grid.into());
     }
 
-    if !text_apps.is_empty() {
-        let cli_rows: Vec<cosmic::Element<'a, SearchMessage>> = text_apps
-            .iter()
-            .map(|(flat, app)| {
-                let row_focused = Some(*flat) == focused;
-                let row_content = row![
-                    image(&app.icon_path)
-                        .width(Length::Fixed(16.0))
-                        .height(Length::Fixed(16.0)),
-                    text(&app.name).size(14),
-                ]
-                .spacing(8)
-                .align_y(Vertical::Center)
-                .padding([8, 12]);
-
-                let btn: cosmic::Element<'a, SearchMessage> =
-                    cosmic::widget::button::custom(row_content)
-                        .width(Length::Fill)
-                        .on_press(SearchMessage::AppClicked(app.exec.clone()))
-                        .class(cosmic::theme::Button::Custom {
-                            active: Box::new(|_, _| cosmic::widget::button::Style {
-                                background: Some(cosmic::iced::Color {
-                                    r: 0.08, g: 0.08, b: 0.09, a: 0.6,
-                                }.into()),
-                                border_color: crate::ui::theme::DRAWER_BTN_BORDER,
-                                border_width: 1.0,
-                                border_radius: cosmic::iced::border::rounded(0).radius,
-                                text_color: Some(crate::ui::theme::DRAWER_BTN_TEXT),
-                                ..Default::default()
-                            }),
-                            hovered: Box::new(|_, _| cosmic::widget::button::Style {
-                                background: Some(cosmic::iced::Color {
-                                    r: 0.75, g: 0.78, b: 0.82, a: 0.7,
-                                }.into()),
-                                border_color: crate::ui::theme::STEEL_TOP,
-                                border_width: 1.0,
-                                border_radius: cosmic::iced::border::rounded(0).radius,
-                                text_color: Some(crate::ui::theme::DRAWER_BTN_TEXT_HOVER),
-                                ..Default::default()
-                            }),
-                            pressed: Box::new(|_, _| cosmic::widget::button::Style {
-                                background: Some(crate::ui::theme::DRAWER_BTN_ACTIVE.into()),
-                                text_color: Some(crate::ui::theme::DRAWER_BTN_TEXT_HOVER),
-                                ..Default::default()
-                            }),
-                            disabled: Box::new(|_| cosmic::widget::button::Style::default()),
-                        })
-                        .into();
-                cosmic::widget::container(btn)
-                    .style(move |_: &cosmic::Theme| {
-                        if row_focused {
-                            cosmic::widget::container::Style {
-                                border: cosmic::iced::Border {
-                                    color: crate::ui::theme::STEEL_TOP,
-                                    width: 2.0,
-                                    radius: cosmic::iced::border::rounded(0).radius,
-                                },
-                                ..Default::default()
-                            }
-                        } else {
-                            cosmic::widget::container::Style::default()
-                        }
-                    })
-                    .into()
-            })
-            .collect();
-        let cli_col: cosmic::Element<'a, SearchMessage> =
-            cosmic::widget::column(cli_rows).spacing(2).into();
-        sections.push(Themer::new(None::<cosmic::Theme>, cli_col).into());
-    }
+    // (legacy cli/text-row rendering removed — everything is a tile now)
 
     scrollable(column(sections).spacing(12))
+        .id(cosmic::widget::Id::new("soulless-results-scroll"))
         .scrollbar_width(4)
         .scrollbar_padding(0)
         .scroller_width(4)
@@ -1124,6 +1051,8 @@ fn app_icon_button<'a>(
     is_focused: bool,
     idx: usize,
 ) -> Element<'a, SearchMessage> {
+    let _ = idx; // hover-focus removed (caused full-grid rebuild lag); param kept
+                 // for call-site signature stability. Highlight is keyboard-only.
     let exec = app.exec.clone();
 
     let label = if app.name.chars().count() > 10 {
@@ -1133,7 +1062,7 @@ fn app_icon_button<'a>(
     };
 
     let label_color = if is_focused {
-        cosmic::iced::Color::from_rgb(0.05, 0.05, 0.07) // near-black on bright steel
+        cosmic::iced::Color::from_rgb(0.05, 0.05, 0.07) // near-black on steel
     } else {
         cosmic::iced::Color::from_rgb(0.92, 0.92, 0.95) // light on dark glass
     };
@@ -1165,8 +1094,6 @@ fn app_icon_button<'a>(
             }
         });
     let mut area = mouse_area(tile)
-        // Hover sets focus -> steel highlight + black label (see #23).
-        .on_enter(SearchMessage::FocusApp(idx))
         .on_press(SearchMessage::AppClicked(exec));
     if let Some(dp) = &app.desktop_path {
         area = area.on_right_press(SearchMessage::RightClickSearchApp(

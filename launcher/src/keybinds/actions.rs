@@ -10,6 +10,21 @@ use crate::search;
 use cosmic::iced::Task;
 use cosmic::iced::keyboard::{self, key::Named};
 
+/// Scroll the results view so the focused item stays visible. One discrete
+/// snap per keypress (no continuous re-render). Called only from explicit
+/// arrow-key handlers, so hover (which routes elsewhere) never triggers it.
+fn scroll_to_focused<Message: 'static>(search: &search::Search) -> Task<Message> {
+    // Section-aware pixel offset (icon grid vs thin text rows) lives on Search,
+    // which owns the data needed to classify the focused item.
+    if let Some(y) = search.focused_scroll_offset() {
+        return cosmic::iced::widget::scrollable::scroll_to(
+            cosmic::widget::Id::new("soulless-results-scroll"),
+            cosmic::iced::widget::scrollable::AbsoluteOffset { x: Some(0.0), y: Some(y) },
+        );
+    }
+    Task::none()
+}
+
 /// Handle a key press and return the appropriate task.
 pub fn handle_key<Message>(
     key: &keyboard::Key,
@@ -42,7 +57,7 @@ where
                     };
                     search.update(search::Message::FocusApp(next_idx));
                 }
-                return Task::none();
+                return scroll_to_focused(search);
             }
             let next = {
                 let drawers = search.drawer_state.drawers();
@@ -79,7 +94,7 @@ where
                     }
                     Some(i) => {
                         search.update(search::Message::FocusApp(i - 1));
-                        return Task::none();
+                        return scroll_to_focused(search);
                     }
                 }
             }
@@ -124,13 +139,13 @@ where
         // ── ArrowRight → next app in grid ────────────────────────────────
         keyboard::Key::Named(Named::ArrowRight) => {
             search.update(search::Message::FocusNext);
-            Task::none()
+            scroll_to_focused(search)
         }
 
         // ── ArrowLeft → prev app in grid ─────────────────────────────────
         keyboard::Key::Named(Named::ArrowLeft) => {
             search.update(search::Message::FocusPrev);
-            Task::none()
+            scroll_to_focused(search)
         }
 
         // ── Ctrl+1-9 → jump directly to drawer by index ─────────────────
