@@ -176,6 +176,11 @@ pub struct Search {
     pub drawer_state: DrawerState,
 
     pub context_menu: Option<ContextMenu>,
+    /// Cursor position frozen at the moment the context menu opened, so the menu
+    /// renders at the cursor and stays put. Set by app.rs (which owns cursor_pos).
+    pub context_menu_pos: cosmic::iced::Point,
+    /// Window dimensions, for clamping the menu so it doesn't spill off-screen.
+    pub window_size: (f32, f32),
 
     pub app_picker: Option<AppPicker>,
 
@@ -235,6 +240,8 @@ impl Search {
             drawer_state,
 
             context_menu: None,
+            context_menu_pos: cosmic::iced::Point::ORIGIN,
+            window_size: (1920.0, 1080.0),
 
             app_picker: None,
 

@@ -91,7 +91,7 @@ impl AsMimeTypes for AppIdPayload {
 /// Styling is handled by ui::panels — drawers only provides content.
 pub fn view<'a>(
     search: &'a crate::search::Search,
-) -> (Element<'a, SearchMessage>, Element<'a, SearchMessage>, Element<'a, SearchMessage>) {
+) -> (Element<'a, SearchMessage>, Element<'a, SearchMessage>, Element<'a, SearchMessage>, Option<Element<'a, SearchMessage>>) {
     let search_bar = text_input("Search all apps...", &search.query)
         .id(cosmic::widget::Id::new("soulless-search-bar"))
         .on_input(SearchMessage::QueryChanged)
@@ -228,7 +228,7 @@ pub fn view<'a>(
         } else {
             match &search.current_open_drawer {
                 OpenDrawer::Pinned(name) => drawer_contents_view(search, name, search.focused_app_idx),
-                OpenDrawer::Vault => crate::vault::ui::view(&search.vault),
+                OpenDrawer::Vault => crate::vault::ui::view(&search.vault, search.context_menu_pos),
                 OpenDrawer::Search => search_results_view(search),
             }
         };
@@ -332,7 +332,7 @@ pub fn view<'a>(
                 .padding([80, 0, 0, 0]),
         ]
         .into();
-        (full, space::horizontal().width(Length::Fill).into(), space::horizontal().width(Length::Fill).into())
+        (full, space::horizontal().width(Length::Fill).into(), space::horizontal().width(Length::Fill).into(), None)
     } else if let Some(menu) = &search.context_menu {
         let menu_widget = context_menu_view(menu, &search.drawer_state.drawer_names());
         let (toolbox, right) = base;
@@ -342,30 +342,42 @@ pub fn view<'a>(
             .on_press(SearchMessage::CloseContextMenu)
             .into();
 
-        // Menu floats at bottom-right of the right panel as a stack overlay
-        let menu_overlay: Element<'a, SearchMessage> = container(menu_widget)
-            .width(Length::Shrink)
-            .align_right(Length::Fill)
-            .align_bottom(Length::Fill)
-            .padding(16)
-            .into();
-
-        let right_with_menu: Element<'a, SearchMessage> = mouse_area(
+        // Menu floats at the cursor position (frozen when the menu opened),
+        // clamped so it never spills off-screen. (Replaces the old fixed
+        // bottom-right corner placement.)
+        // Clamp against the launcher's OWN fixed dimensions, not the monitor.
+        // cursor_pos is window-relative, so this is the correct bound and it
+        // sidesteps the (multi-monitor, scaled) screen-size capture entirely.
+        // The menu overlay lives inside `right`, whose top-left is inset from
+        // the surface origin by the outer padding (16) + toolbox (220) +
+        // panel spacing (12) = 248px horizontally, and the outer padding (16)
+        // vertically. cursor_pos is surface-relative, so convert it into
+        // right-panel-local coordinates before padding the overlay, else the
+        // menu lands 248px right / 16px below the actual cursor.
+        let win_w = crate::position::layout::WINDOW_WIDTH;
+        let win_h = crate::position::layout::WINDOW_HEIGHT;
+        let menu_w = 260.0_f32;
+        let menu_h = 320.0_f32;
+        let px = search.context_menu_pos.x.min((win_w - menu_w - 8.0).max(8.0)).max(8.0);
+        let py = search.context_menu_pos.y.min((win_h - menu_h - 8.0).max(8.0)).max(8.0);
+        let menu_overlay: Element<'a, SearchMessage> = mouse_area(
             container(
-                cosmic::iced::widget::stack([right, menu_overlay])
+                container(menu_widget)
+                    .padding(cosmic::iced::Padding { top: py, left: px, right: 0.0, bottom: 0.0 })
+                    .width(Length::Fill)
+                    .height(Length::Fill)
             )
             .width(Length::Fill)
             .height(Length::Fill)
         )
         .on_press(SearchMessage::CloseContextMenu)
         .into();
-
         let dz2: Element<'a, SearchMessage> = space::horizontal().width(Length::Fill).into();
-        (toolbox_dismiss, right_with_menu, dz2)
+        (toolbox_dismiss, right, dz2, Some(menu_overlay))
     } else {
         let (t, r) = base;
         let dz: Element<'a, SearchMessage> = toolbox_drop_styled.into();
-        (t, r, dz)
+        (t, r, dz, None)
     }
 }
 
@@ -927,13 +939,35 @@ fn context_menu_view<'a>(menu: &'a ContextMenu, drawer_names: &[String]) -> Elem
 }
 
 fn menu_item<'a>(label: impl Into<String>, msg: SearchMessage) -> Element<'a, SearchMessage> {
-    mouse_area(
-        container(text(label.into()).size(14))
-            .padding([8, 12])
-            .width(Length::Fill)
+    // button::custom yields a cosmic-themed Element; this file's `Element`
+    // alias is cosmic::iced::Element, so bridge back through Themer (same
+    // pattern used elsewhere in the launcher for the cosmic<->iced boundary).
+    let btn: cosmic::Element<'a, SearchMessage> = cosmic::widget::button::custom(
+        cosmic::widget::text(label.into()).size(14)
     )
+    .width(Length::Fill)
+    .padding([8, 12])
     .on_press(msg)
-    .into()
+    .class(cosmic::theme::Button::Custom {
+        active: Box::new(|_selected, _theme| cosmic::widget::button::Style {
+            background: None,
+            border_radius: cosmic::iced::border::rounded(0).radius,
+            ..Default::default()
+        }),
+        hovered: Box::new(|_selected, _theme| cosmic::widget::button::Style {
+            background: Some(Color::from_rgb8(70, 70, 90).into()),
+            border_radius: cosmic::iced::border::rounded(0).radius,
+            ..Default::default()
+        }),
+        pressed: Box::new(|_selected, _theme| cosmic::widget::button::Style {
+            background: Some(Color::from_rgb8(80, 80, 100).into()),
+            border_radius: cosmic::iced::border::rounded(0).radius,
+            ..Default::default()
+        }),
+        disabled: Box::new(|_theme| cosmic::widget::button::Style::default()),
+    })
+    .into();
+    cosmic::iced::widget::Themer::new(None::<cosmic::Theme>, btn).into()
 }
 
 fn menu_divider<'a>() -> Element<'a, SearchMessage> {
@@ -948,7 +982,7 @@ fn menu_divider<'a>() -> Element<'a, SearchMessage> {
 
 fn context_menu_style(_: &Theme) -> container::Style {
     container::Style {
-        background: Some(Color::from_rgb8(45, 45, 55).into()),
+        background: Some(Color::from_rgb8(13, 12, 18).into()),
         border: cosmic::iced::border::rounded(8),
         ..Default::default()
     }

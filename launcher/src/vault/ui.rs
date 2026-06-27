@@ -21,11 +21,11 @@ use cosmic::iced::{Color, Element, Length, Theme};
 use cosmic::widget::dnd_destination;
 use cosmic::iced::widget::Themer;
 
-pub fn view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
+pub fn view<'a>(vault: &'a Vault, cursor_pos: cosmic::iced::Point) -> Element<'a, SearchMessage> {
     match vault.lock_state {
         VaultLockState::Uninitialized => setup_view(vault),
         VaultLockState::Locked => unlock_view(vault),
-        VaultLockState::Unlocked => files_view(vault),
+        VaultLockState::Unlocked => files_view(vault, cursor_pos),
     }
 }
 
@@ -151,7 +151,7 @@ fn unlock_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
 
 // ── Files view (unlocked) ─────────────────────────────────────────────────────
 
-fn files_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
+fn files_view<'a>(vault: &'a Vault, cursor_pos: cosmic::iced::Point) -> Element<'a, SearchMessage> {
     let header = row![
         text("🔓 Vault").size(22),
         space::horizontal().width(Length::Fill),
@@ -311,8 +311,15 @@ fn files_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
             .find(|e| &e.id == entry_id)
             .map(|e| e.meta.original_name.as_str())
             .unwrap_or("File");
-        let menu = vault_context_menu(entry_id.clone(), entry_name);
+        let menu = vault_context_menu(entry_id.clone(), entry_name, cursor_pos);
         cosmic::iced::widget::stack([main_col, menu]).into()
+    } else if let Some(id) = &vault.hidden_context_menu {
+        if let Some(app) = vault.hidden_apps.iter().find(|a| &a.id == id) {
+            let menu = hidden_app_menu(app, cursor_pos);
+            cosmic::iced::widget::stack([main_col, menu]).into()
+        } else {
+            main_col
+        }
     } else {
         main_col
     }
@@ -396,7 +403,7 @@ fn format_size(bytes: u64) -> String {
 
 // ── Vault file context menu ───────────────────────────────────────────────────
 
-fn vault_context_menu<'a>(entry_id: String, name: &'a str) -> Element<'a, SearchMessage> {
+fn vault_context_menu<'a>(entry_id: String, name: &'a str, cursor_pos: cosmic::iced::Point) -> Element<'a, SearchMessage> {
     let id_open = entry_id.clone();
     let id_export = entry_id.clone();
     let id_remove = entry_id.clone();
@@ -452,12 +459,29 @@ fn vault_context_menu<'a>(entry_id: String, name: &'a str) -> Element<'a, Search
         ..Default::default()
     });
 
+    // The vault view renders inside the right panel, whose top-left is inset
+    // from the surface origin by outer padding (16) + toolbox (220) + panel
+    // spacing (12) = 248px horizontally, 16px vertically. cursor_pos is
+    // surface-relative, so subtract that inset to land the menu at the cursor.
+    let x_inset = 248.0_f32;
+    let y_inset = 16.0_f32;
+    let menu_w = 200.0_f32; // matches the menu's fixed width
+    let menu_h = 180.0_f32; // generous; clamp keeps it on-screen
+    let avail_w = crate::position::layout::RIGHT_PANEL_WIDTH;
+    let avail_h = crate::position::layout::WINDOW_HEIGHT - y_inset - 16.0;
+    let cx = (cursor_pos.x - x_inset).max(0.0);
+    let cy = (cursor_pos.y - y_inset).max(0.0);
+    let px = cx.min((avail_w - menu_w - 8.0).max(8.0)).max(8.0);
+    let py = cy.min((avail_h - menu_h - 8.0).max(8.0)).max(8.0);
     mouse_area(
-        container(menu)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill)
+        container(
+            container(menu)
+                .padding(cosmic::iced::Padding { top: py, left: px, right: 0.0, bottom: 0.0 })
+                .width(Length::Fill)
+                .height(Length::Fill)
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
     )
     .on_press(SearchMessage::VaultCloseContextMenu)
     .into()
@@ -483,7 +507,7 @@ fn hidden_app_tile<'a>(app: &'a super::hidden_apps::HiddenApp) -> Element<'a, Se
 }
 
 /// Small menu shown under a hidden app when right-clicked: Launch / Remove.
-fn hidden_app_menu<'a>(app: &'a super::hidden_apps::HiddenApp) -> Element<'a, SearchMessage> {
+fn hidden_app_menu<'a>(app: &'a super::hidden_apps::HiddenApp, cursor_pos: cosmic::iced::Point) -> Element<'a, SearchMessage> {
     let item = |label: &'static str, msg: SearchMessage| -> Element<'a, SearchMessage> {
         mouse_area(
             container(text(label).size(13))
@@ -493,7 +517,7 @@ fn hidden_app_menu<'a>(app: &'a super::hidden_apps::HiddenApp) -> Element<'a, Se
         .on_press(msg)
         .into()
     };
-    container(
+    let menu_box = container(
         column![
             item("↗ Launch", SearchMessage::LaunchHiddenApp(app.id.clone())),
             item("📤 Remove from vault", SearchMessage::RemoveFromVault(app.id.clone())),
@@ -510,7 +534,27 @@ fn hidden_app_menu<'a>(app: &'a super::hidden_apps::HiddenApp) -> Element<'a, Se
             color: Color::from_rgb8(90, 90, 110),
         },
         ..Default::default()
-    })
+    });
+    // Same right-panel inset as the file menu: cursor_pos is surface-relative,
+    // subtract 248px horizontal / 16px vertical to land at the cursor.
+    let x_inset = 248.0_f32;
+    let y_inset = 16.0_f32;
+    let menu_w = 180.0_f32;
+    let menu_h = 90.0_f32;
+    let avail_w = crate::position::layout::RIGHT_PANEL_WIDTH;
+    let avail_h = crate::position::layout::WINDOW_HEIGHT - y_inset - 16.0;
+    let cx = (cursor_pos.x - x_inset).max(0.0);
+    let cy = (cursor_pos.y - y_inset).max(0.0);
+    let px = cx.min((avail_w - menu_w - 8.0).max(8.0)).max(8.0);
+    let py = cy.min((avail_h - menu_h - 8.0).max(8.0)).max(8.0);
+    container(
+        container(menu_box)
+            .padding(cosmic::iced::Padding { top: py, left: px, right: 0.0, bottom: 0.0 })
+            .width(Length::Fill)
+            .height(Length::Fill)
+    )
+    .width(Length::Fill)
+    .height(Length::Fill)
     .into()
 }
 
@@ -535,11 +579,5 @@ fn hidden_apps_grid<'a>(vault: &'a Vault) -> Option<Element<'a, SearchMessage>> 
     ]
     .spacing(0)
     .width(Length::Fill);
-    if let Some(id) = &vault.hidden_context_menu {
-        if let Some(app) = vault.hidden_apps.iter().find(|a| &a.id == id) {
-            col = col.push(space::vertical().height(Length::Fixed(8.0)));
-            col = col.push(hidden_app_menu(app));
-        }
-    }
     Some(col.into())
 }

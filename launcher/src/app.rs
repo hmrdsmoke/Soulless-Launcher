@@ -93,6 +93,9 @@ pub struct Soulless {
     /// so a second dismiss trigger (e.g. Unfocused right after Esc) is a no-op
     /// instead of destroying an already-destroyed surface.
     surface_open: bool,
+    /// Last known cursor position (surface-relative). Updated from the existing
+    /// CursorMoved subscription; used to position the context menu at the cursor.
+    cursor_pos: cosmic::iced::Point,
 }
 
 impl Soulless {
@@ -163,6 +166,7 @@ impl cosmic::Application for Soulless {
                 window_id,
                 screen_size: None,
                 surface_open: false,
+                cursor_pos: cosmic::iced::Point::ORIGIN,
             },
             // Stage 2 TEST: do NOT create the surface at init. Create it on-demand
             // in dbus_activation (warm daemon) to test whether that kills the flood.
@@ -200,6 +204,26 @@ impl cosmic::Application for Soulless {
                     msg,
                     crate::search::Message::FocusNext | crate::search::Message::FocusPrev
                 );
+                // Freeze the cursor position when a right-click opens a context
+                // menu, so the menu renders at the cursor and stays put. Also
+                // stash window size for off-screen clamping. (cursor_pos lives
+                // here in app.rs; the view only sees Search, so route it through.)
+                let opens_menu = matches!(
+                    msg,
+                    crate::search::Message::RightClickSearchApp(..)
+                        | crate::search::Message::RightClickDrawerApp(..)
+                        | crate::search::Message::RightClickDrawerFile(..)
+                        | crate::search::Message::RightClickDrawerBackground(..)
+                        | crate::search::Message::RightClickDrawerSidebar(..)
+                        | crate::search::Message::VaultOpenFileMenu(..)
+                        | crate::search::Message::ShowHiddenMenu(..)
+                );
+                if opens_menu {
+                    self.search.context_menu_pos = self.cursor_pos;
+                    if let Some((w, h)) = self.screen_size {
+                        self.search.window_size = (w as f32, h as f32);
+                    }
+                }
                 if let Some(exec) = self.search.update(msg) {
                     let clean_exec = crate::utils::strip_desktop_placeholders(&exec);
 
@@ -260,12 +284,13 @@ impl cosmic::Application for Soulless {
 
             // ── Track cursor position ────────────────────────────────────
             Message::WindowEvent(cosmic::iced::Event::Mouse(
-                cosmic::iced::mouse::Event::CursorMoved { position: _ },
+                cosmic::iced::mouse::Event::CursorMoved { position },
             )) => {
-                // FLOOD TEST: do NOT update cursor_pos on motion. On a layer surface,
-                // a state change per motion -> re-render -> perturbs surface ->
-                // compositor re-emits motion -> loop. Testing if skipping the update
-                // breaks the pointer storm.
+                // STORM RE-TEST (layer-shell now stable): store cursor_pos on motion
+                // and see if the pointer storm returns. Previously this looped:
+                // state change per motion -> re-render -> surface perturb -> re-emit.
+                self.cursor_pos = position;
+                eprintln!("[LIVE] cursor=({:.0},{:.0}) screen={:?}", position.x, position.y, self.screen_size);
                 Task::none()
             }
 
@@ -479,7 +504,7 @@ impl cosmic::Application for Soulless {
     }
 
     fn view(&self) -> Element<'_, Self::Message> {
-        let (toolbox, right, _drop_zone) = crate::drawers::view(&self.search);
+        let (toolbox, right, _drop_zone, menu_overlay) = crate::drawers::view(&self.search);
         let net = if self.config.show_system_monitor {
             crate::network_monitor::view(&self.network).map(Message::Network)
         } else { cosmic::iced::widget::space::horizontal().into() };
@@ -509,6 +534,14 @@ impl cosmic::Application for Soulless {
             net, sys, hw, fps,
             self.bg_handle.clone(),
         );
+        let composed = match menu_overlay {
+            Some(m) => cosmic::iced::widget::stack([
+                composed,
+                m.map(Message::Search),
+            ])
+            .into(),
+            None => composed,
+        };
         // Bridge: compose() yields a cosmic::iced::Theme element; the
         // cosmic::Application trait's view() expects a cosmic::Theme element.
         // Themer wraps the inner (iced-themed) tree so it can live in the
