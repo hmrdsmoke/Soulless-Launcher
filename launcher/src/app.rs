@@ -82,9 +82,9 @@ impl cosmic::app::CosmicFlags for SoullessFlags {
 /// the right state when the compositor closes it.
 #[derive(Clone, Debug)]
 pub enum WindowKind {
-    /// A right-click context menu popup. Carries the menu payload so the
-    /// popup surface can render it independently of the main launcher view.
-    ContextMenu(crate::search::ContextMenu),
+    /// A right-click context menu popup. Carries the menu payload + the drawer
+    /// names needed to render it, so the popup surface is fully self-contained.
+    ContextMenu(crate::search::ContextMenu, Vec<String>),
     /// A vault file-entry context menu popup (entry id + display name).
     VaultMenu(String, String),
     /// A vault hidden-app context menu popup (hidden app id).
@@ -603,11 +603,40 @@ impl cosmic::Application for Soulless {
         }
     }
 
-    fn view_window(&self, _id: cosmic::iced::window::Id) -> Element<'_, Self::Message> {
-        // NO autosize, explicit surface size. Testing if autosize itself is
-        // generating internal RequestResize (size-request -> internal resize event
-        // -> autosize responds -> loop, never hitting the wire).
-        self.view()
+    fn view_window(&self, id: cosmic::iced::window::Id) -> Element<'_, Self::Message> {
+        // If this window id is a registered popup surface, render that menu's
+        // content. Otherwise it's the main launcher surface -> normal view.
+        // Each menu popup is built with iced-themed widgets; bridge through
+        // Themer so the returned element is cosmic-themed like the main view.
+        // (Inlined per-arm rather than via a closure so the input/output
+        // lifetimes tie together for the borrow checker.)
+        match self.windows.get(&id) {
+            Some(WindowKind::ContextMenu(menu, drawer_names)) => {
+                cosmic::iced::widget::Themer::new(
+                    None::<cosmic::iced::Theme>,
+                    crate::drawers::context_menu_popup(menu, drawer_names)
+                        .map(Message::Search),
+                )
+                .into()
+            }
+            Some(WindowKind::VaultMenu(entry_id, name)) => {
+                cosmic::iced::widget::Themer::new(
+                    None::<cosmic::iced::Theme>,
+                    crate::vault::ui::vault_menu_popup(entry_id, name)
+                        .map(Message::Search),
+                )
+                .into()
+            }
+            Some(WindowKind::VaultHiddenMenu(app_id)) => {
+                cosmic::iced::widget::Themer::new(
+                    None::<cosmic::iced::Theme>,
+                    crate::vault::ui::vault_hidden_menu_popup(app_id)
+                        .map(Message::Search),
+                )
+                .into()
+            }
+            None => self.view(),
+        }
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {

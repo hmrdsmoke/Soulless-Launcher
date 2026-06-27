@@ -844,6 +844,15 @@ fn file_emoji(name: &str) -> &'static str {
 // Context Menus
 // ─────────────────────────────────────────────────────────────
 
+/// Public entry point for rendering a context menu inside its own popup
+/// surface (called from app.rs::view_window). Wraps the private builder so the
+/// popup is styled consistently with the in-launcher menus.
+pub fn context_menu_popup<'a>(menu: &'a ContextMenu, drawer_names: &'a [String]) -> Element<'a, SearchMessage> {
+    // context_menu_view already applies styling/padding/width per arm; just
+    // pass it straight through for the popup surface.
+    context_menu_view(menu, drawer_names)
+}
+
 fn context_menu_view<'a>(menu: &'a ContextMenu, drawer_names: &[String]) -> Element<'a, SearchMessage> {
     match menu {
         ContextMenu::DrawerBackground { drawer } => container(

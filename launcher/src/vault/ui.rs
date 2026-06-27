@@ -401,6 +401,94 @@ fn format_size(bytes: u64) -> String {
     }
 }
 
+// ── Popup-surface menu renderers ──────────────────────────────────────────────
+// These render the bare menu box (no cursor-inset positioning): the compositor
+// positions the popup surface, so the menu just needs its content + styling.
+
+/// Vault file-entry menu, rendered into its own popup surface.
+pub fn vault_menu_popup<'a>(entry_id: &str, name: &'a str) -> Element<'a, SearchMessage> {
+    let id_open = entry_id.to_string();
+    let id_export = entry_id.to_string();
+    let id_remove = entry_id.to_string();
+
+    let btn = |label: &'static str, msg: SearchMessage, danger: bool| -> Element<'a, SearchMessage> {
+        let bg = if danger {
+            Color::from_rgba8(180, 40, 40, 0.15)
+        } else {
+            Color::from_rgba8(255, 255, 255, 0.05)
+        };
+        mouse_area(
+            container(text(label).size(13))
+                .padding([8, 16])
+                .width(Length::Fill)
+                .style(move |_: &Theme| container::Style {
+                    background: Some(bg.into()),
+                    ..Default::default()
+                }),
+        )
+        .on_press(msg)
+        .into()
+    };
+
+    container(
+        column![
+            text(name).size(11),
+            btn("📂 Open", SearchMessage::VaultOpenFile(id_open), false),
+            btn("💾 Export to Downloads", SearchMessage::VaultExportFile(id_export), false),
+            btn("🗑 Remove from vault", SearchMessage::VaultRemoveFile(id_remove), true),
+        ]
+        .spacing(2)
+        .width(Length::Fixed(200.0)),
+    )
+    .padding(8)
+    .style(|_: &Theme| container::Style {
+        background: Some(Color::from_rgb8(28, 28, 38).into()),
+        border: cosmic::iced::Border {
+            color: Color::from_rgba8(255, 255, 255, 0.15),
+            width: 1.0,
+            radius: cosmic::iced::border::rounded(8).radius,
+        },
+        ..Default::default()
+    })
+    .into()
+}
+
+/// Vault hidden-app menu, rendered into its own popup surface.
+pub fn vault_hidden_menu_popup<'a>(app_id: &str) -> Element<'a, SearchMessage> {
+    let id_launch = app_id.to_string();
+    let id_remove = app_id.to_string();
+
+    let item = |label: &'static str, msg: SearchMessage| -> Element<'a, SearchMessage> {
+        mouse_area(
+            container(text(label).size(13))
+                .padding([6, 10])
+                .width(Length::Fill),
+        )
+        .on_press(msg)
+        .into()
+    };
+
+    container(
+        column![
+            item("↗ Launch", SearchMessage::LaunchHiddenApp(id_launch)),
+            item("📤 Remove from vault", SearchMessage::RemoveFromVault(id_remove)),
+        ]
+        .spacing(2),
+    )
+    .padding(6)
+    .width(Length::Fixed(180.0))
+    .style(|_: &Theme| container::Style {
+        background: Some(Color::from_rgb8(30, 30, 38).into()),
+        border: cosmic::iced::Border {
+            radius: 8.0.into(),
+            width: 1.0,
+            color: Color::from_rgb8(90, 90, 110),
+        },
+        ..Default::default()
+    })
+    .into()
+}
+
 // ── Vault file context menu ───────────────────────────────────────────────────
 
 fn vault_context_menu<'a>(entry_id: String, name: &'a str, cursor_pos: cosmic::iced::Point) -> Element<'a, SearchMessage> {
