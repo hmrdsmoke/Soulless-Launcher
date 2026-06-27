@@ -57,4 +57,4 @@ Custom backgrounds: drop any `.jpg`, `.png`, or `.webp` into `~/.config/soulless
 
 ## License
 
-MIT
+GPL 3.0
