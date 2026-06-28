@@ -113,12 +113,10 @@ fn extract_field(contents: &str, field: &str) -> Option<String> {
         // Find the value after the key
         let after_key = &trimmed[key_pattern.len()..].trim_start();
 
-        if after_key.starts_with('"') {
-            let inner = &after_key[1..];
-            if let Some(end) = inner.find('"') {
+        if let Some(inner) = after_key.strip_prefix('"')
+            && let Some(end) = inner.find('"') {
                 return Some(inner[..end].to_string());
             }
-        }
     }
 
     None
