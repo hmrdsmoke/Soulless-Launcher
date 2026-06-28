@@ -158,18 +158,16 @@ fn strip_desktop_placeholders(
         exec.chars().peekable();
 
     while let Some(c) = chars.next() {
-        if c == '%' {
-            if chars
+        if c == '%'
+            && chars
                 .peek()
-                .map_or(
-                    false,
+                .is_some_and(
                     |&n| n.is_ascii_alphabetic(),
                 )
             {
                 chars.next();
                 continue;
             }
-        }
 
         result.push(c);
     }

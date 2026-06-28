@@ -122,8 +122,8 @@ where
 
         // ── Enter → launch focused app ───────────────────────────────────
         keyboard::Key::Named(Named::Enter) => {
-            if let Some(idx) = search.focused_app_idx {
-                if let Some(exec) = search.focused_exec(idx) {
+            if let Some(idx) = search.focused_app_idx
+                && let Some(exec) = search.focused_exec(idx) {
                     search.record_launch_by_exec(&exec);
                     let clean = crate::utils::strip_desktop_placeholders(&exec);
                     let _ = std::process::Command::new("sh")
@@ -132,7 +132,6 @@ where
                         .spawn();
                     return f_exit();
                 }
-            }
             Task::none()
         }
 
@@ -150,8 +149,8 @@ where
 
         // ── Ctrl+1-9 → jump directly to drawer by index ─────────────────
         keyboard::Key::Character(c) if modifiers.control() => {
-            if let Ok(n) = c.as_str().parse::<usize>() {
-                if n >= 1 {
+            if let Ok(n) = c.as_str().parse::<usize>()
+                && n >= 1 {
                     let idx = n - 1;
                     let name = {
                         let drawers = search.drawer_state.drawers();
@@ -164,7 +163,6 @@ where
                         );
                     }
                 }
-            }
             Task::none()
         }
 

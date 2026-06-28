@@ -125,13 +125,11 @@ fn read_cpu_temp() -> Option<f32> {
         let path = entry.path();
         let name = std::fs::read_to_string(path.join("name")).ok()?;
         let name = name.trim();
-        if name == "coretemp" || name == "k10temp" {
-            if let Ok(raw) = std::fs::read_to_string(path.join("temp1_input")) {
-                if let Ok(millideg) = raw.trim().parse::<f32>() {
+        if (name == "coretemp" || name == "k10temp")
+            && let Ok(raw) = std::fs::read_to_string(path.join("temp1_input"))
+                && let Ok(millideg) = raw.trim().parse::<f32>() {
                     return Some(millideg / 1000.0);
                 }
-            }
-        }
     }
     None
 }
@@ -147,8 +145,8 @@ pub fn read_ram_freq_cached() -> Option<u32> {
     // ── Try cache first ───────────────────────────────────────────────────────
     let cache_path = dirs::home_dir()?.join(RAM_FREQ_CACHE);
 
-    if cache_path.exists() {
-        if let Ok(contents) = std::fs::read_to_string(&cache_path) {
+    if cache_path.exists()
+        && let Ok(contents) = std::fs::read_to_string(&cache_path) {
             let trimmed = contents.trim();
             // "none" means we tried before and got nothing — don't prompt again
             if trimmed == "none" {
@@ -158,7 +156,6 @@ pub fn read_ram_freq_cached() -> Option<u32> {
                 return Some(mhz);
             }
         }
-    }
 
     // ── Cache miss — run dmidecode once and save result ───────────────────────
     let mhz = run_dmidecode();
@@ -210,23 +207,21 @@ fn parse_dmidecode_speed(stdout: &[u8]) -> Option<u32> {
 
     for line in text.lines() {
         let t = line.trim();
-        if t.starts_with("Configured Memory Speed:") {
-            if let Some(mhz) = extract_mhz(t) {
+        if t.starts_with("Configured Memory Speed:")
+            && let Some(mhz) = extract_mhz(t) {
                 configured = Some(configured.unwrap_or(0).max(mhz));
             }
-        }
-        if t.starts_with("Speed:") && !t.contains("Unknown") {
-            if let Some(mhz) = extract_mhz(t) {
+        if t.starts_with("Speed:") && !t.contains("Unknown")
+            && let Some(mhz) = extract_mhz(t) {
                 speed = Some(speed.unwrap_or(0).max(mhz));
             }
-        }
     }
 
     configured.or(speed)
 }
 
 fn extract_mhz(line: &str) -> Option<u32> {
-    let after = line.splitn(2, ':').nth(1)?.trim();
+    let after = line.split_once(':')?.1.trim();
     let num   = after.split_whitespace().next()?;
     num.parse::<u32>().ok().filter(|&n| n > 0 && n < 20_000)
 }

@@ -33,16 +33,13 @@ pub fn ensure_dirs() {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum ThemeVariant {
     Dark,
+    #[default]
     Chrome,
 }
 
-impl Default for ThemeVariant {
-    fn default() -> Self {
-        ThemeVariant::Chrome
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SoullessConfig {

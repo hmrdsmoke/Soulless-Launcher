@@ -342,11 +342,10 @@ impl cosmic::Application for Soulless {
                     OutputEvent::InfoUpdate(i) => Some(i),
                     _ => None,
                 };
-                if let Some(info) = info {
-                    if let Some((w, h)) = info.logical_size {
+                if let Some(info) = info
+                    && let Some((w, h)) = info.logical_size {
                         self.screen_size = Some((w as u32, h as u32));
                     }
-                }
                 Task::none()
             }
             Message::WindowEvent(cosmic::iced::Event::PlatformSpecific(
@@ -400,8 +399,8 @@ impl cosmic::Application for Soulless {
                         data,
                         mime_type,
                     }) => {
-                        if mime_type == "text/uri-list" {
-                            if matches!(
+                        if mime_type == "text/uri-list"
+                            && matches!(
                                 self.search.current_open_drawer,
                                 OpenDrawer::Vault
                             ) {
@@ -413,10 +412,9 @@ impl cosmic::Application for Soulless {
                                     );
                                 }
                             }
-                        }
 
-                        if mime_type == "text/uri-list" {
-                            if let OpenDrawer::Pinned(name) = self.search.current_open_drawer.clone() {
+                        if mime_type == "text/uri-list"
+                            && let OpenDrawer::Pinned(name) = self.search.current_open_drawer.clone() {
                                 let paths = crate::utils::parse_uri_list(&data);
                                 if !paths.is_empty() {
                                     self.search.update(
@@ -424,7 +422,6 @@ impl cosmic::Application for Soulless {
                                     );
                                 }
                             }
-                        }
                         self.search
                             .update(SearchMessage::VaultDragHover(false));
                         self.search
@@ -503,24 +500,22 @@ impl cosmic::Application for Soulless {
                 }
             }
             Message::EnterPressed => {
-                if let Some(idx) = self.search.focused_app_idx {
-                    if let Some(exec) = self.search.focused_exec(idx) {
+                if let Some(idx) = self.search.focused_app_idx
+                    && let Some(exec) = self.search.focused_exec(idx) {
                         self.search.record_launch_by_exec(&exec);
                         let clean = crate::utils::strip_desktop_placeholders(&exec);
                         let _ = std::process::Command::new("sh")
                             .arg("-c").arg(&clean).spawn();
                         return self.dismiss();
                     }
-                }
-                if self.search.show_search_results {
-                    if let Some(exec) = self.search.focused_exec(0) {
+                if self.search.show_search_results
+                    && let Some(exec) = self.search.focused_exec(0) {
                         self.search.record_launch_by_exec(&exec);
                         let clean = crate::utils::strip_desktop_placeholders(&exec);
                         let _ = std::process::Command::new("sh")
                             .arg("-c").arg(&clean).spawn();
                         return self.dismiss();
                     }
-                }
                 Task::none()
             }
             Message::Organizer(msg) => {

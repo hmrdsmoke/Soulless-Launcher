@@ -81,19 +81,19 @@ pub fn interpret(query: &str, apps: &[AppEntry]) -> Option<Vec<usize>> {
     // ── Time-based queries ────────────────────────────────────────────────────
     if q == "today" {
         return Some(apps.iter().enumerate()
-            .filter(|(_, a)| a.last_launched.map_or(false, |t| now - t < DAY))
+            .filter(|(_, a)| a.last_launched.is_some_and(|t| now - t < DAY))
             .map(|(i, _)| i).collect());
     }
     if q == "yesterday" {
         return Some(apps.iter().enumerate()
-            .filter(|(_, a)| a.last_launched.map_or(false, |t| {
-                let age = now - t; age >= DAY && age < DAY * 2
+            .filter(|(_, a)| a.last_launched.is_some_and(|t| {
+                let age = now - t; (DAY..DAY * 2).contains(&age)
             }))
             .map(|(i, _)| i).collect());
     }
     if q == "this week" || q == "week" {
         return Some(apps.iter().enumerate()
-            .filter(|(_, a)| a.last_launched.map_or(false, |t| now - t < DAY * 7))
+            .filter(|(_, a)| a.last_launched.is_some_and(|t| now - t < DAY * 7))
             .map(|(i, _)| i).collect());
     }
 
@@ -136,7 +136,7 @@ pub fn score_app(app: &AppEntry, query: &str, now: u64) -> u32 {
     };
 
     // Usage boost — launch count (capped at 1000 points)
-    let usage_score = (app.launch_count * 10).min(1000) as u32;
+    let usage_score = (app.launch_count * 10).min(1000);
 
     // Recency boost — used in last 7 days gets up to 500 points
     let recency_score = if let Some(last) = app.last_launched {

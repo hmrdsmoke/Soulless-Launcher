@@ -60,7 +60,6 @@ pub fn measure() -> (f32, f32) {
             if parts.len() >= 4 {
                 let avg  = parts[1].trim().parse::<f32>().unwrap_or(0.0);
                 let mdev = parts[3]
-                    .trim()
                     .split_whitespace()
                     .next()
                     .unwrap_or("0")

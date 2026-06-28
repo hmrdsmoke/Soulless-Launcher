@@ -12,15 +12,14 @@ pub fn strip_desktop_placeholders(exec: &str) -> String {
     let mut chars = exec.chars().peekable();
 
     while let Some(c) = chars.next() {
-        if c == '%' {
-            if chars
+        if c == '%'
+            && chars
                 .peek()
-                .map_or(false, |&next| next.is_ascii_alphabetic())
+                .is_some_and(|&next| next.is_ascii_alphabetic())
             {
                 chars.next();
                 continue;
             }
-        }
         result.push(c);
     }
 
@@ -34,8 +33,8 @@ pub fn percent_decode_uri(input: &str) -> String {
     let mut i = 0;
 
     while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let (Some(hi), Some(lo)) = (
+        if bytes[i] == b'%' && i + 2 < bytes.len()
+            && let (Some(hi), Some(lo)) = (
                 hex_nibble(bytes[i + 1]),
                 hex_nibble(bytes[i + 2]),
             ) {
@@ -43,7 +42,6 @@ pub fn percent_decode_uri(input: &str) -> String {
                 i += 3;
                 continue;
             }
-        }
         out.push(bytes[i] as char);
         i += 1;
     }

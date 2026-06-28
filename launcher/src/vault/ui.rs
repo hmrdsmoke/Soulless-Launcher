@@ -766,7 +766,7 @@ fn hidden_apps_grid<'a>(vault: &'a Vault) -> Option<Element<'a, SearchMessage>> 
             }
             col.push(grid_row)
         });
-    let mut col = column![
+    let col = column![
         text("Hidden apps").size(13),
         space::vertical().height(Length::Fixed(6.0)),
         grid,

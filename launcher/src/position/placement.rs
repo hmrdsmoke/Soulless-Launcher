@@ -137,10 +137,10 @@ impl LauncherPosition {
         let horizontal_bar = edge == Anchor::TOP || edge == Anchor::BOTTOM;
         let mut anchor = edge;
         match (wing, horizontal_bar) {
-            (Wing::First, true) => anchor = anchor | Anchor::LEFT,
-            (Wing::Second, true) => anchor = anchor | Anchor::RIGHT,
-            (Wing::First, false) => anchor = anchor | Anchor::TOP,
-            (Wing::Second, false) => anchor = anchor | Anchor::BOTTOM,
+            (Wing::First, true) => anchor |= Anchor::LEFT,
+            (Wing::Second, true) => anchor |= Anchor::RIGHT,
+            (Wing::First, false) => anchor |= Anchor::TOP,
+            (Wing::Second, false) => anchor |= Anchor::BOTTOM,
             (Wing::Center, _) => {} // center on the bar's axis
         }
         surface.anchor = anchor;

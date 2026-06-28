@@ -71,13 +71,11 @@ pub fn is_stale(source: &str, hours: u64) -> bool {
     // modified more recently than the cache, an app was installed/removed —
     // rebuild so new apps show up immediately (don't wait out the window).
     for dir in source_dirs(source) {
-        if let Ok(dir_meta) = fs::metadata(&dir) {
-            if let Ok(dir_modified) = dir_meta.modified() {
-                if dir_modified > cache_modified {
+        if let Ok(dir_meta) = fs::metadata(&dir)
+            && let Ok(dir_modified) = dir_meta.modified()
+                && dir_modified > cache_modified {
                     return true;
                 }
-            }
-        }
     }
 
     false

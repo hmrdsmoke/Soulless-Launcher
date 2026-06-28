@@ -147,25 +147,22 @@ fn read_gpu_pct() -> Option<f32> {
     if let Ok(out) = std::process::Command::new("nvidia-smi")
         .args(["--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"])
         .output()
-    {
-        if out.status.success() {
+        && out.status.success() {
             let s = String::from_utf8_lossy(&out.stdout);
             if let Ok(v) = s.trim().parse::<f32>() {
                 return Some(v.clamp(0.0, 100.0));
             }
         }
-    }
 
     // ── AMD (amdgpu sysfs) ────────────────────────────────────────────────
     // /sys/class/drm/card*/device/gpu_busy_percent
     if let Ok(entries) = std::fs::read_dir("/sys/class/drm") {
         for entry in entries.flatten() {
             let path = entry.path().join("device/gpu_busy_percent");
-            if let Ok(data) = std::fs::read_to_string(&path) {
-                if let Ok(v) = data.trim().parse::<f32>() {
+            if let Ok(data) = std::fs::read_to_string(&path)
+                && let Ok(v) = data.trim().parse::<f32>() {
                     return Some(v.clamp(0.0, 100.0));
                 }
-            }
         }
     }
 

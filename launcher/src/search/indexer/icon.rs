@@ -57,8 +57,7 @@ impl IconCache {
         let resolved = self
             .find_icon(icon_name)
             .or_else(|| {
-                if icon_name.ends_with("-symbolic") {
-                    let base = &icon_name[..icon_name.len() - 9];
+                if let Some(base) = icon_name.strip_suffix("-symbolic") {
                     self.find_icon(base)
                 } else {
                     self.find_icon(&format!("{}-symbolic", icon_name))

@@ -23,8 +23,8 @@ pub fn index() -> Vec<AppEntry> {
 
     // Bottles prefixes (~/.var/app/com.usebottles.bottles/data/bottles/bottles/)
     let bottles_dir = home.join(".var/app/com.usebottles.bottles/data/bottles/bottles");
-    if bottles_dir.exists() {
-        if let Ok(entries) = fs::read_dir(&bottles_dir) {
+    if bottles_dir.exists()
+        && let Ok(entries) = fs::read_dir(&bottles_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_dir() {
@@ -32,12 +32,11 @@ pub fn index() -> Vec<AppEntry> {
                 }
             }
         }
-    }
 
     // PlayOnLinux prefixes
     let pol_dir = home.join(".PlayOnLinux/wineprefix");
-    if pol_dir.exists() {
-        if let Ok(entries) = fs::read_dir(&pol_dir) {
+    if pol_dir.exists()
+        && let Ok(entries) = fs::read_dir(&pol_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_dir() {
@@ -45,7 +44,6 @@ pub fn index() -> Vec<AppEntry> {
                 }
             }
         }
-    }
 
     apps
 }

@@ -222,11 +222,9 @@ impl DrawerState {
             .drawers
             .iter()
             .position(|d| d.name == name)
-        {
-            if index > 0 {
+            && index > 0 {
                 self.drawers.swap(index, index - 1);
             }
-        }
     }
 
     pub fn move_drawer_down(
@@ -237,11 +235,9 @@ impl DrawerState {
             .drawers
             .iter()
             .position(|d| d.name == name)
-        {
-            if index + 1 < self.drawers.len() {
+            && index + 1 < self.drawers.len() {
                 self.drawers.swap(index, index + 1);
             }
-        }
     }
 
     // ── App Mutations ─────────────────────────────────────────
@@ -277,11 +273,9 @@ impl DrawerState {
             .drawers
             .iter_mut()
             .find(|d| d.name == drawer_name)
-        {
-            if !drawer.apps.contains(&app_id) {
+            && !drawer.apps.contains(&app_id) {
                 drawer.apps.push(app_id);
             }
-        }
     }
 
     pub fn remove_app(
@@ -325,11 +319,9 @@ impl DrawerState {
             .drawers
             .iter_mut()
             .find(|d| d.name == drawer_name)
-        {
-            if !drawer.files.iter().any(|f| f.path == path) {
+            && !drawer.files.iter().any(|f| f.path == path) {
                 drawer.files.push(DrawerFile { path, name });
             }
-        }
     }
 
     /// Remove a file from a drawer by its path.
