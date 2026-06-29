@@ -21,16 +21,15 @@ export HOME   := $(REAL_HOME)
 PREFIX        ?= /usr/local
 BINDIR        := $(PREFIX)/bin
 APPDIR        := /usr/share/applications
-ICONDIR_128   := /usr/share/icons/hicolor/128x128/apps
-ICONDIR_16    := /usr/share/icons/hicolor/16x16/apps
-ICONDIR_22    := /usr/share/icons/hicolor/22x22/apps
-ICONDIR_24    := /usr/share/icons/hicolor/24x24/apps
+ICON_BASE     := /usr/share/icons/hicolor
+ICON_SIZES    := 16 22 24 48 64 128 256
 LAUNCHER_BIN  := target/release/soulless-launcher
 APPLET_BIN    := target/release/soulless-applet
 LAUNCHER_DESK := assets/com.github.hmrdsmoke.soulless-launcher.desktop
 APPLET_DESK   := assets/soulless-applet.desktop
-ICON          := assets/com.github.hmrdsmoke.soulless-launcher.png
+LAUNCHER_ID   := com.github.hmrdsmoke.soulless-launcher
 APPLET_ID     := com.github.hmrdsmoke.soulless-applet
+ICONSRC       := assets/icons/hicolor
 SHORTCUT_DIR  := $(HOME)/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1
 
 .PHONY: all release install uninstall clean
@@ -52,19 +51,26 @@ install: release
 	@echo "Installing desktop files → $(APPDIR)"
 	install -Dm644 $(LAUNCHER_DESK) $(APPDIR)/com.github.hmrdsmoke.soulless-launcher.desktop
 	install -Dm644 $(APPLET_DESK)   $(APPDIR)/$(APPLET_ID).desktop
-	@echo "Installing icons..."
+	@echo "Installing metainfo..."
 	install -Dm644 assets/com.github.hmrdsmoke.soulless-launcher.metainfo.xml \
 		/usr/share/metainfo/com.github.hmrdsmoke.soulless-launcher.metainfo.xml
-	install -Dm644 $(ICON) $(ICONDIR_128)/$(APPLET_ID).png
-	install -Dm644 $(ICON) $(ICONDIR_16)/$(APPLET_ID).png
-	install -Dm644 $(ICON) $(ICONDIR_22)/$(APPLET_ID).png
-	install -Dm644 $(ICON) $(ICONDIR_24)/$(APPLET_ID).png
+	@echo "Installing icons (per-size, launcher + applet)..."
+	@for sz in $(ICON_SIZES); do \
+		src="$(ICONSRC)/$${sz}x$${sz}/apps/$(LAUNCHER_ID).png"; \
+		dir="$(ICON_BASE)/$${sz}x$${sz}/apps"; \
+		install -Dm644 "$$src" "$$dir/$(LAUNCHER_ID).png"; \
+		install -Dm644 "$$src" "$$dir/$(APPLET_ID).png"; \
+		echo "  → $${sz}x$${sz}"; \
+	done
 	@echo "Installing soulless-activate → $(BINDIR)/soulless-activate"
 	printf '#!/bin/sh\n/usr/bin/dbus-send --session --print-reply --dest=com.github.hmrdsmoke.SoullessApplet /com/github/hmrdsmoke/SoullessApplet com.github.hmrdsmoke.SoullessApplet.Activate\n' > /tmp/soulless-activate
 	install -Dm755 /tmp/soulless-activate $(BINDIR)/soulless-activate
 	@echo "Installing COSMIC shortcut..."
 	mkdir -p $(SHORTCUT_DIR)
-	@if [ ! -f $(SHORTCUT_DIR)/custom ]; then 		printf '{\n    (\n        modifiers: [\n            Super,\n        ],\n        key: "space",\n        description: Some("Soulless Launcher"),\n    ): Spawn("soulless-activate"),\n}\n' > $(SHORTCUT_DIR)/custom; 		echo "  → Super+Space shortcut installed."; 	fi
+	@if [ ! -f $(SHORTCUT_DIR)/custom ]; then \
+		printf '{\n    (\n        modifiers: [\n            Super,\n        ],\n        key: "space",\n        description: Some("Soulless Launcher"),\n    ): Spawn("soulless-activate"),\n}\n' > $(SHORTCUT_DIR)/custom; \
+		echo "  → Super+Space shortcut installed."; \
+	fi
 	@echo "Updating icon cache and desktop database..."
 	gtk-update-icon-cache /usr/share/icons/hicolor 2>/dev/null || true
 	update-desktop-database $(APPDIR) 2>/dev/null || true
@@ -81,10 +87,10 @@ uninstall:
 	rm -f $(APPDIR)/com.github.hmrdsmoke.soulless-launcher.desktop
 	rm -f $(APPDIR)/$(APPLET_ID).desktop
 	rm -f /usr/share/metainfo/com.github.hmrdsmoke.soulless-launcher.metainfo.xml
-	rm -f $(ICONDIR_128)/$(APPLET_ID).png
-	rm -f $(ICONDIR_16)/$(APPLET_ID).png
-	rm -f $(ICONDIR_22)/$(APPLET_ID).png
-	rm -f $(ICONDIR_24)/$(APPLET_ID).png
+	@for sz in $(ICON_SIZES); do \
+		rm -f "$(ICON_BASE)/$${sz}x$${sz}/apps/$(LAUNCHER_ID).png"; \
+		rm -f "$(ICON_BASE)/$${sz}x$${sz}/apps/$(APPLET_ID).png"; \
+	done
 	gtk-update-icon-cache /usr/share/icons/hicolor 2>/dev/null || true
 	update-desktop-database $(APPDIR) 2>/dev/null || true
 	@echo "✓ Soulless uninstalled."
