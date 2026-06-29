@@ -16,3 +16,4 @@
 
 # Vendored, patched crates (see Cargo.toml [patch] section) — must be tracked
 !/vendor/
+build.log
