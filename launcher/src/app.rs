@@ -80,6 +80,9 @@ impl cosmic::app::CosmicFlags for SoullessFlags {
 /// Identifies what a secondary window (popup surface) is showing, so
 /// view_window can render the correct content and update() can clean up
 /// the right state when the compositor closes it.
+// #30: ContextMenu/VaultMenu/VaultHiddenMenu unused while compositor-managed
+// popups are shelved (reverted get_popup grab work).
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub enum WindowKind {
     /// A right-click context menu popup. Carries the menu payload + the drawer
@@ -211,6 +214,14 @@ impl cosmic::Application for Soulless {
 
             Message::Fps(msg) => {
                 self.fps.update(msg);
+                // Wipe decrypted plaintext for any vaulted file whose viewer has
+                // closed. Cheap try_wait on tracked children; runs on the FPS tick
+                // only while the vault is unlocked.
+                if self.search.vault.lock_state
+                    == crate::vault::VaultLockState::Unlocked
+                {
+                    self.search.vault.reap_finished_opens();
+                }
                 Task::none()
             }
 
@@ -308,7 +319,6 @@ impl cosmic::Application for Soulless {
                 // and see if the pointer storm returns. Previously this looped:
                 // state change per motion -> re-render -> surface perturb -> re-emit.
                 self.cursor_pos = position;
-                eprintln!("[LIVE] cursor=({:.0},{:.0}) screen={:?}", position.x, position.y, self.screen_size);
                 Task::none()
             }
 

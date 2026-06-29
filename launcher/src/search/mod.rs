@@ -78,6 +78,8 @@ pub enum Message {
     VaultOpenFileMenu(String),
     VaultCloseContextMenu,
     VaultExportFile(String),
+    VaultConfirmUpgrade,
+    VaultForgetDestroy,
 
     /// Fired when files are dropped onto the vault drop zone
     VaultFilesDropped(Vec<std::path::PathBuf>),
@@ -730,6 +732,19 @@ impl Search {
             Message::VaultUnlock => {
                 self.vault.unlock();
 
+                None
+            }
+
+           Message::VaultConfirmUpgrade => {
+                self.vault.confirm_upgrade_wipe();
+                None
+            }
+
+            Message::VaultForgetDestroy => {
+                // Dead man's switch: no password recovery by design. Permanently
+                // destroys the vault (hard delete, no backup) and drops to fresh
+                // first-run setup.
+                self.vault.forget_and_destroy();
                 None
             }
 

@@ -2,51 +2,65 @@
 <component type="desktop-application">
   <id>com.github.hmrdsmoke.soulless-launcher</id>
   <name>Soulless Launcher</name>
-  <summary>The toolbox you need to organize the tools you use</summary>
+  <summary>A search-everything launcher for COSMIC</summary>
   <description>
     <p>
-      Soulless is a COSMIC desktop launcher built for Pop!_OS. Find everything 
-      on your computer from one place — apps, files, directories, CLI tools, 
-      Steam games, Flatpaks, and Snaps. Organize your tools into custom drawers, 
-      secure sensitive files behind an encrypted vault, and make it yours with 
-      custom backgrounds.
+      Soulless is a launcher for the COSMIC desktop, built by one stubborn
+      veteran who decided everything on a computer should be findable from a
+      single search box — apps, files, folders, CLI tools, Steam games,
+      Flatpaks, Snaps, the whole lot. No hunting through menus. No five
+      different places to look. One box, type, go.
     </p>
-    <p>Features:</p>
+    <p>
+      It also does a few things most launchers don't bother with. The search
+      learns as you go — the apps and tools you actually open float to the top,
+      ranked by how often and how recently you reach for them, so the stuff you
+      use is always one keystroke away. It keeps an eye on your Downloads folder
+      too: drop a file in and Soulless works out where it belongs — pictures to
+      Pictures, videos to Videos, that invoice to Finance — tells you why, and
+      files it away with one click. It only ever suggests; nothing moves without
+      your say-so.
+    </p>
+    <p>
+      And it makes CLI tools actually useful by launching their man pages —
+      search a command, hit it, and read the docs instead of squinting at a bare
+      name. Stash your sensitive files and apps behind an encrypted vault so they
+      vanish from every menu on the system. Sort your tools into custom drawers
+      that make sense to you. And keep an eye on your hardware with live network,
+      CPU, GPU, RAM, and FPS readouts while you work.
+    </p>
+    <p>What's in the box:</p>
     <ul>
-      <li>Universal search across apps, files, CLI tools, Steam, Flatpak, and Snap</li>
-      <li>Custom drawers to organize your apps your way</li>
-      <li>Encrypted vault for sensitive files and apps</li>
-      <li>Live system monitors — network, CPU, GPU, RAM, FPS</li>
-      <li>Custom backgrounds from ~/.config/soulless/backgrounds/</li>
-      <li>Instant startup via disk cache</li>
-      <li>Keyboard navigation with Tab, S, V, arrow keys</li>
-      <li>Super+Space activation from anywhere</li>
-      <li>wgpu accelerated rendering</li>
+      <li>Search that learns — the more you use something, the higher it ranks, by frequency and recency</li>
+      <li>Smart download sorting — reads each new file, suggests where it belongs and why, files it with one click, and never moves anything without permission</li>
+      <li>Universal search — apps, files, CLI tools, Steam, Flatpak, and Snap, all at once</li>
+      <li>CLI tools that launch their man pages, so a command is actually useful and not just a name</li>
+      <li>Custom drawers to organize your tools the way your brain works, not the way a menu thinks it should</li>
+      <li>Encrypted vault that pulls sensitive files and apps off every system menu</li>
+      <li>Live hardware monitors — network, CPU, GPU, RAM, FPS</li>
+      <li>Your own backgrounds from ~/.config/soulless/backgrounds/</li>
+      <li>Disk-cached index so it opens the instant you hit the key</li>
+      <li>Full keyboard navigation — Tab, S, V, arrows, no mouse required</li>
+      <li>Super+Space from anywhere</li>
+      <li>wgpu-accelerated rendering because it's 2026</li>
     </ul>
   </description>
-
   <launchable type="desktop-id">com.github.hmrdsmoke.soulless-launcher.desktop</launchable>
-
   <url type="homepage">https://github.com/hmrdsmoke/Soulless-Launcher</url>
   <url type="bugtracker">https://github.com/hmrdsmoke/Soulless-Launcher/issues</url>
-
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
-
   <developer id="com.github.hmrdsmoke">
     <name>Michael Van Auker (HMRDSmoke)</name>
   </developer>
-
   <branding>
     <color type="primary" scheme_preference="dark">#0A0A0C</color>
     <color type="primary" scheme_preference="light">#D9DDE6</color>
   </branding>
-
   <categories>
     <category>Utility</category>
     <category>System</category>
   </categories>
-
   <keywords>
     <keyword>launcher</keyword>
     <keyword>search</keyword>
@@ -54,7 +68,6 @@
     <keyword>Pop!_OS</keyword>
     <keyword>toolbox</keyword>
   </keywords>
-
   <screenshots>
     <screenshot type="default">
       <caption>Search across apps, files, CLI tools and more</caption>
@@ -69,8 +82,29 @@
       <image>https://raw.githubusercontent.com/hmrdsmoke/Soulless-Launcher/main/screenshots/vault.png</image>
     </screenshot>
   </screenshots>
-
   <releases>
+    <release version="1.0.0" date="2026-06-27">
+      <description>
+        <p>
+          Version 1.0. Three days of coffee, cigarettes, and questionable
+          decisions to drag this across the finish line. It builds, it runs,
+          and everything in the feature list actually works. Whether it's any
+          good is for you to decide — but it does what it says.
+        </p>
+        <ul>
+          <li>First stable release</li>
+          <li>Search that learns from how you use it</li>
+          <li>Smart download sorting — suggests where new files belong, moves them on your okay</li>
+          <li>Universal search across apps, files, CLI tools, Steam, Flatpak, and Snap</li>
+          <li>CLI tools launch their man pages</li>
+          <li>Custom drawers with drag and drop</li>
+          <li>Encrypted vault for files and apps</li>
+          <li>Live system monitors</li>
+          <li>wgpu accelerated rendering</li>
+          <li>Disk cache for instant startup</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.1" date="2026-06-06"/>
     <release version="0.1.0" date="2026-05-28">
       <description>
@@ -86,7 +120,6 @@
       </description>
     </release>
   </releases>
-
   <content_rating type="oars-1.1"/>
   <provides>
     <id>com.system76.CosmicApplet</id>

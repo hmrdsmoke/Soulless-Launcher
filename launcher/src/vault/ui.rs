@@ -26,6 +26,7 @@ pub fn view<'a>(vault: &'a Vault, cursor_pos: cosmic::iced::Point) -> Element<'a
         VaultLockState::Uninitialized => setup_view(vault),
         VaultLockState::Locked => unlock_view(vault),
         VaultLockState::Unlocked => files_view(vault, cursor_pos),
+        VaultLockState::NeedsUpgrade => upgrade_view(vault),
     }
 }
 
@@ -33,6 +34,14 @@ pub fn view<'a>(vault: &'a Vault, cursor_pos: cosmic::iced::Point) -> Element<'a
 
 fn setup_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
     let title = text("🔒 Create Vault Password").size(24);
+
+    let banner = text(
+        "☠ THIS IS A DEAD MAN'S VAULT\n\
+         Do not put anything in here that you would like to recover.\n\
+         The whole point is to NOT recover.",
+    )
+    .size(12)
+    .color(Color::from_rgb8(220, 120, 90));
 
     let subtitle = text(
         "This password encrypts everything in your vault.\n\
@@ -65,6 +74,8 @@ fn setup_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
 
     let mut col = column![
         title,
+        space::vertical().height(Length::Fixed(10.0)),
+        banner,
         space::vertical().height(Length::Fixed(8.0)),
         subtitle,
         space::vertical().height(Length::Fixed(24.0)),
@@ -84,6 +95,72 @@ fn setup_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
             text(err.as_str())
                 .size(13)
                 .color(Color::from_rgb8(220, 80, 80)),
+        );
+    }
+
+    container(col)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
+        .style(vault_bg)
+        .into()
+}
+
+// ── Upgrade view (old vault format detected) ──────────────────────────────────
+
+fn upgrade_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
+    let title = text("⚠ Vault Security Upgrade").size(24);
+
+    let body = text(
+        "Your vault uses an older encryption format. To upgrade to the new \
+         hardened format, the vault must be reset.\n\n\
+         BEFORE YOU CONTINUE:\n\
+         1. A backup of your current vault will be made automatically.\n\
+         2. After upgrading, your old files will NOT carry over.\n\
+         3. Re-add your files once the new vault is created.\n\n\
+         Your backup will be saved next to the vault directory. To keep your \
+         files, export anything important from the old vault first (open it in \
+         the previous app version), then return here.",
+    )
+    .size(13);
+
+    let upgrade_btn = mouse_area(
+        container(text("Back up & Upgrade Vault").size(15))
+            .padding([10, 24])
+            .style(|_: &Theme| container::Style {
+                background: Some(Color::from_rgb8(150, 90, 30).into()),
+                border: cosmic::iced::border::rounded(8),
+                ..Default::default()
+            }),
+    )
+    .on_press(SearchMessage::VaultConfirmUpgrade);
+
+    let mut col = column![
+        title,
+        space::vertical().height(Length::Fixed(16.0)),
+        body,
+        space::vertical().height(Length::Fixed(24.0)),
+        upgrade_btn,
+    ]
+    .spacing(0)
+    .align_x(Horizontal::Center)
+    .width(Length::Fixed(420.0));
+
+    if let Some(err) = &vault.error {
+        col = col.push(space::vertical().height(Length::Fixed(12.0)));
+        col = col.push(
+            text(err.as_str())
+                .size(13)
+                .color(Color::from_rgb8(220, 80, 80)),
+        );
+    }
+    if let Some(status) = &vault.status {
+        col = col.push(space::vertical().height(Length::Fixed(12.0)));
+        col = col.push(
+            text(status.as_str())
+                .size(12)
+                .color(Color::from_rgb8(80, 200, 120)),
         );
     }
 
@@ -120,12 +197,41 @@ fn unlock_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
     )
     .on_press(SearchMessage::VaultUnlock);
 
+    // Dead man's switch reachable from the lock screen. No password recovery
+    // exists by design; the only "forgot password" action is to DESTROY the
+    // vault and start fresh. Deliberately styled as destructive and placed
+    // well below Unlock so it can't be hit by a stray click.
+    let destroy_btn = mouse_area(
+        container(
+            text("Forgot password?  →  Destroy vault")
+                .size(12),
+        )
+        .padding([8, 18])
+        .style(|_: &Theme| container::Style {
+            background: Some(Color::from_rgb8(110, 30, 30).into()),
+            border: cosmic::iced::Border {
+                color: Color::from_rgb8(200, 60, 60),
+                width: 1.0,
+                radius: cosmic::iced::border::rounded(6).radius,
+            },
+            ..Default::default()
+        }),
+    )
+    .on_press(SearchMessage::VaultForgetDestroy);
+
     let mut col = column![
         title,
         space::vertical().height(Length::Fixed(24.0)),
         password_field,
         space::vertical().height(Length::Fixed(16.0)),
         unlock_btn,
+        space::vertical().height(Length::Fixed(40.0)),
+        text("This vault cannot be recovered. There is no password reset —\n\
+              only permanent destruction.")
+            .size(10)
+            .color(Color::from_rgb8(150, 150, 160)),
+        space::vertical().height(Length::Fixed(8.0)),
+        destroy_btn,
     ]
     .spacing(0)
     .align_x(Horizontal::Center)
