@@ -508,7 +508,16 @@ impl cosmic::Application for Soulless {
                             .arg("-c").arg(&clean).spawn();
                         return self.dismiss();
                     }
-                if self.search.show_search_results
+                // Type-and-Enter: launch the top result ONLY when the user has
+                // actually typed a query. Without the non-empty guard, a bare
+                // Enter on a freshly-opened launcher (query empty, all apps
+                // showing, nothing focused) launches result 0 — that is how a
+                // stray Enter (e.g. the Enter that ran a terminal `busctl`
+                // activation) leaked into the window and launched the first app.
+                // Gating on a non-empty query preserves type-and-Enter while
+                // making a bare Enter on the fresh window a no-op.
+                if !self.search.query.trim().is_empty()
+                    && self.search.show_search_results
                     && let Some(exec) = self.search.focused_exec(0) {
                         self.search.record_launch_by_exec(&exec);
                         let clean = crate::utils::strip_desktop_placeholders(&exec);
@@ -593,16 +602,43 @@ impl cosmic::Application for Soulless {
     ) -> Task<cosmic::Action<Self::Message>> {
         use cosmic::dbus_activation::Details;
         match msg.msg {
+            // Show: idempotent. A second Activate while the surface is already
+            // open is a no-op (NOT a re-open). This is the fix for the double-
+            // activation bug: an unguarded re-open reset search + re-ran open()
+            // on an already-live window, which surfaced as "launches the first
+            // result and vanishes." If already open, do nothing.
             Details::Activate => {
-                // Warm daemon retains last session's state; reset to fresh on open.
-                self.search.reset_to_default();
-                self.surface_open = true;
-                crate::position::placement::LauncherPosition::open(
-                    self.window_id,
-                    self.screen_size,
-                    Message::WindowOpened,
-                )
-                .map(cosmic::Action::App)
+                if self.surface_open {
+                    Task::none()
+                } else {
+                    // Warm daemon retains last session's state; reset to fresh on open.
+                    self.search.reset_to_default();
+                    self.surface_open = true;
+                    crate::position::placement::LauncherPosition::open(
+                        self.window_id,
+                        self.screen_size,
+                        Message::WindowOpened,
+                    )
+                    .map(cosmic::Action::App)
+                }
+            }
+            // Toggle: flip show/hide. Open -> dismiss; closed -> show fresh.
+            // Reached via `ActivateAction("toggle")` (e.g. a future CLI
+            // `soulless toggle` or a panel-button toggle press). The action
+            // string is matched explicitly so unknown actions are ignored.
+            Details::ActivateAction { action, .. } if action == "toggle" => {
+                if self.surface_open {
+                    self.dismiss()
+                } else {
+                    self.search.reset_to_default();
+                    self.surface_open = true;
+                    crate::position::placement::LauncherPosition::open(
+                        self.window_id,
+                        self.screen_size,
+                        Message::WindowOpened,
+                    )
+                    .map(cosmic::Action::App)
+                }
             }
             _ => Task::none(),
         }

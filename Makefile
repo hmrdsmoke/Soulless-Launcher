@@ -63,7 +63,7 @@ install: release
 		echo "  → $${sz}x$${sz}"; \
 	done
 	@echo "Installing soulless-activate → $(BINDIR)/soulless-activate"
-	printf '#!/bin/sh\n/usr/bin/dbus-send --session --print-reply --dest=com.github.hmrdsmoke.SoullessApplet /com/github/hmrdsmoke/SoullessApplet com.github.hmrdsmoke.SoullessApplet.Activate\n' > /tmp/soulless-activate
+	printf '#!/bin/sh\n/usr/bin/busctl --user call com.github.hmrdsmoke.SoullessLauncher /com/github/hmrdsmoke/SoullessLauncher org.freedesktop.DbusActivation Activate "a{sv}" 0\n' > /tmp/soulless-activate
 	install -Dm755 /tmp/soulless-activate $(BINDIR)/soulless-activate
 	@echo "Installing COSMIC shortcut..."
 	mkdir -p $(SHORTCUT_DIR)
