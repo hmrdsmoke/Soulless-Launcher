@@ -118,9 +118,9 @@ impl LauncherPosition {
         surface.id = id;
         surface.keyboard_interactivity = KeyboardInteractivity::Exclusive;
         surface.layer = Layer::Top;
-        surface.anchor = Anchor::TOP;
+        surface.anchor = Anchor::all();
         surface.namespace = "launcher".to_string();
-        surface.size = None;
+        surface.size = Some((None, None));
         surface.size_limits = Limits::NONE.min_width(1.0).min_height(1.0).max_width(600.0);
         surface.exclusive_zone = -1;
         surface
@@ -155,7 +155,7 @@ impl LauncherPosition {
         surface.layer = Layer::Bottom;
         surface.keyboard_interactivity = KeyboardInteractivity::None;
         surface.input_zone = Some(Vec::new());
-        surface.anchor = Anchor::TOP;
+        surface.anchor = Anchor::all();
         surface.namespace = "soulless_launcher_dummy".to_string();
         surface.size = Some((Some(600), Some(200)));
         surface.exclusive_zone = -1;
