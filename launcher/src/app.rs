@@ -619,14 +619,43 @@ impl cosmic::Application for Soulless {
         // level). This gives autosize a STABLE measurement that doesn't change
         // frame-to-frame, so it acks the compositor once and settles instead of
         // re-requesting every frame (the flood). Fill content lives inside.
-        cosmic::iced::widget::container(themed)
-            .width(cosmic::iced::Length::Fixed(
-                crate::position::layout::WINDOW_WIDTH,
-            ))
-            .height(cosmic::iced::Length::Fixed(
-                crate::position::layout::WINDOW_HEIGHT,
-            ))
-            .into()
+        // The launcher content, fixed-size (the NON-DISMISS zone). Wrapped in a
+        // mouse_area that absorbs clicks so they do NOT fall through to the
+        // background dismiss layer below.
+        let launcher_zone = cosmic::iced::widget::mouse_area(
+            cosmic::iced::widget::container(themed)
+                .width(cosmic::iced::Length::Fixed(
+                    crate::position::layout::WINDOW_WIDTH,
+                ))
+                .height(cosmic::iced::Length::Fixed(
+                    crate::position::layout::WINDOW_HEIGHT,
+                )),
+        )
+        .on_press(Message::Noop);
+
+        // Full-screen stack: background dismisses (click outside launcher zone),
+        // launcher zone does not. Positioning via the vertical space + align_x.
+        // (Matches cosmic-applibrary root layout.)
+        cosmic::iced::widget::stack![
+            // Background: click anywhere outside the launcher -> dismiss.
+            cosmic::iced::widget::mouse_area(
+                cosmic::iced::widget::container(cosmic::iced::widget::space::horizontal())
+                    .width(cosmic::iced::Length::Fill)
+                    .height(cosmic::iced::Length::Fill)
+            )
+            .on_press(Message::RequestClose),
+            // Positioned launcher zone.
+            cosmic::iced::widget::column![
+                cosmic::iced::widget::space::vertical()
+                    .height(cosmic::iced::Length::Fixed(80.0)),
+                launcher_zone,
+            ]
+            .align_x(cosmic::iced::Alignment::Center)
+            .width(cosmic::iced::Length::Fill)
+        ]
+        .width(cosmic::iced::Length::Fill)
+        .height(cosmic::iced::Length::Fill)
+        .into()
     }
 
     fn dbus_activation(
