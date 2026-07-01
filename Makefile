@@ -27,6 +27,7 @@ LAUNCHER_BIN  := target/release/soulless-launcher
 APPLET_BIN    := target/release/soulless-applet
 LAUNCHER_DESK := assets/com.github.hmrdsmoke.soulless-launcher.desktop
 APPLET_DESK   := assets/soulless-applet.desktop
+AUTOSTART_DESK := assets/com.github.hmrdsmoke.soulless-launcher.autostart.desktop
 LAUNCHER_ID   := com.github.hmrdsmoke.soulless-launcher
 APPLET_ID     := com.github.hmrdsmoke.soulless-applet
 ICONSRC       := assets/icons/hicolor
@@ -51,6 +52,8 @@ install: release
 	@echo "Installing desktop files → $(APPDIR)"
 	install -Dm644 $(LAUNCHER_DESK) $(APPDIR)/com.github.hmrdsmoke.soulless-launcher.desktop
 	install -Dm644 $(APPLET_DESK)   $(APPDIR)/$(APPLET_ID).desktop
+	@echo "Installing autostart entry → /etc/xdg/autostart"
+	install -Dm644 $(AUTOSTART_DESK) /etc/xdg/autostart/com.github.hmrdsmoke.soulless-launcher.desktop
 	@echo "Installing metainfo..."
 	install -Dm644 assets/com.github.hmrdsmoke.soulless-launcher.metainfo.xml \
 		/usr/share/metainfo/com.github.hmrdsmoke.soulless-launcher.metainfo.xml
@@ -86,6 +89,7 @@ uninstall:
 	rm -f $(BINDIR)/$(APPLET_ID)
 	rm -f $(APPDIR)/com.github.hmrdsmoke.soulless-launcher.desktop
 	rm -f $(APPDIR)/$(APPLET_ID).desktop
+	rm -f /etc/xdg/autostart/com.github.hmrdsmoke.soulless-launcher.desktop
 	rm -f /usr/share/metainfo/com.github.hmrdsmoke.soulless-launcher.metainfo.xml
 	@for sz in $(ICON_SIZES); do \
 		rm -f "$(ICON_BASE)/$${sz}x$${sz}/apps/$(LAUNCHER_ID).png"; \

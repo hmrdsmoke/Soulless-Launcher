@@ -109,64 +109,20 @@ impl LauncherPosition {
     }
 
     /// Build the layer shell settings for this launcher.
-    fn surface_settings(id: window::Id, screen: Option<(u32, u32)>) -> SctkLayerSurfaceSettings {
-        // Screen-aware sizing: the launcher now knows the monitor dimensions (from
-        // captured Output events) so it can request a concrete size that FITS the
-        // screen, instead of guessing. Theory: the resize loop was the surface
-        // unable to reconcile an unknown-relative size with the compositor.
-        let (sw, sh) = screen.unwrap_or((1920, 1080));
-        let w = (WINDOW_WIDTH as u32).min(sw);
-        let h = (WINDOW_HEIGHT as u32).min(sh);
-
+    fn surface_settings(id: window::Id, _screen: Option<(u32, u32)>) -> SctkLayerSurfaceSettings {
+        // Match cosmic-launcher show() EXACTLY: Exclusive keyboard, TOP anchor,
+        // size None (autosize), max_width 600. Proven-working real surface.
+        // Applet-corner positioning removed temporarily to get a working baseline;
+        // re-add once the window reliably shows.
         let mut surface = SctkLayerSurfaceSettings::default();
         surface.id = id;
-        surface.keyboard_interactivity = KeyboardInteractivity::OnDemand;
+        surface.keyboard_interactivity = KeyboardInteractivity::Exclusive;
         surface.layer = Layer::Top;
-        // Applet-aware placement: find which bar (Panel/Dock) + wing the applet
-        // is in, anchor the launcher to that bar's edge AND that wing's side so
-        // it pops up from the corner where the button lives. Clear the bar with
-        // its size-derived margin.
-        let (bar, wing) = Self::find_applet_bar();
-        let edge = Self::bar_anchor(bar);
-        let gap = Self::bar_size_px(bar);
-
-        // Map the wing to a screen direction based on the bar's orientation.
-        // Horizontal bar (Top/Bottom): wings run left/right.
-        // Vertical bar (Left/Right):   wings run top/bottom.
-        // First array = start of the bar (left for horizontal, top for vertical).
-        let horizontal_bar = edge == Anchor::TOP || edge == Anchor::BOTTOM;
-        let mut anchor = edge;
-        match (wing, horizontal_bar) {
-            (Wing::First, true) => anchor |= Anchor::LEFT,
-            (Wing::Second, true) => anchor |= Anchor::RIGHT,
-            (Wing::First, false) => anchor |= Anchor::TOP,
-            (Wing::Second, false) => anchor |= Anchor::BOTTOM,
-            (Wing::Center, _) => {} // center on the bar's axis
-        }
-        surface.anchor = anchor;
-
-        // Clear the bar on whichever edge it occupies.
-        if edge == Anchor::TOP {
-            surface.margin.top = gap;
-        } else if edge == Anchor::LEFT {
-            surface.margin.left = gap;
-        } else if edge == Anchor::RIGHT {
-            surface.margin.right = gap;
-        } else {
-            surface.margin.bottom = gap;
-        }
-        // size: None so autosize controls sizing AND acks the compositor's configure
-        // events (the ack completes the layer-shell handshake; without it the
-        // compositor re-sends configure forever = the RequestResize flood).
-        surface.size = Some((Some(w), Some(h)));
-        // Limits bounded by the actual screen, not pinned to the surface size.
-        surface.size_limits = Limits::NONE
-            .min_width(1.0)
-            .min_height(1.0)
-            .max_width(sw as f32)
-            .max_height(sh as f32);
+        surface.anchor = Anchor::TOP;
+        surface.namespace = "launcher".to_string();
+        surface.size = None;
+        surface.size_limits = Limits::NONE.min_width(1.0).min_height(1.0).max_width(600.0);
         surface.exclusive_zone = -1;
-        surface.namespace = "soulless-launcher".to_string();
         surface
     }
 
@@ -179,6 +135,33 @@ impl LauncherPosition {
         get_layer_surface(Self::surface_settings(id, screen)).map(on_open)
     }
 
+
+    /// Create a DUMMY bottom-layer surface at init to anchor the launcher onto
+    /// the Wayland connection — especially the inherited host socket from
+    /// X-HostWaylandDisplay=true (WAYLAND_SOCKET). Mirrors cosmic-launcher's
+    /// create_dummy_layer_surface: without anchoring the connection at startup,
+    /// the real surface (open()) fails to show on the inherited socket.
+    /// Bottom layer + None keyboard + empty input zone = invisible, inert, and
+    /// will not trigger the RequestResize flood the real surface did at init.
+    pub fn create_dummy<M>(
+        id: window::Id,
+        on_open: impl Fn(window::Id) -> M + Send + 'static,
+    ) -> Task<M>
+    where
+        M: Send + 'static,
+    {
+        let mut surface = SctkLayerSurfaceSettings::default();
+        surface.id = id;
+        surface.layer = Layer::Bottom;
+        surface.keyboard_interactivity = KeyboardInteractivity::None;
+        surface.input_zone = Some(Vec::new());
+        surface.anchor = Anchor::TOP;
+        surface.namespace = "soulless_launcher_dummy".to_string();
+        surface.size = Some((Some(600), Some(200)));
+        surface.exclusive_zone = -1;
+        surface.size_limits = Limits::NONE;
+        get_layer_surface(surface).map(on_open)
+    }
 
     /// Destroys the layer shell surface. Mirrors open() so all surface
     /// lifecycle stays in this module (per the file's open/close contract).

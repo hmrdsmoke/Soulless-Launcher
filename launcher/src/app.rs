@@ -38,6 +38,7 @@ pub enum Message {
     TabPressed,
     RequestClose,
     Noop,
+    ShowSurface,
 }
 
 // ── Single-instance flags (minimal, no clap) ─────────────────────────────────
@@ -105,6 +106,7 @@ pub struct Soulless {
     config:     crate::config::SoullessConfig,
     bg_handle:  Option<cosmic::iced::widget::image::Handle>,
     window_id:  cosmic::iced::window::Id,
+    dummy_id:   Option<cosmic::iced::window::Id>,
     screen_size: Option<(u32, u32)>,
     /// Whether the layer surface is currently open. Guards destroy_layer_surface
     /// so a second dismiss trigger (e.g. Unfocused right after Esc) is a no-op
@@ -172,6 +174,7 @@ impl cosmic::Application for Soulless {
         // why the surface floods RequestResize and won't render. Reuse this id for
         // creation and destruction. (Approach informed by pop-os/cosmic-launcher.)
         let window_id = cosmic::iced::window::Id::unique();
+        let dummy_id = cosmic::iced::window::Id::unique();
         (
             Self {
                 core,
@@ -184,14 +187,20 @@ impl cosmic::Application for Soulless {
                 config,
                 bg_handle,
                 window_id,
+                dummy_id: Some(dummy_id),
                 screen_size: None,
                 surface_open: false,
                 cursor_pos: cosmic::iced::Point::ORIGIN,
                 windows: std::collections::HashMap::new(),
             },
-            // Stage 2 TEST: do NOT create the surface at init. Create it on-demand
-            // in dbus_activation (warm daemon) to test whether that kills the flood.
-            Task::none(),
+            // Create a DUMMY bottom-layer surface at init to anchor the launcher
+            // onto the Wayland connection (esp. the inherited host socket from
+            // X-HostWaylandDisplay). Mirrors cosmic-launcher. Bottom/None/empty-input
+            // so it is inert and does not flood RequestResize.
+            crate::position::placement::LauncherPosition::create_dummy(
+                dummy_id,
+                |_id| cosmic::Action::App(Message::Noop),
+            ),
         )
     }
 
@@ -289,11 +298,35 @@ impl cosmic::Application for Soulless {
             Message::WindowOpened(id) => {
                 crate::ui::startup_tasks(id).map(cosmic::Action::App)
             }
+            Message::ShowSurface => {
+                eprintln!("[launcher] ShowSurface: creating real surface now (deferred)");
+                crate::position::placement::LauncherPosition::open(
+                    self.window_id,
+                    self.screen_size,
+                    Message::WindowOpened,
+                )
+                .map(cosmic::Action::App)
+            }
             // ── Focus search bar on window focus ──────────────────────────
             Message::WindowEvent(cosmic::iced::Event::Window(
                 window::Event::Focused,
             )) => {
                 // DIAGNOSTIC: auto-focus disabled to test if it drives a focus->rebuild loop
+                Task::none()
+            }
+            // ── Surface mapping (Opened/Resized) ──────────────────────────
+            // The compositor Opened/Resized events complete the layer-surface
+            // handshake so it MAPS (becomes visible). cosmic-launcher handles
+            // these. Quiet return (Task::none) so no RequestResize flood.
+            Message::WindowEvent(cosmic::iced::Event::Window(
+                window::Event::Opened { .. },
+            )) => {
+                eprintln!("[launcher] WindowEvent::Opened received (surface mapping)");
+                Task::none()
+            }
+            Message::WindowEvent(cosmic::iced::Event::Window(
+                window::Event::Resized(..),
+            )) => {
                 Task::none()
             }
             // ── Keyboard ──────────────────────────────────────────────────
@@ -608,18 +641,17 @@ impl cosmic::Application for Soulless {
             // on an already-live window, which surfaced as "launches the first
             // result and vanishes." If already open, do nothing.
             Details::Activate => {
+                eprintln!("[launcher] dbus_activation: Activate received, surface_open={}", self.surface_open);
                 if self.surface_open {
                     Task::none()
                 } else {
-                    // Warm daemon retains last session's state; reset to fresh on open.
+                    // Defer surface creation to the next event-loop cycle (like
+                    // cosmic-launcher, which defers via its search-response round-trip).
+                    // Creating the layer surface synchronously here does NOT map it.
                     self.search.reset_to_default();
                     self.surface_open = true;
-                    crate::position::placement::LauncherPosition::open(
-                        self.window_id,
-                        self.screen_size,
-                        Message::WindowOpened,
-                    )
-                    .map(cosmic::Action::App)
+                    eprintln!("[launcher] deferring surface creation via ShowSurface");
+                    cosmic::task::message(cosmic::Action::App(Message::ShowSurface))
                 }
             }
             // Toggle: flip show/hide. Open -> dismiss; closed -> show fresh.
@@ -676,6 +708,13 @@ impl cosmic::Application for Soulless {
                 )
                 .into()
             }
+            None if Some(id) == self.dummy_id => {
+                // The dummy anchor surface: render NOTHING so it stays invisible
+                // (like cosmic-launcher). It exists only to anchor the Wayland
+                // connection (inherited host socket); drawing the launcher into
+                // it caused the partial, non-interactive ghost window.
+                cosmic::iced::widget::column![].into()
+            }
             None => self.view(),
         }
     }
@@ -709,6 +748,16 @@ impl cosmic::Application for Soulless {
                 cosmic::iced::Event::Keyboard(
                     cosmic::iced::keyboard::Event::KeyPressed { .. },
                 ) => Some(Message::WindowEvent(ev)),
+                // Surface mapping: the compositor.s Opened/Resized events complete
+                // the layer-surface handshake. WITHOUT capturing these, the surface
+                // is CREATED but never MAPPED = invisible window. cosmic-launcher
+                // captures both. Handled quietly in update() so no flood.
+                cosmic::iced::Event::Window(cosmic::iced::window::Event::Opened { .. }) => {
+                    Some(Message::WindowEvent(ev))
+                }
+                cosmic::iced::Event::Window(cosmic::iced::window::Event::Resized(..)) => {
+                    Some(Message::WindowEvent(ev))
+                }
                 // Everything else (frame/redraw/etc.) -> None. Breaks the flood.
                 _ => None,
             }),

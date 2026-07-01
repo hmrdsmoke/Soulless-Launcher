@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Soulless Launcher (Daemon)
+Comment=Soulless command-center daemon for COSMIC (resident session service)
+Type=Application
+Exec=/usr/local/bin/soulless-launcher
+Icon=com.github.hmrdsmoke.soulless-launcher
+Terminal=false
+Categories=System;X-COSMIC;
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+30:
