@@ -3,6 +3,14 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Grok (xAI) and Claude (Anthropic).
 // Do not remove these comments.
+//
+// Window activation, surface mapping, and dismiss techniques in this file were
+// adapted from System76's COSMIC applications (GPL-3.0):
+//   - cosmic-launcher:   https://github.com/pop-os/cosmic-launcher
+//   - cosmic-applibrary: https://github.com/pop-os/cosmic-applibrary
+// Adapted: deferred surface creation (WaitingToBeShown pattern), capturing
+// compositor WindowEvent::Opened/Resized for surface mapping, and the
+// full-screen-stack model for click-away dismissal.
 
 // src/app.rs
 // Application model, message types, update logic, view, and subscriptions.
@@ -633,6 +641,57 @@ impl cosmic::Application for Soulless {
         )
         .on_press(Message::Noop);
 
+        // Read the applet position from LIVE config (dynamic, no hardcoding) and
+        // derive the launcher placement: wing -> horizontal, bar edge -> vertical.
+        let (edge, wing, bar_px) = crate::position::placement::LauncherPosition::applet_position();
+        // Orientation-aware placement. Horizontal bar (Top/Bottom): wings run
+        // left/right, edge is top/bottom. Vertical bar (Left/Right): wings run
+        // top/bottom, edge is left/right. Map each axis accordingly.
+        use cosmic::iced::platform_specific::shell::commands::layer_surface::Anchor as LSAnchor;
+        use crate::position::placement::Wing;
+        let horizontal_bar = matches!(edge, LSAnchor::TOP | LSAnchor::BOTTOM);
+        let (align_x, align_y) = if horizontal_bar {
+            let ax = match wing {
+                Wing::First => cosmic::iced::Alignment::Start,
+                Wing::Second => cosmic::iced::Alignment::End,
+                Wing::Center => cosmic::iced::Alignment::Center,
+            };
+            let ay = if matches!(edge, LSAnchor::TOP) {
+                cosmic::iced::Alignment::Start
+            } else {
+                cosmic::iced::Alignment::End
+            };
+            (ax, ay)
+        } else {
+            let ay = match wing {
+                Wing::First => cosmic::iced::Alignment::Start,
+                Wing::Second => cosmic::iced::Alignment::End,
+                Wing::Center => cosmic::iced::Alignment::Center,
+            };
+            let ax = if matches!(edge, LSAnchor::LEFT) {
+                cosmic::iced::Alignment::Start
+            } else {
+                cosmic::iced::Alignment::End
+            };
+            (ax, ay)
+        };
+        // Clear the bar on its edge using the bar's ACTUAL thickness (from config),
+        // small gap on the other edges. Launcher sits just past the panel/dock
+        // wherever it is and whatever size it is set to.
+        let gap = 8.0f32;
+        let bar_pad = bar_px as f32 + gap;
+        let padding = match edge {
+            cosmic::iced::platform_specific::shell::commands::layer_surface::Anchor::TOP =>
+                cosmic::iced::Padding { top: bar_pad, right: gap, bottom: gap, left: gap },
+            cosmic::iced::platform_specific::shell::commands::layer_surface::Anchor::BOTTOM =>
+                cosmic::iced::Padding { top: gap, right: gap, bottom: bar_pad, left: gap },
+            cosmic::iced::platform_specific::shell::commands::layer_surface::Anchor::LEFT =>
+                cosmic::iced::Padding { top: gap, right: gap, bottom: gap, left: bar_pad },
+            cosmic::iced::platform_specific::shell::commands::layer_surface::Anchor::RIGHT =>
+                cosmic::iced::Padding { top: gap, right: bar_pad, bottom: gap, left: gap },
+            _ => cosmic::iced::Padding::from(gap),
+        };
+
         // Full-screen stack: background dismisses (click outside launcher zone),
         // launcher zone does not. Positioning via the vertical space + align_x.
         // (Matches cosmic-applibrary root layout.)
@@ -644,14 +703,13 @@ impl cosmic::Application for Soulless {
                     .height(cosmic::iced::Length::Fill)
             )
             .on_press(Message::RequestClose),
-            // Positioned launcher zone.
-            cosmic::iced::widget::column![
-                cosmic::iced::widget::space::vertical()
-                    .height(cosmic::iced::Length::Fixed(80.0)),
-                launcher_zone,
-            ]
-            .align_x(cosmic::iced::Alignment::Center)
-            .width(cosmic::iced::Length::Fill)
+            // Positioned launcher zone: aligned to the applet corner (dynamic).
+            cosmic::iced::widget::container(launcher_zone)
+                .align_x(align_x)
+                .align_y(align_y)
+                .padding(padding)
+                .width(cosmic::iced::Length::Fill)
+                .height(cosmic::iced::Length::Fill)
         ]
         .width(cosmic::iced::Length::Fill)
         .height(cosmic::iced::Length::Fill)

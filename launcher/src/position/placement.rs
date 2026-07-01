@@ -2,6 +2,14 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
+//
+// Surface-handling and window-placement techniques in this file were adapted from
+// System76's COSMIC applications (GPL-3.0), studied as reference implementations:
+//   - cosmic-launcher:   https://github.com/pop-os/cosmic-launcher
+//   - cosmic-applibrary: https://github.com/pop-os/cosmic-applibrary
+// Adapted: dummy anchor-surface at init, deferred surface creation,
+// size: Some((None, None)) for a paintable layer surface, orientation-aware
+// edge/wing placement, and the full-screen-stack click-away dismiss model.
 
 // src/position/placement.rs
 // Owns the full lifecycle of the launcher window:
@@ -10,7 +18,6 @@
 //   - focus() → focuses the search bar
 // main.rs calls these; placement.rs owns the how and where.
 
-use super::layout::{WINDOW_HEIGHT, WINDOW_WIDTH};
 use cosmic::iced::advanced::layout::Limits;
 use cosmic::iced::platform_specific::shell::commands::layer_surface::{
     Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
@@ -24,7 +31,7 @@ use cosmic::iced::Task;
 /// First=left, Second=right; for a vertical bar (left/right) First=top,
 /// Second=bottom. The mapping to a screen direction happens at anchor time.
 #[derive(Clone, Copy)]
-enum Wing {
+pub enum Wing {
     First,
     Second,
     Center,
@@ -79,6 +86,17 @@ impl LauncherPosition {
             }
         }
         ("Panel", Wing::Center)
+    }
+
+    /// Read the applet.s CURRENT position from the live panel config: the bar
+    /// edge (TOP/BOTTOM/LEFT/RIGHT) and the wing (First/Second/Center). Fully
+    /// dynamic -- wherever the user has placed the applet, the launcher follows.
+    /// No hardcoded positions; both values are read from the config at runtime.
+    pub fn applet_position() -> (Anchor, Wing, i32) {
+        let (bar, wing) = Self::find_applet_bar();
+        let edge = Self::bar_anchor(bar);
+        let bar_px = Self::bar_size_px(bar);
+        (edge, wing, bar_px)
     }
 
     /// Bar thickness in px from the COSMIC size enum (XS..XL or Custom).
