@@ -2,7 +2,7 @@
 Name=Soulless
 Comment=Soulless Launcher for COSMIC
 Type=Application
-Exec=/usr/local/bin/soulless-launcher
+Exec=soulless-launcher
 Icon=com.github.hmrdsmoke.soulless-launcher
 Terminal=false
 Categories=Utility;System;X-COSMIC;
