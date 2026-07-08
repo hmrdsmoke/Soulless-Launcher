@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/registry/migrate.rs
+// launcher/src/registry/migrate.rs
 // Migrates existing drawer app IDs to stable registry IDs.
 
 use super::{Registry, EntryKind};

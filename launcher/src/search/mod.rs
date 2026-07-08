@@ -1,8 +1,9 @@
 // GPL-3.0-or-later - see LICENSE file for full terms
-//
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
+// launcher/src/search/mod.rs
+// Search core: fuzzy matching, index building, and result state.
 
 use crate::vault::Vault;
 use crate::drawers::state::DrawerState;

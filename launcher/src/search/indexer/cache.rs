@@ -2,6 +2,8 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
+// launcher/src/search/indexer/cache.rs
+// Disk cache for the built app index.
 
 use super::AppEntry;
 use nucleo_matcher::Utf32String;

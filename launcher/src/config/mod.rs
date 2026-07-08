@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/config/mod.rs
+// launcher/src/config/mod.rs
 // User configuration for the Soulless launcher.
 // Config lives at ~/.config/soulless/config.ron
 

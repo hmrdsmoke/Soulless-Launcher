@@ -2,7 +2,6 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
 // organizer/src/rules.rs
 // Rule engine for classifying files and suggesting destinations.
 

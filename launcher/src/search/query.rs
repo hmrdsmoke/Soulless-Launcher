@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/search/query.rs
+// launcher/src/search/query.rs
 // Smart query interpretation for the Soulless launcher.
 // Parses natural language queries and returns filtered app indices.
 // Add new query types here — search/mod.rs just calls interpret().

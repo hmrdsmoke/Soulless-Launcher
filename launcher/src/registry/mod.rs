@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/registry/mod.rs
+// launcher/src/registry/mod.rs
 // Stable app/file/dir ID registry.
 // Maps stable UUIDs to app metadata so drawer entries survive renames and source changes.
 

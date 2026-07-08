@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/utils.rs
+// launcher/src/utils.rs
 // Shared utility functions used across the launcher.
 
 /// Strip desktop entry exec field placeholders like %f, %u, %F, %U etc.

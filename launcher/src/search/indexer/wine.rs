@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/search/indexer/wine.rs
+// launcher/src/search/indexer/wine.rs
 // Indexes Windows apps installed via Wine prefixes.
 
 use super::{AppEntry, AppSource};

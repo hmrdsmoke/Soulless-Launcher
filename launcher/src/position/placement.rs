@@ -2,7 +2,12 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-//
+// launcher/src/position/placement.rs
+// Owns the full lifecycle of the launcher window:
+//   - open()  → creates the layer shell surface anchored bottom-right
+//   - close() → destroys the surface and exits
+//   - focus() → focuses the search bar
+// main.rs calls these; placement.rs owns the how and where.
 // Surface-handling and window-placement techniques in this file were adapted from
 // System76's COSMIC applications (GPL-3.0), studied as reference implementations:
 //   - cosmic-launcher:   https://github.com/pop-os/cosmic-launcher
@@ -10,13 +15,6 @@
 // Adapted: dummy anchor-surface at init, deferred surface creation,
 // size: Some((None, None)) for a paintable layer surface, orientation-aware
 // edge/wing placement, and the full-screen-stack click-away dismiss model.
-
-// src/position/placement.rs
-// Owns the full lifecycle of the launcher window:
-//   - open()  → creates the layer shell surface anchored bottom-right
-//   - close() → destroys the surface and exits
-//   - focus() → focuses the search bar
-// main.rs calls these; placement.rs owns the how and where.
 
 use cosmic::iced::advanced::layout::Limits;
 use cosmic::iced::platform_specific::shell::commands::layer_surface::{

@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/ui/panels.rs
+// launcher/src/ui/panels.rs
 // Composes the full launcher window layout.
 
 use crate::ui::theme;

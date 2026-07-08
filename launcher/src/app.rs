@@ -1,9 +1,10 @@
 // GPL-3.0-or-later - see LICENSE file for full terms
-//
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Grok (xAI) and Claude (Anthropic).
 // Do not remove these comments.
-//
+// launcher/src/app.rs
+// Application model, message types, update logic, view, and subscriptions.
+// Migrated to the cosmic::Application trait (Step 1: normal window, no layer shell yet).
 // Window activation, surface mapping, and dismiss techniques in this file were
 // adapted from System76's COSMIC applications (GPL-3.0):
 //   - cosmic-launcher:   https://github.com/pop-os/cosmic-launcher
@@ -11,10 +12,6 @@
 // Adapted: deferred surface creation (WaitingToBeShown pattern), capturing
 // compositor WindowEvent::Opened/Resized for surface mapping, and the
 // full-screen-stack model for click-away dismissal.
-
-// src/app.rs
-// Application model, message types, update logic, view, and subscriptions.
-// Migrated to the cosmic::Application trait (Step 1: normal window, no layer shell yet).
 
 use cosmic::prelude::*;
 use cosmic::iced::{

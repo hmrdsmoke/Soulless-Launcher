@@ -2,6 +2,8 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
+// launcher/src/ui/organizer.rs
+// Organizer banner view shown above search results.
 
 use cosmic::iced::{Element, Length};
 use cosmic::iced::widget::{column, row, text};

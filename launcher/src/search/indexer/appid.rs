@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/search/indexer/appid.rs
+// launcher/src/search/indexer/appid.rs
 // Resolves stable registry IDs to AppEntry.
 // Keeps registry concerns out of Search.
 

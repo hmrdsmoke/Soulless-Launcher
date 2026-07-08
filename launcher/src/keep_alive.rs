@@ -1,3 +1,10 @@
+// GPL-3.0-or-later - see LICENSE file for full terms
+// Copyright 2026 Michael Van Auker (HMRDSmoke)
+// This is my original work with contributions from Claude (Anthropic).
+// Do not remove these comments.
+// launcher/src/keep_alive.rs
+// Daemon keep-alive subscription that keeps the windowless daemon resident.
+
 //! Daemon keep-alive subscription.
 //!
 //! A `run_single_instance` + `no_main_window` daemon exits when nothing keeps the

@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/search/indexer/jetbrains.rs
+// launcher/src/search/indexer/jetbrains.rs
 // Indexes JetBrains IDEs installed via JetBrains Toolbox.
 
 use super::{AppEntry, AppSource};

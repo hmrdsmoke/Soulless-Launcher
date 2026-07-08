@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/position/mod.rs
+// launcher/src/position/mod.rs
 // Re-exports both submodules so main.rs import stays unchanged.
 
 pub mod layout;

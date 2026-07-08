@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/organizer/mod.rs
+// organizer/src/lib.rs
 // File organizer — watches Downloads and suggests where files should move.
 // Never moves anything without user permission.
 

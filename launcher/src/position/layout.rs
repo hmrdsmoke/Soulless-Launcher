@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/position/layout.rs
+// launcher/src/position/layout.rs
 // Single source of truth for all window and panel dimensions.
 // drawers.rs should import from here instead of hardcoding values.
 

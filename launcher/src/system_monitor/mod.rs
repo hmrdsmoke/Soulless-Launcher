@@ -1,8 +1,9 @@
 // GPL-3.0-or-later - see LICENSE file for full terms
-//
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
+// launcher/src/system_monitor/mod.rs
+// System monitor module: state, subscription, and constants.
 
 pub mod graph;
 pub mod stats;

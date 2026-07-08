@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/ui/theme.rs
+// launcher/src/ui/theme.rs
 // All colors, gradients, and visual constants for the Soulless launcher.
 
 use cosmic::iced::Color;

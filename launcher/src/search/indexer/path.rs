@@ -1,8 +1,9 @@
 // GPL-3.0-or-later - see LICENSE file for full terms
-//
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
+// launcher/src/search/indexer/path.rs
+// Indexes executables found on the user's PATH.
 
 use super::{AppEntry, AppSource};
 use super::icon::IconCache;

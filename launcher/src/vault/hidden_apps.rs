@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/vault/hidden_apps.rs
+// launcher/src/vault/hidden_apps.rs
 // Hidden apps — moves a user .desktop file into the vault (encrypted) so the
 // app disappears from every system menu, and shows it as a launchable grid in
 // the vault when unlocked. Launch runs the stored exec directly (no restore

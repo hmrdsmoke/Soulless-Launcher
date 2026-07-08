@@ -1,8 +1,9 @@
 // GPL-3.0-or-later - see LICENSE file for full terms
-//
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
+// launcher/src/hardware_monitor/view.rs
+// Hardware monitor view - temperature graphs and readout layout.
 
 use cosmic::iced::{
     Element, Length,

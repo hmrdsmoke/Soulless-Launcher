@@ -1,8 +1,9 @@
 // GPL-3.0-or-later - see LICENSE file for full terms
-//
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
+// launcher/src/network_monitor/graph.rs
+// Network graph canvas rendering and colour constants.
 
 use cosmic::iced::{
     self, Color,

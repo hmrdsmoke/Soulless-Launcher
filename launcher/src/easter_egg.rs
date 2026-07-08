@@ -1,10 +1,8 @@
 // GPL-3.0-or-later - see LICENSE file for full terms
-//
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
-
-// src/easter_egg.rs
+// launcher/src/easter_egg.rs
 // Hidden origin vault. Typing the passphrase into the search bar reveals the
 // origin story. The passphrase is derived from ORIGIN so that removing the
 // author signature also disables the egg — a load-bearing attribution mark.

@@ -2,8 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-
-// src/keybinds/actions.rs
+// launcher/src/keybinds/actions.rs
 // Defines what each key does in the launcher.
 
 use crate::search;
