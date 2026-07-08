@@ -923,7 +923,7 @@ fn context_menu_view<'a>(menu: &'a ContextMenu, drawer_names: &[String]) -> Elem
         .padding(8)
         .width(Length::Fixed(260.0))
         .into(),
-        ContextMenu::SearchApp { app_id, exec, desktop_path } => {
+        ContextMenu::SearchApp { app_id, exec } => {
             let mut items = column![
                 menu_item("↗ Launch", SearchMessage::AppClicked(exec.clone())),
             ]
@@ -937,7 +937,7 @@ fn context_menu_view<'a>(menu: &'a ContextMenu, drawer_names: &[String]) -> Elem
             items = items.push(menu_divider());
             items = items.push(menu_item(
                 "🔒 Add to vault",
-                SearchMessage::HideApp(desktop_path.clone()),
+                SearchMessage::HideApp(app_id.clone()),
             ));
             container(items)
                 .style(context_menu_style)
@@ -1139,13 +1139,12 @@ fn app_icon_button<'a>(
         });
     let mut area = mouse_area(tile)
         .on_press(SearchMessage::AppClicked(exec));
-    if let Some(dp) = &app.desktop_path {
-        area = area.on_right_press(SearchMessage::RightClickSearchApp(
-            app.id.clone(),
-            app.exec.clone(),
-            dp.clone(),
-        ));
-    }
+    // Every result gets a context menu — hide works for ANY source now, so
+    // no desktop_path gate. (This gate was why Steam games had no right-click.)
+    area = area.on_right_press(SearchMessage::RightClickSearchApp(
+        app.id.clone(),
+        app.exec.clone(),
+    ));
     area.into()
 }
 

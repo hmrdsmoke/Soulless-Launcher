@@ -45,10 +45,10 @@ pub enum Message {
     RightClickDrawerSidebar(String),
     RightClickDrawerApp(String, String),
     RightClickDrawerFile(String, String),   // (drawer_name, file_path)
-    RightClickSearchApp(String, String, String), // (app_id, exec, desktop_path)
-    HideApp(String),                         // desktop_path → move into vault
+    RightClickSearchApp(String, String),    // (app_id, exec)
+    HideApp(String),                         // app_id → hide into vault (any source)
     ShowHiddenMenu(String),                  // hidden-app id → open its menu
-    RemoveFromVault(String),                 // hidden-app id → restore .desktop
+    RemoveFromVault(String),                 // hidden-app id → unhide (restores .desktop if it had one)
     CloseContextMenu,
 
     // App picker
@@ -143,7 +143,6 @@ pub enum ContextMenu {
     SearchApp {
         app_id: String,
         exec: String,
-        desktop_path: String,
     },
 }
 
@@ -218,7 +217,7 @@ impl Search {
     pub fn new() -> Self {
         let matcher = Matcher::new(Config::DEFAULT);
 
-        let mut all_apps = build_index();
+        let mut all_apps = build_index_filtered();
         load_activity(&mut all_apps);
 
         let drawer_state =
@@ -402,13 +401,11 @@ impl Search {
             Message::RightClickSearchApp(
                 app_id,
                 exec,
-                desktop_path,
             ) => {
                 self.context_menu =
                     Some(ContextMenu::SearchApp {
                         app_id,
                         exec,
-                        desktop_path,
                     });
                 None
             }
@@ -430,17 +427,24 @@ impl Search {
 
                 None
             }
-            Message::HideApp(desktop_path) => {
+            Message::HideApp(app_id) => {
                 self.context_menu = None;
-                let path = std::path::PathBuf::from(&desktop_path);
-                match self.vault.hide_app(&path) {
+                // Resolve the live entry — hide works for ANY source now, not
+                // just apps backed by a .desktop file.
+                let Some(entry) = self.all_apps.iter().find(|a| a.id == app_id).cloned() else {
+                    return None;
+                };
+                let dp = entry.desktop_path.as_deref().map(std::path::Path::new);
+                match self.vault.hide_app(&entry.id, &entry.name, &entry.icon_path, &entry.exec, dp) {
                     Ok(()) => {
-                        // Drop it from the live index and clear the desktop
-                        // cache so it stays gone on the next launch.
-                        self.all_apps.retain(|a| {
-                            a.desktop_path.as_deref() != Some(desktop_path.as_str())
-                        });
-                        indexer::cache::invalidate("desktop");
+                        // Drop it from the live index. Desktop hides deleted a
+                        // file the desktop cache indexed, so invalidate it;
+                        // sourced hides (Steam etc.) are dropped post-cache by
+                        // the hidden filter — no cache invalidation needed.
+                        self.all_apps.retain(|a| a.id != entry.id);
+                        if entry.desktop_path.is_some() {
+                            indexer::cache::invalidate("desktop");
+                        }
                         self.recompute_results();
                     }
                     Err(e) => self.vault.error = Some(e),
@@ -455,10 +459,10 @@ impl Search {
                 self.vault.hidden_context_menu = None;
                 match self.vault.unhide_app(&id) {
                     Ok(()) => {
-                        // Restored to ~/.local/share/applications — re-index
-                        // so it reappears in search.
+                        // Unhidden: filter entry removed (and .desktop restored
+                        // if it had one) — re-index so it reappears in search.
                         indexer::cache::invalidate("desktop");
-                        self.all_apps = indexer::build_index();
+                        self.all_apps = build_index_filtered();
                         load_activity(&mut self.all_apps);
                         self.recompute_results();
                     }
@@ -1165,6 +1169,16 @@ impl Search {
 /// single quotes within the path. Safe for `sh -c "xdg-open '...'"`.
 fn shell_escape(path: &str) -> String {
     format!("'{}'", path.replace('\'', "'\\''"))
+}
+
+/// build_index() minus anything hidden in the vault. The filter reads only the
+/// vault's .salt + .filter files, so it works at startup while the vault is
+/// still locked — hidden apps never enter the index, locked or unlocked.
+fn build_index_filtered() -> Vec<AppEntry> {
+    let mut apps = build_index();
+    let filter = crate::vault::hidden_apps::HiddenFilter::load();
+    apps.retain(|a| !filter.is_hidden(&a.id));
+    apps
 }
 
 // ── Persistence ───────────────────────────────────────────────────────────────

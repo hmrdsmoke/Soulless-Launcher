@@ -31,6 +31,14 @@ pub fn vault_dir() -> PathBuf {
         .join(".local/share/soulless/vault")
 }
 
+/// Read the per-install KDF salt WITHOUT requiring an unlocked vault. The salt
+/// is not a secret (it's a KDF salt, stored plaintext by design); hidden_apps
+/// uses it to hash filter entries at index time, before unlock. None if no v2
+/// vault exists yet. (Vault::read_salt is the Result-typed twin used by unlock.)
+pub(crate) fn read_salt() -> Option<Vec<u8>> {
+    fs::read(vault_dir().join(SALT_FILE)).ok()
+}
+
 /// Where decrypted files are briefly materialized when opened. RAM-backed tmpfs
 /// (XDG_RUNTIME_DIR is /run/user/$UID, never touches persistent disk and is wiped
 /// on logout/poweroff). Falls back to /dev/shm, then — last resort — temp_dir().
@@ -608,9 +616,20 @@ impl Vault {
     }
 
     // ── Hidden apps ───────────────────────────────────────────────────────
-    pub fn hide_app(&mut self, desktop_path: &Path) -> Result<(), String> {
+
+    /// Hide an app of ANY source into the vault. `desktop_path` is Some only
+    /// for apps backed by a .desktop file we own (encrypt + delete + restore
+    /// on unhide); sourced apps (Steam etc.) are hidden via the filter alone.
+    pub fn hide_app(
+        &mut self,
+        source_id: &str,
+        name: &str,
+        icon: &str,
+        exec: &str,
+        desktop_path: Option<&Path>,
+    ) -> Result<(), String> {
         let key = self.key_bytes()?;
-        let app = hidden_apps::hide(key, desktop_path)?;
+        let app = hidden_apps::hide(key, source_id, name, icon, exec, desktop_path)?;
         let name = app.meta.name.clone();
         self.hidden_apps.push(app);
         self.status = Some(format!("'{name}' hidden in vault."));
