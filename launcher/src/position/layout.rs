@@ -15,8 +15,9 @@ pub const WINDOW_HEIGHT: f32 = 900.0;
 /// Left sidebar (toolbox/drawers panel) width
 pub const TOOLBOX_WIDTH: f32 = 220.0;
 
-/// Right content panel width
-pub const RIGHT_PANEL_WIDTH: f32 = 460.0;
+/// Right content panel width: 700 − 2·16 outer pad − 220 toolbox − 12 spacing.
+/// Sums EXACTLY to WINDOW_WIDTH — 460 overflowed by 24px and got clipped.
+pub const RIGHT_PANEL_WIDTH: f32 = 436.0;
 
 /// Gap between left and right panels
 pub const PANEL_SPACING: f32 = 12.0;
