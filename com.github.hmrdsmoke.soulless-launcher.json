@@ -26,7 +26,7 @@
     "--filesystem=xdg-data/icons:ro",
     "--filesystem=/sys:ro",
     "--talk-name=org.freedesktop.DBus",
-    "--talk-name=com.github.hmrdsmoke.SoullessApplet",
+    "--own-name=com.github.hmrdsmoke.SoullessApplet",
     "--own-name=com.github.hmrdsmoke.SoullessLauncher",
     "--talk-name=com.system76.CosmicTheme.Mode",
     "--talk-name=com.system76.CosmicTheme.Dark",
@@ -49,6 +49,8 @@
         "cargo --offline fetch --manifest-path Cargo.toml --verbose",
         "cargo --offline build --release --verbose",
         "install -Dm755 target/release/soulless-launcher /app/bin/soulless-launcher",
+        "install -Dm755 target/release/soulless-applet /app/bin/com.github.hmrdsmoke.soulless-applet",
+        "install -Dm644 assets/soulless-applet.desktop /app/share/applications/com.github.hmrdsmoke.soulless-launcher.Applet.desktop",
         "install -Dm644 assets/com.github.hmrdsmoke.soulless-launcher.desktop /app/share/applications/com.github.hmrdsmoke.soulless-launcher.desktop",
         "install -Dm644 assets/icons/hicolor/16x16/apps/com.github.hmrdsmoke.soulless-launcher.png /app/share/icons/hicolor/16x16/apps/com.github.hmrdsmoke.soulless-launcher.png",
         "install -Dm644 assets/icons/hicolor/22x22/apps/com.github.hmrdsmoke.soulless-launcher.png /app/share/icons/hicolor/22x22/apps/com.github.hmrdsmoke.soulless-launcher.png",
@@ -64,7 +66,7 @@
         {
           "type": "git",
           "url": "https://github.com/hmrdsmoke/Soulless-Launcher",
-          "commit": "da857089ee43aa5ab360fb5208447d9bd1846780",
+          "commit": "3862481212fdabe2ab1d13944f61a5d5856ef06a",
           "disable-submodules": false
         },
         "cargo-sources.json"
