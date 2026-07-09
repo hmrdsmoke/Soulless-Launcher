@@ -1,17 +1,17 @@
 # Soulless Launcher
+
 A launcher built my way — the way System76 wanted your computer to be.
 
-Soulless is a COSMIC desktop launcher that puts everything on your computer 
-at your fingertips. Find apps, files, CLI tools, and directories from one place. 
-Organize your tools into custom drawers. Secure sensitive files behind an 
+Soulless is a COSMIC desktop launcher that puts everything on your computer
+at your fingertips. Find apps, files, CLI tools, and directories from one place.
+Organize your tools into custom drawers. Secure sensitive files behind an
 encrypted vault. Make it yours with custom backgrounds and keybinds.
 
 This is the toolbox you need to organize the tools you use.
 
 ## Features
 
-- **Universal search** — apps, files, directories, CLI tools, Steam games, Flatpaks, AppImages, Wine, JetBrains
-    IDEs
+- **Universal search** — apps, files, directories, CLI tools, Steam games, Flatpaks, AppImages, Wine, JetBrains IDEs
 - **Custom drawers** — organize apps, files, and directories your way, up to 5 drawers with drag and drop
 - **Encrypted vault** — AES-256 encrypted storage for sensitive files
 - **File organizer** — background watcher that detects misplaced files and suggests moves system-wide
@@ -24,15 +24,32 @@ This is the toolbox you need to organize the tools you use.
 - **RON config** — `~/.config/soulless/config.ron` for monitors, organizer, icon size, theme
 - **wgpu accelerated** — buttery smooth on COSMIC
 
+## Requirements
+
+- Pop!_OS or any Linux distro with the COSMIC desktop
+- Rust toolchain
+- Git
+
 ## Install
 
+The panel applet lives in a git submodule, so clone with `--recurse-submodules`:
+
 ```bash
-git clone https://github.com/hmrdsmoke/Soulless-Launcher
+git clone --recurse-submodules https://github.com/hmrdsmoke/Soulless-Launcher
 cd Soulless-Launcher
 sudo make install
 ```
 
-Then open COSMIC Panel settings and add the Soulless applet to your dock.
+Then open COSMIC Settings → Desktop → Panel (or Dock) → Applets and add **Soulless**.
+Super+Space works out of the box.
+
+Already cloned without submodules? Run `git submodule update --init` before `make install`.
+
+To remove everything:
+
+```bash
+sudo make uninstall
+```
 
 ## Config
 
@@ -50,11 +67,6 @@ Then open COSMIC Panel settings and add the Soulless applet to your dock.
 
 Custom backgrounds: drop any `.jpg`, `.png`, or `.webp` into `~/.config/soulless/backgrounds/`
 
-## Requirements
-
-- Pop!_OS or any Linux distro with COSMIC desktop
-- Rust toolchain
-
 ## License
 
-GPL 3.0
+GPL-3.0-or-later — see [LICENSE](LICENSE) for full terms.
