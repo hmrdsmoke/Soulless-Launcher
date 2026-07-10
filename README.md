@@ -27,10 +27,16 @@ This is the toolbox you need to organize the tools you use.
 ## Requirements
 
 - Pop!_OS or any Linux distro with the COSMIC desktop
-- Rust toolchain
-- Git
 
 ## Install
+
+A fresh Pop!_OS install ships without git or compilers, so install the
+prerequisites first (skip this if you already build Rust projects):
+
+```bash
+sudo apt install -y git build-essential rustup
+rustup default stable
+```
 
 The panel applet lives in a git submodule, so clone with `--recurse-submodules`:
 
@@ -40,10 +46,15 @@ cd Soulless-Launcher
 sudo make install
 ```
 
+That one command builds the release binaries and installs everything —
+binaries, desktop entries, icons, autostart, and the Super+Space shortcut.
+(The build runs under sudo; if a later Rust project of your own hits
+permission errors, `sudo chown -R $USER:$USER ~/.cargo` fixes it.)
+
 Then open COSMIC Settings → Desktop → Panel (or Dock) → Applets and add **Soulless**.
 Log out and back in once after installing — the launcher daemon starts with your session. (Or start it right away: run `soulless-launcher` once.) After that, Super+Space and the panel button both open Soulless.
 
-Already cloned without submodules? Run `git submodule update --init` before `make install`.
+Already cloned without submodules? Run `git submodule update --init` before building.
 
 To remove everything:
 
