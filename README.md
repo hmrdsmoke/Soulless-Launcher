@@ -41,7 +41,7 @@ sudo make install
 ```
 
 Then open COSMIC Settings → Desktop → Panel (or Dock) → Applets and add **Soulless**.
-Super+Space works out of the box.
+Log out and back in once after installing — the launcher daemon starts with your session. (Or start it right away: run `soulless-launcher` once.) After that, Super+Space and the panel button both open Soulless.
 
 Already cloned without submodules? Run `git submodule update --init` before `make install`.
 
