@@ -30,11 +30,11 @@ This is the toolbox you need to organize the tools you use.
 
 ## Install
 
-A fresh Pop!_OS install ships without git or compilers, so install the
-prerequisites first (skip this if you already build Rust projects):
+A fresh Pop!_OS install ships without git, compilers, or the dev headers
+this build needs, so install the prerequisites first:
 
 ```bash
-sudo apt install -y git build-essential rustup
+sudo apt install -y git build-essential pkg-config libxkbcommon-dev rustup
 rustup default stable
 ```
 
