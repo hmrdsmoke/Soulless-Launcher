@@ -739,9 +739,9 @@ fn drawer_app_icon<'a>(
     let label = text(crate::utils::truncate_label(&app.name, 12))
         .size(12)
         .color(if is_focused {
-            cosmic::iced::Color::from_rgb(0.05, 0.05, 0.07)
+            crate::ui::theme::TEXT_INK
         } else {
-            cosmic::iced::Color::from_rgb(0.92, 0.92, 0.95)
+            crate::ui::theme::TEXT_STEEL
         });
 
     let content = column![icon_widget, label]
@@ -959,18 +959,24 @@ fn menu_item<'a>(label: impl Into<String>, msg: SearchMessage) -> Element<'a, Se
     .padding([8, 12])
     .on_press(msg)
     .class(cosmic::theme::Button::Custom {
+        // Rest: steel text on the menu's dark backdrop, no row background.
         active: Box::new(|_selected, _theme| cosmic::widget::button::Style {
             background: None,
+            text_color: Some(crate::ui::theme::TEXT_STEEL),
             border_radius: cosmic::iced::border::rounded(0).radius,
             ..Default::default()
         }),
+        // Hover: INVERT — steel highlight behind, ink text on top.
         hovered: Box::new(|_selected, _theme| cosmic::widget::button::Style {
-            background: Some(Color::from_rgb8(70, 70, 90).into()),
+            background: Some(crate::ui::theme::DRAWER_BTN_HOVER.into()),
+            text_color: Some(crate::ui::theme::TEXT_INK),
             border_radius: cosmic::iced::border::rounded(0).radius,
             ..Default::default()
         }),
+        // Pressed: mid steel, still ink.
         pressed: Box::new(|_selected, _theme| cosmic::widget::button::Style {
-            background: Some(Color::from_rgb8(80, 80, 100).into()),
+            background: Some(crate::ui::theme::DRAWER_BTN_ACTIVE.into()),
+            text_color: Some(crate::ui::theme::TEXT_INK),
             border_radius: cosmic::iced::border::rounded(0).radius,
             ..Default::default()
         }),
@@ -1106,9 +1112,9 @@ fn app_icon_button<'a>(
     };
 
     let label_color = if is_focused {
-        cosmic::iced::Color::from_rgb(0.05, 0.05, 0.07) // near-black on steel
+        crate::ui::theme::TEXT_INK   // near-black on steel
     } else {
-        cosmic::iced::Color::from_rgb(0.92, 0.92, 0.95) // light on dark glass
+        crate::ui::theme::TEXT_STEEL // light on dark glass
     };
     let content = column![
         image(&app.icon_path)

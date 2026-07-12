@@ -7,6 +7,16 @@
 
 use cosmic::iced::Color;
 
+// ── Canonical text (launcher-wide) ───────────────────────────────────────────
+// THE text pair. Every label uses TEXT_STEEL at rest and inverts to TEXT_INK
+// when its row/button is hovered or keyboard-focused (hover feeds focus via
+// FocusApp, so one condition covers both). Tune the steel here; the whole
+// launcher follows.
+/// Polished-steel text on dark surfaces — the default for all labels.
+pub const TEXT_STEEL: Color = Color { r: 0.88, g: 0.89, b: 0.91, a: 1.0 };
+/// Ink — text color when the item under it is hovered/focused (on steel).
+pub const TEXT_INK: Color = Color { r: 0.05, g: 0.05, b: 0.06, a: 1.0 };
+
 // ── Window ───────────────────────────────────────────────────────────────────
 pub const WINDOW_BG: Color = Color { r: 0.042, g: 0.042, b: 0.048, a: 1.0 };
 pub const WINDOW_CORNER_RADIUS: f32 = 0.0;
@@ -44,8 +54,8 @@ pub const DRAWER_BTN_BG: Color       = Color { r: 0.08, g: 0.08, b: 0.09, a: 1.0
 pub const DRAWER_BTN_HOVER: Color    = Color { r: 0.75, g: 0.78, b: 0.82, a: 1.0 }; // steel highlight
 pub const DRAWER_BTN_ACTIVE: Color   = Color { r: 0.55, g: 0.58, b: 0.62, a: 1.0 }; // mid steel
 pub const DRAWER_BTN_BORDER: Color   = Color { r: 0.25, g: 0.26, b: 0.28, a: 0.8 }; // dark edge
-pub const DRAWER_BTN_TEXT: Color     = Color { r: 0.88, g: 0.89, b: 0.91, a: 1.0 }; // light text
-pub const DRAWER_BTN_TEXT_HOVER: Color = Color { r: 0.05, g: 0.05, b: 0.06, a: 1.0 }; // dark text on hover
+pub const DRAWER_BTN_TEXT: Color     = TEXT_STEEL; // canonical steel
+pub const DRAWER_BTN_TEXT_HOVER: Color = TEXT_INK; // canonical ink
 
 /// Height of each monitor widget in the grid
 pub const WIDGET_HEIGHT: f32 = 95.0;
