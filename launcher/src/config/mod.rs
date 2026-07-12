@@ -31,10 +31,11 @@ pub fn ensure_dirs() {
     let _ = std::fs::create_dir_all(backgrounds_dir());
 }
 
+pub mod theme_loader;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Default)]
 pub enum ThemeVariant {
-    Dark,
     #[default]
     Chrome,
 }

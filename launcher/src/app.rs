@@ -167,6 +167,9 @@ impl cosmic::Application for Soulless {
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
         crate::config::ensure_dirs();
         crate::config::ensure_config();
+        // Load the runtime theme (theme.ron over ship defaults) BEFORE any
+        // view code runs. Restart the launcher to apply theme changes.
+        crate::ui::theme::init(crate::config::theme_loader::load());
         let config = crate::config::load_config();
         let bg_handle = crate::config::default_background().map(|path| {
             let width = crate::position::layout::RIGHT_PANEL_WIDTH as u32;
