@@ -67,7 +67,7 @@ fn setup_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
             .padding([10, 24])
             .style(|_: &Theme| container::Style {
                 background: Some(Color::from_rgb8(60, 60, 180).into()),
-                border: cosmic::iced::border::rounded(8),
+                border: cosmic::iced::border::rounded(0),
                 ..Default::default()
             }),
     )
@@ -131,7 +131,7 @@ fn upgrade_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
             .padding([10, 24])
             .style(|_: &Theme| container::Style {
                 background: Some(Color::from_rgb8(150, 90, 30).into()),
-                border: cosmic::iced::border::rounded(8),
+                border: cosmic::iced::border::rounded(0),
                 ..Default::default()
             }),
     )
@@ -192,7 +192,7 @@ fn unlock_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
             .padding([10, 32])
             .style(|_: &Theme| container::Style {
                 background: Some(Color::from_rgb8(60, 60, 180).into()),
-                border: cosmic::iced::border::rounded(8),
+                border: cosmic::iced::border::rounded(0),
                 ..Default::default()
             }),
     )
@@ -213,7 +213,7 @@ fn unlock_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
             border: cosmic::iced::Border {
                 color: Color::from_rgb8(200, 60, 60),
                 width: 1.0,
-                radius: cosmic::iced::border::rounded(6).radius,
+                radius: cosmic::iced::border::rounded(0).radius,
             },
             ..Default::default()
         }),
@@ -267,7 +267,7 @@ fn files_view<'a>(vault: &'a Vault, cursor_pos: cosmic::iced::Point) -> Element<
                 .padding([6, 14])
                 .style(|_: &Theme| container::Style {
                     background: Some(Color::from_rgb8(80, 40, 40).into()),
-                    border: cosmic::iced::border::rounded(6),
+                    border: cosmic::iced::border::rounded(0),
                     ..Default::default()
                 })
         )
@@ -358,7 +358,7 @@ fn files_view<'a>(vault: &'a Vault, cursor_pos: cosmic::iced::Point) -> Element<
             border: cosmic::iced::Border {
                 color: drop_border_color,
                 width: if vault.drag_hover { 1.5 } else { 1.0 },
-                radius: cosmic::iced::border::rounded(8).radius,
+                radius: cosmic::iced::border::rounded(0).radius,
             },
             ..Default::default()
         })
@@ -458,7 +458,7 @@ fn file_row<'a>(
         .width(Length::Fill)
         .style(|_: &Theme| container::Style {
             background: Some(Color::from_rgba8(255, 255, 255, 0.04).into()),
-            border: cosmic::iced::border::rounded(6),
+            border: cosmic::iced::border::rounded(0),
             ..Default::default()
         }),
     )
@@ -472,7 +472,7 @@ fn file_row<'a>(
 fn vault_bg(_: &Theme) -> container::Style {
     container::Style {
         background: Some(Color::from_rgb8(18, 18, 28).into()),
-        border: cosmic::iced::border::rounded(12),
+        border: cosmic::iced::border::rounded(0),
         ..Default::default()
     }
 }
@@ -553,7 +553,7 @@ pub fn vault_menu_popup<'a>(entry_id: &str, name: &'a str) -> Element<'a, Search
         border: cosmic::iced::Border {
             color: Color::from_rgba8(255, 255, 255, 0.15),
             width: 1.0,
-            radius: cosmic::iced::border::rounded(8).radius,
+            radius: cosmic::iced::border::rounded(0).radius,
         },
         ..Default::default()
     })
@@ -587,7 +587,7 @@ pub fn vault_hidden_menu_popup<'a>(app_id: &str) -> Element<'a, SearchMessage> {
     .style(|_: &Theme| container::Style {
         background: Some(Color::from_rgb8(30, 30, 38).into()),
         border: cosmic::iced::Border {
-            radius: 8.0.into(),
+            radius: 0.0.into(),
             width: 1.0,
             color: Color::from_rgb8(90, 90, 110),
         },
@@ -649,7 +649,7 @@ fn vault_context_menu<'a>(entry_id: String, name: &'a str, cursor_pos: cosmic::i
         border: cosmic::iced::Border {
             color: Color::from_rgba8(255,255,255,0.15),
             width: 1.0,
-            radius: cosmic::iced::border::rounded(8).radius,
+            radius: cosmic::iced::border::rounded(0).radius,
         },
         ..Default::default()
     });
@@ -724,7 +724,7 @@ fn hidden_app_menu<'a>(app: &'a super::hidden_apps::HiddenApp, cursor_pos: cosmi
     .style(|_: &Theme| container::Style {
         background: Some(Color::from_rgb8(30, 30, 38).into()),
         border: cosmic::iced::Border {
-            radius: 8.0.into(),
+            radius: 0.0.into(),
             width: 1.0,
             color: Color::from_rgb8(90, 90, 110),
         },

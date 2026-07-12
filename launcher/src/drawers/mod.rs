@@ -274,7 +274,7 @@ pub fn view<'a>(
                                 background: Some(
                                     Color::from_rgb8(60, 120, 60).into()
                                 ),
-                                border: cosmic::iced::border::rounded(6),
+                                border: cosmic::iced::border::rounded(0),
                                 ..Default::default()
                             })
                     )
@@ -287,7 +287,7 @@ pub fn view<'a>(
                                 background: Some(
                                     Color::from_rgb8(80, 80, 80).into()
                                 ),
-                                border: cosmic::iced::border::rounded(6),
+                                border: cosmic::iced::border::rounded(0),
                                 ..Default::default()
                             })
                     )
@@ -301,7 +301,7 @@ pub fn view<'a>(
         .padding(24)
         .style(|_: &Theme| container::Style {
             background: Some(Color::from_rgb8(40, 40, 50).into()),
-            border: cosmic::iced::border::rounded(10),
+            border: cosmic::iced::border::rounded(0),
             ..Default::default()
         });
 
@@ -575,7 +575,7 @@ fn drawer_contents_view<'a>(
             border: cosmic::iced::Border {
                 color: hdr_border,
                 width: 1.0,
-                radius: cosmic::iced::border::rounded(8).radius,
+                radius: cosmic::iced::border::rounded(0).radius,
             },
             ..Default::default()
         });
@@ -801,7 +801,7 @@ fn drawer_file_row<'a>(
         .width(Length::Fill)
         .style(|_: &Theme| container::Style {
             background: Some(Color::from_rgba8(255, 255, 255, 0.04).into()),
-            border: cosmic::iced::border::rounded(6),
+            border: cosmic::iced::border::rounded(0),
             ..Default::default()
         }),
     )
@@ -999,7 +999,7 @@ fn menu_divider<'a>() -> Element<'a, SearchMessage> {
 fn context_menu_style(_: &Theme) -> container::Style {
     container::Style {
         background: Some(Color::from_rgb8(13, 12, 18).into()),
-        border: cosmic::iced::border::rounded(8),
+        border: cosmic::iced::border::rounded(0),
         ..Default::default()
     }
 }
