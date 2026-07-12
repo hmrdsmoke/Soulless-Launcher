@@ -97,6 +97,65 @@ impl LauncherPosition {
         (edge, wing, bar_px)
     }
 
+    /// Surface-local rectangle of the visible launcher zone inside the
+    /// full-screen surface. MUST mirror view()'s alignment + padding math —
+    /// this is what the compositor blur region is set to, so blur hugs the
+    /// 700x900 window instead of the whole screen.
+    pub fn blur_rect(surface_size: (f32, f32)) -> cosmic::iced::Rectangle {
+        use crate::position::layout::{WINDOW_WIDTH, WINDOW_HEIGHT};
+
+        // Compositor-reported logical size of THIS surface, from its own
+        // configure. No captured-output guesswork, no fallback constants.
+        let (sw, sh) = surface_size;
+        let (edge, wing, bar_px) = Self::applet_position();
+        let horizontal_bar = matches!(edge, Anchor::TOP | Anchor::BOTTOM);
+
+        let gap = 8.0f32;
+        let bar_pad = bar_px as f32 + gap;
+        let (pad_top, pad_right, pad_bottom, pad_left) = match edge {
+            Anchor::TOP    => (bar_pad, gap, gap, gap),
+            Anchor::BOTTOM => (gap, gap, bar_pad, gap),
+            Anchor::LEFT   => (gap, gap, gap, bar_pad),
+            Anchor::RIGHT  => (gap, bar_pad, gap, gap),
+            _              => (gap, gap, gap, gap),
+        };
+
+        // Same wing->alignment mapping as view(). Some(true) = Start,
+        // Some(false) = End, None = Center, per axis.
+        let (align_x, align_y): (Option<bool>, Option<bool>) = if horizontal_bar {
+            let ax = match wing {
+                Wing::First => Some(true),
+                Wing::Second => Some(false),
+                Wing::Center => None,
+            };
+            let ay = if matches!(edge, Anchor::TOP) { Some(true) } else { Some(false) };
+            (ax, ay)
+        } else {
+            let ay = match wing {
+                Wing::First => Some(true),
+                Wing::Second => Some(false),
+                Wing::Center => None,
+            };
+            let ax = if matches!(edge, Anchor::LEFT) { Some(true) } else { Some(false) };
+            (ax, ay)
+        };
+
+        let x = match align_x {
+            Some(true)  => pad_left,
+            Some(false) => sw - pad_right - WINDOW_WIDTH,
+            None        => pad_left + ((sw - pad_left - pad_right) - WINDOW_WIDTH) / 2.0,
+        }
+        .max(0.0);
+        let y = match align_y {
+            Some(true)  => pad_top,
+            Some(false) => sh - pad_bottom - WINDOW_HEIGHT,
+            None        => pad_top + ((sh - pad_top - pad_bottom) - WINDOW_HEIGHT) / 2.0,
+        }
+        .max(0.0);
+
+        cosmic::iced::Rectangle { x, y, width: WINDOW_WIDTH, height: WINDOW_HEIGHT }
+    }
+
     /// Bar thickness in px from the COSMIC size enum (XS..XL or Custom).
     fn bar_size_px(bar: &str) -> i32 {
         match Self::read_bar_str(bar, "size").trim() {

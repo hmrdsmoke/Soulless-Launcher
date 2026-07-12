@@ -38,6 +38,9 @@ pub enum Message {
     Fps(FpsMessage),
     WindowEvent(cosmic::iced::Event),
     WindowOpened(cosmic::iced::window::Id),
+    /// A surface's compositor configure: (surface id, logical size).
+    /// Drives the region-scoped blur with per-output ground truth.
+    SurfaceConfigured(cosmic::iced::window::Id, cosmic::iced::Size),
     Organizer(soulless_organizer::Message),
     EnterPressed,
     TabPressed,
@@ -299,10 +302,14 @@ impl cosmic::Application for Soulless {
                 }
             }
 
-            // ── Enable blur when window opens ─────────────────────────
-            Message::WindowOpened(id) => {
+            // ── Focus when the REAL launcher window opens ──────────────
+            // Blur is NOT set here: it rides the surface's own configure
+            // (SurfaceConfigured below), so the rect always uses the
+            // compositor-reported size for the output it actually landed on.
+            Message::WindowOpened(id) if id == self.window_id => {
                 crate::ui::startup_tasks(id).map(cosmic::Action::App)
             }
+            Message::WindowOpened(_) => Task::none(),
             Message::ShowSurface => {
                 eprintln!("[launcher] ShowSurface: creating real surface now (deferred)");
                 crate::position::placement::LauncherPosition::open(
@@ -323,17 +330,23 @@ impl cosmic::Application for Soulless {
             // The compositor Opened/Resized events complete the layer-surface
             // handshake so it MAPS (becomes visible). cosmic-launcher handles
             // these. Quiet return (Task::none) so no RequestResize flood.
-            Message::WindowEvent(cosmic::iced::Event::Window(
-                window::Event::Opened { .. },
-            )) => {
-                eprintln!("[launcher] WindowEvent::Opened received (surface mapping)");
-                Task::none()
+            // ── Surface configure → region blur (per-output truth) ────────
+            // Opened/Resized carry the compositor-assigned LOGICAL size of
+            // the surface that was configured. Real window: size the blur
+            // region from it. Dummy or anything else: quiet no-op. Resized
+            // re-fires so blur tracks size changes; backend updates in place.
+            Message::SurfaceConfigured(id, size) if id == self.window_id => {
+                eprintln!(
+                    "[launcher] SurfaceConfigured {}x{} -> blur rect",
+                    size.width, size.height
+                );
+                let zone = crate::position::placement::LauncherPosition::blur_rect((
+                    size.width,
+                    size.height,
+                ));
+                crate::ui::blur_task(id, zone).map(cosmic::Action::App)
             }
-            Message::WindowEvent(cosmic::iced::Event::Window(
-                window::Event::Resized(..),
-            )) => {
-                Task::none()
-            }
+            Message::SurfaceConfigured(_, _) => Task::none(),
             // ── Keyboard ──────────────────────────────────────────────────
             Message::WindowEvent(
                 cosmic::iced::Event::Keyboard(
@@ -812,7 +825,7 @@ impl cosmic::Application for Soulless {
             // invalidation flood. Return Some ONLY for events we actually handle;
             // everything else (frame events especially) returns None and the loop
             // settles. (Matches cosmic-launcher's listen_raw filtering.)
-            event::listen_with(|ev, _status, _id| match &ev {
+            event::listen_with(|ev, _status, id| match &ev {
                 // Layer surface events (dismiss on Unfocused)
                 cosmic::iced::Event::PlatformSpecific(
                     cosmic::iced::event::PlatformSpecific::Wayland(
@@ -836,11 +849,11 @@ impl cosmic::Application for Soulless {
                 // the layer-surface handshake. WITHOUT capturing these, the surface
                 // is CREATED but never MAPPED = invisible window. cosmic-launcher
                 // captures both. Handled quietly in update() so no flood.
-                cosmic::iced::Event::Window(cosmic::iced::window::Event::Opened { .. }) => {
-                    Some(Message::WindowEvent(ev))
+                cosmic::iced::Event::Window(cosmic::iced::window::Event::Opened { size, .. }) => {
+                    Some(Message::SurfaceConfigured(id, *size))
                 }
-                cosmic::iced::Event::Window(cosmic::iced::window::Event::Resized(..)) => {
-                    Some(Message::WindowEvent(ev))
+                cosmic::iced::Event::Window(cosmic::iced::window::Event::Resized(size)) => {
+                    Some(Message::SurfaceConfigured(id, *size))
                 }
                 // Everything else (frame/redraw/etc.) -> None. Breaks the flood.
                 _ => None,
