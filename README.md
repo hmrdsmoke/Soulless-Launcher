@@ -52,7 +52,7 @@ binaries, desktop entries, icons, autostart, and the Super+Space shortcut.
 permission errors, `sudo chown -R $USER:$USER ~/.cargo` fixes it.)
 
 Then open COSMIC Settings → Desktop → Panel (or Dock) → Applets and add **Soulless**.
-Log out and back in once after installing — the launcher daemon starts with your session. (Or start it right away: run `soulless-launcher` once.) After that, Super+Space and the panel button both open Soulless.
+**Reboot once after installing** — the autostart entry is read by systemd's xdg-autostart generator, which only re-scans at boot; logging out and back in is not enough. (Or start it right away for the current session: run `soulless-launcher`.) After that, Super+Space and the panel button both open Soulless.
 
 Already cloned without submodules? Run `git submodule update --init` before building.
 
