@@ -182,12 +182,12 @@ pub fn view<'a>(
         .padding([0, 16])
         .style(move |_: &cosmic::iced::Theme| cosmic::iced::widget::container::Style {
             background: Some(if is_hover_copy {
-                crate::ui::theme::STEEL_TOP.into()
+                crate::ui::theme::get().steel_top.into()
             } else {
                 cosmic::iced::Color::BLACK.into()
             }),
             border: cosmic::iced::Border {
-                color: crate::ui::theme::STEEL_TOP,
+                color: crate::ui::theme::get().steel_top,
                 width: 1.0,
                 radius: cosmic::iced::border::rounded(0).radius,
             },
@@ -445,42 +445,42 @@ fn sidebar_drawer_button<'a>(
             .class(cosmic::theme::Button::Custom {
                 active: Box::new(|selected, _theme| {
                     let bg = if selected {
-                        crate::ui::theme::DRAWER_BTN_ACTIVE
+                        crate::ui::theme::get().drawer_btn_active
                     } else {
-                        crate::ui::theme::DRAWER_BTN_BG
+                        crate::ui::theme::get().drawer_btn_bg
                     };
                     cosmic::widget::button::Style {
                         background: Some(bg.into()),
-                        border_color: crate::ui::theme::DRAWER_BTN_BORDER,
+                        border_color: crate::ui::theme::get().drawer_btn_border,
                         border_width: 1.0,
                         border_radius: cosmic::iced::border::rounded(0).radius,
                         text_color: Some(if selected {
-                            crate::ui::theme::DRAWER_BTN_TEXT_HOVER
+                            crate::ui::theme::get().drawer_btn_text_hover
                         } else {
-                            crate::ui::theme::DRAWER_BTN_TEXT
+                            crate::ui::theme::get().drawer_btn_text
                         }),
                         ..Default::default()
                     }
                 }),
                 hovered: Box::new(|selected, _theme| {
                     let bg = if selected {
-                        crate::ui::theme::DRAWER_BTN_ACTIVE
+                        crate::ui::theme::get().drawer_btn_active
                     } else {
-                        crate::ui::theme::DRAWER_BTN_HOVER
+                        crate::ui::theme::get().drawer_btn_hover
                     };
                     cosmic::widget::button::Style {
                         background: Some(bg.into()),
-                        border_color: crate::ui::theme::STEEL_TOP,
+                        border_color: crate::ui::theme::get().steel_top,
                         border_width: 1.0,
                         border_radius: cosmic::iced::border::rounded(0).radius,
-                        text_color: Some(crate::ui::theme::DRAWER_BTN_TEXT_HOVER),
+                        text_color: Some(crate::ui::theme::get().drawer_btn_text_hover),
                         ..Default::default()
                     }
                 }),
                 pressed: Box::new(|_selected, _theme| {
                     cosmic::widget::button::Style {
-                        background: Some(crate::ui::theme::DRAWER_BTN_ACTIVE.into()),
-                        text_color: Some(crate::ui::theme::DRAWER_BTN_TEXT_HOVER),
+                        background: Some(crate::ui::theme::get().drawer_btn_active.into()),
+                        text_color: Some(crate::ui::theme::get().drawer_btn_text_hover),
                         ..Default::default()
                     }
                 }),
@@ -739,9 +739,9 @@ fn drawer_app_icon<'a>(
     let label = text(crate::utils::truncate_label(&app.name, 12))
         .size(12)
         .color(if is_focused {
-            crate::ui::theme::TEXT_INK
+            crate::ui::theme::get().text_ink
         } else {
-            crate::ui::theme::TEXT_STEEL
+            crate::ui::theme::get().text_steel
         });
 
     let content = column![icon_widget, label]
@@ -750,7 +750,7 @@ fn drawer_app_icon<'a>(
         .width(Length::Fill);
 
     let bg = if is_focused {
-        crate::ui::theme::STEEL_TOP
+        crate::ui::theme::get().steel_top
     } else {
         TILE_BG_IDLE
     };
@@ -962,21 +962,21 @@ fn menu_item<'a>(label: impl Into<String>, msg: SearchMessage) -> Element<'a, Se
         // Rest: steel text on the menu's dark backdrop, no row background.
         active: Box::new(|_selected, _theme| cosmic::widget::button::Style {
             background: None,
-            text_color: Some(crate::ui::theme::TEXT_STEEL),
+            text_color: Some(crate::ui::theme::get().text_steel),
             border_radius: cosmic::iced::border::rounded(0).radius,
             ..Default::default()
         }),
         // Hover: INVERT — steel highlight behind, ink text on top.
         hovered: Box::new(|_selected, _theme| cosmic::widget::button::Style {
-            background: Some(crate::ui::theme::DRAWER_BTN_HOVER.into()),
-            text_color: Some(crate::ui::theme::TEXT_INK),
+            background: Some(crate::ui::theme::get().drawer_btn_hover.into()),
+            text_color: Some(crate::ui::theme::get().text_ink),
             border_radius: cosmic::iced::border::rounded(0).radius,
             ..Default::default()
         }),
         // Pressed: mid steel, still ink.
         pressed: Box::new(|_selected, _theme| cosmic::widget::button::Style {
-            background: Some(crate::ui::theme::DRAWER_BTN_ACTIVE.into()),
-            text_color: Some(crate::ui::theme::TEXT_INK),
+            background: Some(crate::ui::theme::get().drawer_btn_active.into()),
+            text_color: Some(crate::ui::theme::get().text_ink),
             border_radius: cosmic::iced::border::rounded(0).radius,
             ..Default::default()
         }),
@@ -1112,9 +1112,9 @@ fn app_icon_button<'a>(
     };
 
     let label_color = if is_focused {
-        crate::ui::theme::TEXT_INK   // near-black on steel
+        crate::ui::theme::get().text_ink   // near-black on steel
     } else {
-        crate::ui::theme::TEXT_STEEL // light on dark glass
+        crate::ui::theme::get().text_steel // light on dark glass
     };
     let content = column![
         image(&app.icon_path)
@@ -1127,7 +1127,7 @@ fn app_icon_button<'a>(
     .width(Length::Fill);
 
     let bg = if is_focused {
-        crate::ui::theme::STEEL_TOP
+        crate::ui::theme::get().steel_top
     } else {
         TILE_BG_IDLE
     };

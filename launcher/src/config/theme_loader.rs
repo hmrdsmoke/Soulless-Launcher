@@ -102,7 +102,11 @@ pub fn load() -> ThemeColors {
         return theme; // no theme.ron: ship look, silently
     };
 
-    let file: ThemeFile = match ron::from_str(&text) {
+    // RON demands explicit Some(...) around Option fields by default; enable
+    // implicit_some so user theme files stay clean bare values ("#0A3D0A").
+    let ron_opts = ron::Options::default()
+        .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME);
+    let file: ThemeFile = match ron_opts.from_str(&text) {
         Ok(f) => f,
         Err(e) => {
             eprintln!("[theme] {} failed to parse ({e}); using ship defaults", path.display());

@@ -48,11 +48,11 @@ pub fn compose<'a, M: 'static + Clone + Send>(
         .padding(16)
         .clip(true)
         .style(|_: &cosmic::iced::Theme| cosmic::iced::widget::container::Style {
-            background: Some(theme::WINDOW_BG.into()),
+            background: Some(theme::get().window_bg.into()),
             border: cosmic::iced::Border {
-                radius: cosmic::iced::border::rounded(theme::WINDOW_CORNER_RADIUS).radius,
-                color: theme::WINDOW_BORDER,
-                width: theme::WINDOW_BORDER_WIDTH,
+                radius: cosmic::iced::border::rounded(theme::get().window_corner_radius).radius,
+                color: theme::get().window_border,
+                width: theme::get().window_border_width,
             },
             icon_color: None,
             snap: false,
@@ -67,29 +67,29 @@ fn launcher_steel<'a, M: 'static + Clone + Send>(
     container(drawers_content)
         .width(Length::Fixed(TOOLBOX_WIDTH))
         .height(Length::Shrink)
-        .padding([theme::STEEL_VERTICAL_INSET, 0.0, theme::STEEL_VERTICAL_INSET, 0.0])
+        .padding([theme::get().steel_vertical_inset, 0.0, theme::get().steel_vertical_inset, 0.0])
         .style(|_: &cosmic::iced::Theme| cosmic::iced::widget::container::Style {
             background: Some(
                 cosmic::iced::gradient::Linear::new(
                     cosmic::iced::Radians(std::f32::consts::PI * 0.55)
                 )
-                .add_stop(0.0, theme::STEEL_TOP)
-                .add_stop(0.35, theme::STEEL_MID_A)
-                .add_stop(0.65, theme::STEEL_MID_B)
-                .add_stop(1.0, theme::STEEL_BOTTOM)
+                .add_stop(0.0, theme::get().steel_top)
+                .add_stop(0.35, theme::get().steel_mid_a)
+                .add_stop(0.65, theme::get().steel_mid_b)
+                .add_stop(1.0, theme::get().steel_bottom)
                 .into()
             ),
             border: cosmic::iced::Border {
-                radius: cosmic::iced::border::rounded(theme::STEEL_CORNER_RADIUS).radius,
-                color: theme::STEEL_BORDER,
+                radius: cosmic::iced::border::rounded(theme::get().steel_corner_radius).radius,
+                color: theme::get().steel_border,
                 width: 1.0,
             },
             shadow: cosmic::iced::Shadow {
-                color: theme::STEEL_SHADOW_COLOR,
+                color: theme::get().steel_shadow_color,
                 offset: cosmic::iced::Vector::new(4.0, 4.0),
                 blur_radius: 12.0,
             },
-            text_color: Some(theme::STEEL_TEXT),
+            text_color: Some(theme::get().steel_text),
             icon_color: None,
             snap: false,
         })
@@ -100,7 +100,7 @@ fn right_content_panel<'a, M: 'static + Clone + Send>(
     right_content: Element<'a, M>,
     bg_handle: Option<cosmic::iced::widget::image::Handle>,
 ) -> Element<'a, M> {
-    let right_border = theme::RIGHT_PANEL_BORDER;
+    let right_border = theme::get().right_panel_border;
     let width = crate::position::layout::RIGHT_PANEL_WIDTH;
 
     if let Some(handle) = bg_handle {
@@ -120,7 +120,7 @@ fn right_content_panel<'a, M: 'static + Clone + Send>(
             .clip(true)
             .style(move |_: &cosmic::iced::Theme| cosmic::iced::widget::container::Style {
                 border: cosmic::iced::Border {
-                    radius: cosmic::iced::border::rounded(theme::RIGHT_PANEL_CORNER_RADIUS).radius,
+                    radius: cosmic::iced::border::rounded(theme::get().right_panel_corner_radius).radius,
                     color: right_border,
                     width: 0.0,
                 },
@@ -134,9 +134,9 @@ fn right_content_panel<'a, M: 'static + Clone + Send>(
             .width(Length::Fixed(width))
             .height(Length::Fill)
             .style(move |_: &cosmic::iced::Theme| cosmic::iced::widget::container::Style {
-                background: Some(theme::RIGHT_PANEL_BG.into()),
+                background: Some(theme::get().right_panel_bg.into()),
                 border: cosmic::iced::Border {
-                    radius: cosmic::iced::border::rounded(theme::RIGHT_PANEL_CORNER_RADIUS).radius,
+                    radius: cosmic::iced::border::rounded(theme::get().right_panel_corner_radius).radius,
                     color: right_border,
                     width: 0.0,
                 },
@@ -158,7 +158,7 @@ fn monitor_grid<'a, M: 'static + Clone + Send>(
     // Each widget is 75% of half the window width (quarter less than full)
     // Widgets sit side by side in a single row under the steel panel
     // Each widget takes half the toolbox width with a small gap
-    let widget_height = Length::Fixed(theme::WIDGET_HEIGHT);
+    let widget_height = Length::Fixed(theme::get().widget_height);
 
     let net = container(net).width(Length::Fill).height(widget_height).style(widget_style);
     let sys = container(sys).width(Length::Fill).height(widget_height).style(widget_style);
@@ -166,8 +166,8 @@ fn monitor_grid<'a, M: 'static + Clone + Send>(
     let fps = container(fps).width(Length::Fill).height(widget_height).style(widget_style);
 
     column![
-        row![net, sys].spacing(theme::WIDGET_SPACING),
-        row![hw, fps].spacing(theme::WIDGET_SPACING),
+        row![net, sys].spacing(theme::get().widget_spacing),
+        row![hw, fps].spacing(theme::get().widget_spacing),
     ]
     .spacing(4)
     .padding([8, 0, 4, 0])
@@ -177,10 +177,10 @@ fn monitor_grid<'a, M: 'static + Clone + Send>(
 // TODO: move to ui/widgets.rs — see refactor plan
 fn widget_style(_: &cosmic::iced::Theme) -> cosmic::iced::widget::container::Style {
     cosmic::iced::widget::container::Style {
-        background: Some(theme::WIDGET_BG.into()),
+        background: Some(theme::get().widget_bg.into()),
         border: cosmic::iced::Border {
-            radius: cosmic::iced::border::rounded(theme::WIDGET_CORNER_RADIUS).radius,
-            color: theme::WIDGET_BORDER,
+            radius: cosmic::iced::border::rounded(theme::get().widget_corner_radius).radius,
+            color: theme::get().widget_border,
             width: 1.0,
         },
         icon_color: None,

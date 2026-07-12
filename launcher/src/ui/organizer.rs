@@ -21,15 +21,15 @@ pub fn organizer_banner<'a, M: 'static + Clone + Send>(
 
     let steel_active = cosmic::widget::button::Style {
         background: Some(cosmic::iced::Color::BLACK.into()),
-        border_color: theme::STEEL_TOP,
+        border_color: theme::get().steel_top,
         border_width: 1.0,
         border_radius: cosmic::iced::border::rounded(0).radius,
-        text_color: Some(theme::STEEL_TOP),
+        text_color: Some(theme::get().steel_top),
         ..Default::default()
     };
     let steel_hovered = cosmic::widget::button::Style {
-        background: Some(theme::STEEL_TOP.into()),
-        border_color: theme::STEEL_TOP,
+        background: Some(theme::get().steel_top.into()),
+        border_color: theme::get().steel_top,
         border_width: 1.0,
         border_radius: cosmic::iced::border::rounded(0).radius,
         text_color: Some(cosmic::iced::Color::BLACK),
@@ -47,15 +47,15 @@ pub fn organizer_banner<'a, M: 'static + Clone + Send>(
 
     let steel_active2 = cosmic::widget::button::Style {
         background: Some(cosmic::iced::Color::BLACK.into()),
-        border_color: theme::STEEL_TOP,
+        border_color: theme::get().steel_top,
         border_width: 1.0,
         border_radius: cosmic::iced::border::rounded(0).radius,
-        text_color: Some(theme::STEEL_TOP),
+        text_color: Some(theme::get().steel_top),
         ..Default::default()
     };
     let steel_hovered2 = cosmic::widget::button::Style {
-        background: Some(theme::STEEL_TOP.into()),
-        border_color: theme::STEEL_TOP,
+        background: Some(theme::get().steel_top.into()),
+        border_color: theme::get().steel_top,
         border_width: 1.0,
         border_radius: cosmic::iced::border::rounded(0).radius,
         text_color: Some(cosmic::iced::Color::BLACK),
