@@ -596,7 +596,7 @@ fn drawer_contents_view<'a>(
                             text("📂").size(48),
                             space::vertical().height(Length::Fixed(8.0)),
                             text("This drawer is empty.").size(16).color(crate::ui::theme::get().drawer_hint),
-                            text("Drop files here, or right-click to add apps.").size(13),
+                            text("Drop files here, or right-click to add apps.").size(13).color(crate::ui::theme::get().text_steel),
                         ]
                         .spacing(8)
                         .align_x(Horizontal::Center)
