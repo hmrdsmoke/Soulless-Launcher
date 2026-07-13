@@ -47,7 +47,7 @@ pub fn view(state: &HardwareMonitorState) -> Element<'_, Message> {
     let cpu_col = column![
         text("cpu").size(9).color(CPU_COLOR),
         text(cpu_temp_str).size(9).color(cpu_temp_color),
-        text(fmt_cpu_freq(hw.cpu_freq_mhz)).size(9).color(crate::ui::theme::get().text_steel),
+        text(fmt_cpu_freq(hw.cpu_freq_mhz)).size(9).color(CPU_COLOR),
     ]
     .spacing(1)
     .width(Length::Fill);
@@ -66,7 +66,7 @@ pub fn view(state: &HardwareMonitorState) -> Element<'_, Message> {
     let gpu_col = column![
         text("gpu").size(9).color(GPU_COLOR),
         text(gpu_temp_str).size(9).color(gpu_temp_color),
-        text(gpu_clock_str).size(9).color(crate::ui::theme::get().text_steel),
+        text(gpu_clock_str).size(9).color(GPU_COLOR),
     ]
     .spacing(1)
     .width(Length::Fill);
@@ -78,7 +78,7 @@ pub fn view(state: &HardwareMonitorState) -> Element<'_, Message> {
 
     let ram_col = column![
         text("ram").size(9).color(RAM_COLOR),
-        text(ram_freq_str).size(9).color(crate::ui::theme::get().text_steel),
+        text(ram_freq_str).size(9).color(RAM_COLOR),
         text("").size(9),
     ]
     .spacing(1)

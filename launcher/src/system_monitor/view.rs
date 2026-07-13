@@ -30,16 +30,16 @@ pub fn view(state: &SystemState) -> Element<'_, Message> {
 
     // ── Stats row ──────────────────────────────────────────────────────────
     let cpu_label  = text("CPU").size(9).color(CPU_COLOR);
-    let cpu_val    = text(fmt_pct(state.stats.cpu_pct)).size(9).color(crate::ui::theme::get().text_steel);
+    let cpu_val    = text(fmt_pct(state.stats.cpu_pct)).size(9).color(CPU_COLOR);
 
     let ram_label  = text("RAM").size(9).color(RAM_COLOR);
-    let ram_val    = text(fmt_pct(state.stats.ram_pct)).size(9).color(crate::ui::theme::get().text_steel);
+    let ram_val    = text(fmt_pct(state.stats.ram_pct)).size(9).color(RAM_COLOR);
 
     let gpu_label  = text("GPU").size(9).color(GPU_COLOR);
-    let gpu_val    = text(fmt_pct(state.stats.gpu_pct)).size(9).color(crate::ui::theme::get().text_steel);
+    let gpu_val    = text(fmt_pct(state.stats.gpu_pct)).size(9).color(GPU_COLOR);
 
     let disk_label = text("DSK").size(9).color(DISK_COLOR);
-    let disk_val   = text(fmt_pct(state.stats.disk_pct)).size(9).color(crate::ui::theme::get().text_steel);
+    let disk_val   = text(fmt_pct(state.stats.disk_pct)).size(9).color(DISK_COLOR);
 
     let stats = row![
         column![cpu_label,  cpu_val ].spacing(1).width(Length::Fill),

@@ -12,7 +12,7 @@ use cosmic::iced::{
 
 use crate::fps_monitor::{
     Message, FpsMonitorState,
-    graph::{AVG_COLOR, LOW_COLOR, FtGraph, fps_color},
+    graph::{AVG_COLOR, LOW_COLOR, FPS_COLOR, FtGraph, fps_color},
 };
 
 /// Renders the FPS monitor into a 140×90 widget box.
@@ -43,7 +43,7 @@ pub fn view(state: &FpsMonitorState) -> Element<'_, Message> {
     // ── Average ───────────────────────────────────────────────────────────────
     let avg_col = column![
         text("avg").size(9).color(AVG_COLOR),
-        text(fmt_fps(fps.fps_avg)).size(9).color(crate::ui::theme::get().text_steel),
+        text(fmt_fps(fps.fps_avg)).size(9).color(AVG_COLOR),
     ]
     .spacing(1)
     .width(Length::Fill);
@@ -51,15 +51,15 @@ pub fn view(state: &FpsMonitorState) -> Element<'_, Message> {
     // ── 1% low ────────────────────────────────────────────────────────────────
     let low_col = column![
         text("1%lo").size(9).color(LOW_COLOR),
-        text(fmt_fps(fps.fps_1_low)).size(9).color(crate::ui::theme::get().text_steel),
+        text(fmt_fps(fps.fps_1_low)).size(9).color(LOW_COLOR),
     ]
     .spacing(1)
     .width(Length::Fill);
 
     // ── Frametime ─────────────────────────────────────────────────────────────
     let ft_col = column![
-        text("ft").size(9).color(crate::ui::theme::get().text_steel),
-        text(fmt_ft(fps.frametime_ms)).size(9).color(crate::ui::theme::get().text_steel),
+        text("ft").size(9).color(FPS_COLOR),
+        text(fmt_ft(fps.frametime_ms)).size(9).color(FPS_COLOR),
     ]
     .spacing(1)
     .width(Length::Fill);
