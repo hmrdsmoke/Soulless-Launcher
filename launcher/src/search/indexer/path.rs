@@ -31,7 +31,21 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
         "node",
     ];
 
-    let path_env = std::env::var("PATH").unwrap_or_default();
+    // In-sandbox, PATH is the runtime's — zero host tools. Walk the host's
+    // real bin dirs instead (mounted read-only at /run/host/usr).
+    use crate::search::indexer::hostpath;
+
+    let path_env = if hostpath::sandboxed() {
+        [
+            hostpath::host("/usr/bin"),
+            hostpath::host("/usr/local/bin"),
+            hostpath::host("/bin"),
+            hostpath::host("/usr/sbin"),
+        ]
+        .join(":")
+    } else {
+        std::env::var("PATH").unwrap_or_default()
+    };
 
     for dir in std::env::split_paths(&path_env) {
         let Ok(entries) = fs::read_dir(dir) else {

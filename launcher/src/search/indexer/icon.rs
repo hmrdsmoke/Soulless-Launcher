@@ -126,8 +126,12 @@ impl IconCache {
             for cat in &categories {
                 // User-local icons first (Chrome app shortcuts etc)
                 png_dirs.push(format!("{}/{}/{}", local_hicolor.display(), size, cat));
-                png_dirs.push(format!("/usr/share/icons/hicolor/{}/{}", size, cat));
-                png_dirs.push(format!("/usr/share/icons/Pop/{}/{}", size, cat));
+                png_dirs.push(crate::search::indexer::hostpath::host(&format!(
+                    "/usr/share/icons/hicolor/{}/{}", size, cat
+                )));
+                png_dirs.push(crate::search::indexer::hostpath::host(&format!(
+                    "/usr/share/icons/Pop/{}/{}", size, cat
+                )));
             }
         }
         png_dirs.push("/usr/share/pixmaps".to_string());
@@ -136,7 +140,9 @@ impl IconCache {
         let mut svg_dirs: Vec<String> = Vec::new();
         for cat in &categories {
             svg_dirs.push(format!("{}/scalable/{}", local_hicolor.display(), cat));
-            svg_dirs.push(format!("/usr/share/icons/hicolor/scalable/{}", cat));
+            svg_dirs.push(crate::search::indexer::hostpath::host(&format!(
+                "/usr/share/icons/hicolor/scalable/{}", cat
+            )));
             svg_dirs.push(format!("/usr/share/icons/Cosmic/scalable/{}", cat));
             svg_dirs.push(format!("/usr/share/icons/Pop/scalable/{}", cat));
         }

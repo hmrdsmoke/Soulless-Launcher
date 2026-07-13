@@ -18,6 +18,7 @@ pub mod jetbrains;
 pub mod wine;
 pub mod appid;
 pub mod icon;
+pub mod hostpath;
 
 #[allow(dead_code)] // issue #6 — launch stats tracking
 #[derive(Clone, serde::Serialize, serde::Deserialize)]

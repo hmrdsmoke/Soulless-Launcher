@@ -20,15 +20,30 @@ pub fn index(
 
     let home = dirs::home_dir().unwrap_or_default();
 
-    let xdg_data_dirs = std::env::var("XDG_DATA_DIRS")
-        .unwrap_or_else(|_| "/usr/local/share:/usr/share".to_string());
+    // In-sandbox, XDG_DATA_DIRS points at /app and the runtime — the host's
+    // apps live under /run/host/usr (via --filesystem=host-os:ro). Index the
+    // host's real data dirs there; natively this is a no-op prefix.
+    use crate::search::indexer::hostpath;
 
-    let mut dirs: Vec<String> = xdg_data_dirs
-        .split(':')
-        .map(|d| format!("{}/applications", d))
-        .collect();
+    let mut dirs: Vec<String> = if hostpath::sandboxed() {
+        vec![
+            hostpath::host("/usr/share/applications"),
+            hostpath::host("/usr/local/share/applications"),
+            hostpath::host("/var/lib/flatpak/exports/share/applications"),
+        ]
+    } else {
+        std::env::var("XDG_DATA_DIRS")
+            .unwrap_or_else(|_| "/usr/local/share:/usr/share".to_string())
+            .split(':')
+            .map(|d| format!("{}/applications", d))
+            .collect()
+    };
 
     dirs.push(format!("{}/.local/share/applications", home.display()));
+    dirs.push(format!(
+        "{}/.local/share/flatpak/exports/share/applications",
+        home.display()
+    ));
 
     for dir in dirs {
         let Ok(entries) = fs::read_dir(dir) else {
