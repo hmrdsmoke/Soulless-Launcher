@@ -84,3 +84,37 @@ pub fn parse_uri_list(data: &[u8]) -> Vec<std::path::PathBuf> {
         })
         .collect()
 }
+
+/// Launch a command string the way a launcher must: on the HOST.
+///
+/// Natively that is just `sh -c <exec>`. Inside Flatpak the sandbox contains
+/// none of the host's binaries, so `sh -c firefox` finds nothing and the click
+/// does nothing. `flatpak-spawn --host` is Flatpak's portal-mediated escape
+/// hatch for exactly this (requires --talk-name=org.freedesktop.Flatpak in
+/// finish-args). Without it the launcher can index 1734 apps and launch zero.
+///
+/// Args are passed as separate argv entries, so no shell re-quoting happens.
+/// The child is reaped on a detached thread — the launcher is a long-lived
+/// daemon and must not accumulate zombies.
+pub fn spawn_exec(exec: &str) {
+    let clean = strip_desktop_placeholders(exec);
+
+    let mut cmd = if crate::search::indexer::hostpath::sandboxed() {
+        let mut c = std::process::Command::new("flatpak-spawn");
+        c.args(["--host", "sh", "-c"]).arg(&clean);
+        c
+    } else {
+        let mut c = std::process::Command::new("sh");
+        c.arg("-c").arg(&clean);
+        c
+    };
+
+    match cmd.spawn() {
+        Ok(mut child) => {
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+        }
+        Err(e) => eprintln!("[launch] failed to spawn `{clean}`: {e}"),
+    }
+}

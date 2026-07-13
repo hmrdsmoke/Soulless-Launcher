@@ -274,14 +274,7 @@ impl cosmic::Application for Soulless {
                     }
                 }
                 if let Some(exec) = self.search.update(msg) {
-                    let clean_exec = crate::utils::strip_desktop_placeholders(&exec);
-
-                    if let Err(_e) = std::process::Command::new("sh")
-                        .arg("-c")
-                        .arg(&clean_exec)
-                        .spawn()
-                    {
-                    }
+                    crate::utils::spawn_exec(&exec);
 
                     self.dismiss()
                 } else if is_kbd_nav {
@@ -557,9 +550,7 @@ impl cosmic::Application for Soulless {
                 if let Some(idx) = self.search.focused_app_idx
                     && let Some(exec) = self.search.focused_exec(idx) {
                         self.search.record_launch_by_exec(&exec);
-                        let clean = crate::utils::strip_desktop_placeholders(&exec);
-                        let _ = std::process::Command::new("sh")
-                            .arg("-c").arg(&clean).spawn();
+                        crate::utils::spawn_exec(&exec);
                         return self.dismiss();
                     }
                 // Type-and-Enter: launch the top result ONLY when the user has
@@ -574,9 +565,7 @@ impl cosmic::Application for Soulless {
                     && self.search.show_search_results
                     && let Some(exec) = self.search.focused_exec(0) {
                         self.search.record_launch_by_exec(&exec);
-                        let clean = crate::utils::strip_desktop_placeholders(&exec);
-                        let _ = std::process::Command::new("sh")
-                            .arg("-c").arg(&clean).spawn();
+                        crate::utils::spawn_exec(&exec);
                         return self.dismiss();
                     }
                 Task::none()
