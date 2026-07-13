@@ -55,16 +55,31 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
         for entry in entries.flatten() {
             let path = entry.path();
 
-            if !path.is_file() {
-                continue;
-            }
-
-            let Ok(metadata) = fs::metadata(&path) else {
+            // NOTE: in-sandbox, /run/host/usr/bin is full of symlinks whose
+            // targets (e.g. /etc/alternatives/*) don't resolve inside the
+            // sandbox root. is_file() FOLLOWS symlinks, so it returned false
+            // for nearly every host binary — 2182 executables indexed as 0.
+            // symlink_metadata() stats the link itself and doesn't follow.
+            let Ok(metadata) = fs::symlink_metadata(&path) else {
                 continue;
             };
 
-            // Skip non-executable files
-            if metadata.permissions().mode() & 0o111 == 0 {
+            // Directories are never tools; symlinks and regular files both are.
+            if metadata.is_dir() {
+                continue;
+            }
+
+            // Executable bit: check the link's own mode, falling back to the
+            // target's when the link resolves (native case).
+            let mode = if metadata.file_type().is_symlink() {
+                fs::metadata(&path)
+                    .map(|m| m.permissions().mode())
+                    .unwrap_or(0o755) // unresolvable in-sandbox: trust the bin dir
+            } else {
+                metadata.permissions().mode()
+            };
+
+            if mode & 0o111 == 0 {
                 continue;
             }
 
