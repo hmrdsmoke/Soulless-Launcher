@@ -37,31 +37,12 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
         std::env::var("PATH").unwrap_or_default()
     };
 
-    eprintln!(
-        "[cli-index] sandboxed={} path_env={}",
-        hostpath::sandboxed(),
-        path_env
-    );
-
     for dir in std::env::split_paths(&path_env) {
-        let dir_disp = dir.display().to_string();
-        let entries = match fs::read_dir(&dir) {
-            Ok(e) => e,
-            Err(err) => {
-                eprintln!("[cli-index] read_dir FAILED {dir_disp}: {err}");
-                continue;
-            }
+        let Ok(entries) = fs::read_dir(&dir) else {
+            continue;
         };
 
-        let mut saw = 0usize;
-        let mut rej_dir = 0usize;
-        let mut rej_meta = 0usize;
-        let mut rej_exec = 0usize;
-        let mut rej_black = 0usize;
-        let mut rej_dupe = 0usize;
-
         for entry in entries.flatten() {
-            saw += 1;
             let path = entry.path();
 
             // NOTE: in-sandbox, /run/host/usr/bin is full of symlinks whose
@@ -70,12 +51,10 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
             // for nearly every host binary. symlink_metadata() stats the link
             // itself and doesn't follow.
             let Ok(metadata) = fs::symlink_metadata(&path) else {
-                rej_meta += 1;
                 continue;
             };
 
             if metadata.is_dir() {
-                rej_dir += 1;
                 continue;
             }
 
@@ -90,7 +69,6 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
             };
 
             if mode & 0o111 == 0 {
-                rej_exec += 1;
                 continue;
             }
 
@@ -99,13 +77,11 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
             };
 
             if blacklist.contains(&name) {
-                rej_black += 1;
                 continue;
             }
 
             // Skip duplicates (first PATH entry wins)
             if !seen.insert(name.to_string()) {
-                rej_dupe += 1;
                 continue;
             }
 
@@ -129,13 +105,15 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
                 last_launched: None,
             });
         }
-
-        eprintln!(
-            "[cli-index] {dir_disp}: saw={saw} kept_total={} rej(dir={rej_dir} meta={rej_meta} exec={rej_exec} black={rej_black} dupe={rej_dupe})",
-            apps.len()
-        );
     }
 
-    eprintln!("[cli-index] TOTAL kept={}", apps.len());
     apps
 }
+
+// === DONE ===
+// Fixed: loop body was outside function — moved inside fn index() :: done
+// Added missing use std::os::unix::fs::PermissionsExt for .mode() :: done
+// Added missing let path_env = std::env::var("PATH") :: done
+// Added missing nucleo_matcher::Utf32String import :: done
+// Extended blacklist with common shells and runtimes :: done
+// symlink_metadata: host bin symlinks don't resolve in-sandbox :: done
