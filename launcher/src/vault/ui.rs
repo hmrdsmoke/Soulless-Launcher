@@ -62,16 +62,51 @@ fn setup_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
         .padding(12)
         .size(15);
 
-    let create_btn = mouse_area(
-        container(text("Create Vault").size(15))
+    // Black field outlined in steel; flips silver-with-ink on hover — same
+    // invert language as the menus. (Button::Custom gives per-status styling;
+    // the old static container couldn't hover.)
+    let create_btn_inner: cosmic::Element<'_, SearchMessage> =
+        cosmic::widget::button::custom(cosmic::widget::text("Create Vault").size(15))
             .padding([10, 24])
-            .style(|_: &Theme| container::Style {
-                background: Some(Color::from_rgb8(60, 60, 180).into()),
-                border: cosmic::iced::border::rounded(0),
-                ..Default::default()
-            }),
-    )
-    .on_press(SearchMessage::VaultSetupConfirm);
+            .on_press(SearchMessage::VaultSetupConfirm)
+            .class(cosmic::theme::Button::Custom {
+                active: Box::new(|_selected, _theme| {
+                    let t = crate::ui::theme::get();
+                    cosmic::widget::button::Style {
+                        background: Some(t.window_bg.into()),
+                        border_width: 1.0,
+                        border_color: t.text_steel,
+                        text_color: Some(t.text_steel),
+                        border_radius: cosmic::iced::border::rounded(0).radius,
+                        ..Default::default()
+                    }
+                }),
+                hovered: Box::new(|_selected, _theme| {
+                    let t = crate::ui::theme::get();
+                    cosmic::widget::button::Style {
+                        background: Some(t.drawer_btn_hover.into()),
+                        border_width: 1.0,
+                        border_color: t.text_ink,
+                        text_color: Some(t.text_ink),
+                        border_radius: cosmic::iced::border::rounded(0).radius,
+                        ..Default::default()
+                    }
+                }),
+                pressed: Box::new(|_selected, _theme| {
+                    let t = crate::ui::theme::get();
+                    cosmic::widget::button::Style {
+                        background: Some(t.drawer_btn_active.into()),
+                        border_width: 1.0,
+                        border_color: t.text_ink,
+                        text_color: Some(t.text_ink),
+                        border_radius: cosmic::iced::border::rounded(0).radius,
+                        ..Default::default()
+                    }
+                }),
+                disabled: Box::new(|_theme| cosmic::widget::button::Style::default()),
+            })
+            .into();
+    let create_btn = cosmic::iced::widget::Themer::new(None::<cosmic::Theme>, create_btn_inner);
 
     let mut col = column![
         title,
@@ -187,16 +222,49 @@ fn unlock_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
         .padding(12)
         .size(15);
 
-    let unlock_btn = mouse_area(
-        container(text("Unlock").size(15))
+    // Same treatment as create_btn: black, steel outline, silver-flip hover.
+    let unlock_btn_inner: cosmic::Element<'_, SearchMessage> =
+        cosmic::widget::button::custom(cosmic::widget::text("Unlock").size(15))
             .padding([10, 32])
-            .style(|_: &Theme| container::Style {
-                background: Some(Color::from_rgb8(60, 60, 180).into()),
-                border: cosmic::iced::border::rounded(0),
-                ..Default::default()
-            }),
-    )
-    .on_press(SearchMessage::VaultUnlock);
+            .on_press(SearchMessage::VaultUnlock)
+            .class(cosmic::theme::Button::Custom {
+                active: Box::new(|_selected, _theme| {
+                    let t = crate::ui::theme::get();
+                    cosmic::widget::button::Style {
+                        background: Some(t.window_bg.into()),
+                        border_width: 1.0,
+                        border_color: t.text_steel,
+                        text_color: Some(t.text_steel),
+                        border_radius: cosmic::iced::border::rounded(0).radius,
+                        ..Default::default()
+                    }
+                }),
+                hovered: Box::new(|_selected, _theme| {
+                    let t = crate::ui::theme::get();
+                    cosmic::widget::button::Style {
+                        background: Some(t.drawer_btn_hover.into()),
+                        border_width: 1.0,
+                        border_color: t.text_ink,
+                        text_color: Some(t.text_ink),
+                        border_radius: cosmic::iced::border::rounded(0).radius,
+                        ..Default::default()
+                    }
+                }),
+                pressed: Box::new(|_selected, _theme| {
+                    let t = crate::ui::theme::get();
+                    cosmic::widget::button::Style {
+                        background: Some(t.drawer_btn_active.into()),
+                        border_width: 1.0,
+                        border_color: t.text_ink,
+                        text_color: Some(t.text_ink),
+                        border_radius: cosmic::iced::border::rounded(0).radius,
+                        ..Default::default()
+                    }
+                }),
+                disabled: Box::new(|_theme| cosmic::widget::button::Style::default()),
+            })
+            .into();
+    let unlock_btn = cosmic::iced::widget::Themer::new(None::<cosmic::Theme>, unlock_btn_inner);
 
     // Dead man's switch reachable from the lock screen. No password recovery
     // exists by design; the only "forgot password" action is to DESTROY the
