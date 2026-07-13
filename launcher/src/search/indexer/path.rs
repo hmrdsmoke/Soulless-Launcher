@@ -47,10 +47,22 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
         std::env::var("PATH").unwrap_or_default()
     };
 
+    eprintln!(
+        "[cli-index] sandboxed={} path_env={}",
+        hostpath::sandboxed(),
+        path_env
+    );
+
     for dir in std::env::split_paths(&path_env) {
-        let Ok(entries) = fs::read_dir(dir) else {
-            continue;
+        let dir_disp = dir.display().to_string();
+        let entries = match fs::read_dir(&dir) {
+            Ok(e) => e,
+            Err(err) => {
+                eprintln!("[cli-index] read_dir FAILED {dir_disp}: {err}");
+                continue;
+            }
         };
+        eprintln!("[cli-index] walking {dir_disp}");
 
         for entry in entries.flatten() {
             let path = entry.path();
