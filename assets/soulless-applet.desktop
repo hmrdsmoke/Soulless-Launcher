@@ -10,3 +10,4 @@ Keywords=COSMIC;Applet;Launcher;Soulless;
 StartupNotify=true
 NoDisplay=true
 X-CosmicApplet=true
+X-HostWaylandDisplay=true
