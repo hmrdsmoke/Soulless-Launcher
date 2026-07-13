@@ -132,9 +132,17 @@ pub fn build_index() -> Vec<AppEntry> {
                 .filter(|app| {
                     let name = &app.name;
                     // Only man1 — user commands; skip man8 system admin tools
-                    let has_man =
-                        std::path::Path::new(&format!("/usr/share/man/man1/{}.1.gz", name)).exists()
-                        || std::path::Path::new(&format!("/usr/share/man/man1/{}.1", name)).exists();
+                    // Man pages live on the HOST — in-sandbox /usr/share/man is
+                    // the runtime's, which has none of them, so every CLI tool
+                    // failed this gate and the cli index came back empty.
+                    let has_man = std::path::Path::new(&hostpath::host(&format!(
+                        "/usr/share/man/man1/{}.1.gz", name
+                    )))
+                    .exists()
+                        || std::path::Path::new(&hostpath::host(&format!(
+                            "/usr/share/man/man1/{}.1", name
+                        )))
+                        .exists();
                     // Extra noise filter
                     let not_noise = name.len() > 2
                         && !name.starts_with("x86_64")
