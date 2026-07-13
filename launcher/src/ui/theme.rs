@@ -23,8 +23,13 @@ use std::sync::OnceLock;
 #[derive(Debug, Clone, Copy)]
 pub struct ThemeColors {
     // ── Canonical text ──
+    // ── Canonical text ──
     pub text_steel: Color,
     pub text_ink: Color,
+    /// Right-panel headings: drawer names, modal titles. The gold.
+    pub drawer_title: Color,
+    /// Right-panel secondary lettering: drop hints, empty-state lines.
+    pub drawer_hint: Color,
     // ── Window ──
     pub window_bg: Color,
     pub window_corner_radius: f32,
@@ -66,6 +71,8 @@ impl Default for ThemeColors {
         Self {
             text_steel: Color { r: 0.88, g: 0.89, b: 0.91, a: 1.0 },
             text_ink: Color { r: 0.05, g: 0.05, b: 0.06, a: 1.0 },
+            drawer_title: Color { r: 0.85, g: 0.64, b: 0.25, a: 1.0 },
+            drawer_hint: Color { r: 0.85, g: 0.64, b: 0.25, a: 0.78 },
 
             window_bg: Color { r: 0.042, g: 0.042, b: 0.048, a: 1.0 },
             window_corner_radius: 0.0,

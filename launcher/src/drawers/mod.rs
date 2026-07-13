@@ -258,7 +258,7 @@ pub fn view<'a>(
 
         let modal_widget = container(
             column![
-                text(title).size(18),
+                text(title).size(18).color(crate::ui::theme::get().drawer_title),
                 space::vertical().height(Length::Fixed(12.0)),
                 text_input(placeholder, value)
                     .on_input(SearchMessage::DrawerEditInputChanged)
@@ -536,8 +536,10 @@ fn drawer_contents_view<'a>(
     let dn_finish = drawer_name.to_string();
     let header_inner: cosmic::Element<'_, SearchMessage> = cosmic::widget::container(
         cosmic::widget::column![
-            cosmic::widget::text(drawer_name).size(22),
-            cosmic::widget::text(if is_file_hover { "Drop to add" } else { "Drop files here" }).size(12),
+            cosmic::widget::text(drawer_name).size(22)
+                .class(cosmic::theme::Text::Color(crate::ui::theme::get().drawer_title)),
+            cosmic::widget::text(if is_file_hover { "Drop to add" } else { "Drop files here" }).size(12)
+                .class(cosmic::theme::Text::Color(crate::ui::theme::get().drawer_hint)),
         ]
         .spacing(4)
         .padding([12, 16])
@@ -593,7 +595,7 @@ fn drawer_contents_view<'a>(
                         column![
                             text("📂").size(48),
                             space::vertical().height(Length::Fixed(8.0)),
-                            text("This drawer is empty.").size(16),
+                            text("This drawer is empty.").size(16).color(crate::ui::theme::get().drawer_hint),
                             text("Drop files here, or right-click to add apps.").size(13),
                         ]
                         .spacing(8)

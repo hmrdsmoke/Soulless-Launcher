@@ -22,6 +22,8 @@ use serde::Deserialize;
 struct ThemeFile {
     text_steel: Option<String>,
     text_ink: Option<String>,
+    drawer_title: Option<String>,
+    drawer_hint: Option<String>,
     window_bg: Option<String>,
     window_corner_radius: Option<f32>,
     window_border: Option<String>,
@@ -116,6 +118,8 @@ pub fn load() -> ThemeColors {
 
     apply_color(&mut theme.text_steel, &file.text_steel, "text_steel");
     apply_color(&mut theme.text_ink, &file.text_ink, "text_ink");
+    apply_color(&mut theme.drawer_title, &file.drawer_title, "drawer_title");
+    apply_color(&mut theme.drawer_hint, &file.drawer_hint, "drawer_hint");
     apply_color(&mut theme.window_bg, &file.window_bg, "window_bg");
     apply_f32(&mut theme.window_corner_radius, &file.window_corner_radius);
     apply_color(&mut theme.window_border, &file.window_border, "window_border");
