@@ -28,16 +28,16 @@ pub fn view(state: &NetworkState) -> Element<'_, Message> {
 
     // ── Stats row ──────────────────────────────────────────────────────────
     let down_label = text("↓").size(9).color(DOWN_COLOR);
-    let down_val   = text(fmt_speed(state.bandwidth.down_kbps)).size(9);
+    let down_val   = text(fmt_speed(state.bandwidth.down_kbps)).size(9).color(crate::ui::theme::get().text_steel);
 
     let up_label   = text("↑").size(9).color(UP_COLOR);
-    let up_val     = text(fmt_speed(state.bandwidth.up_kbps)).size(9);
+    let up_val     = text(fmt_speed(state.bandwidth.up_kbps)).size(9).color(crate::ui::theme::get().text_steel);
 
     let ping_label = text("ping").size(9).color(PING_COLOR);
-    let ping_val   = text(fmt_ping(state.ping.ping_ms)).size(9);
+    let ping_val   = text(fmt_ping(state.ping.ping_ms)).size(9).color(crate::ui::theme::get().text_steel);
 
     let jitter_label = text("jitr").size(9).color(JITTER_COLOR);
-    let jitter_val   = text(fmt_jitter(state.ping.jitter_ms)).size(9);
+    let jitter_val   = text(fmt_jitter(state.ping.jitter_ms)).size(9).color(crate::ui::theme::get().text_steel);
 
     let stats = row![
         column![down_label,   down_val  ].spacing(1).width(Length::Fill),
