@@ -31,7 +31,7 @@ readme       = "README.md"
 
 [workspace.dependencies]
 # ── UI framework ─────────────────────────────────────────────────────────────
-cosmic = { git = "https://github.com/pop-os/libcosmic", rev = "4657b6a7259e6ecdbf0af6f956de163e3d49dc1a", package = "libcosmic", features = [
+cosmic = { git = "https://github.com/pop-os/libcosmic", rev = "fc5debccef41cd6bd6731cbc768cb719847d1a2f", package = "libcosmic", features = [
     "tokio",
     "wayland",
     "winit",
