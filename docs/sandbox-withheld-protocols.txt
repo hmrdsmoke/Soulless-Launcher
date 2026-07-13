@@ -1,0 +1,22 @@
+# Protocols cosmic-comp withholds from sandboxed clients (native 56 / sandbox 35, 2026-07-13)
+< cosmic_a11y_manager_v1
+< ext_data_control_manager_v1
+< ext_foreign_toplevel_image_capture_source_manager_v1
+< ext_foreign_toplevel_list_v1
+< ext_image_copy_capture_manager_v1
+< ext_output_image_capture_source_manager_v1
+< ext_session_lock_manager_v1
+< ext_workspace_manager_v1
+< wp_security_context_manager_v1
+< zcosmic_output_manager_v1
+< zcosmic_overlap_notify_v1
+< zcosmic_toplevel_info_v1
+< zcosmic_toplevel_manager_v1
+< zcosmic_workspace_image_capture_source_manager_v1
+< zcosmic_workspace_manager_v2
+< zwlr_data_control_manager_v1
+< zwlr_layer_shell_v1
+< zwlr_output_manager_v1
+< zwlr_output_power_manager_v1
+< zwp_input_method_manager_v2
+< zwp_virtual_keyboard_manager_v1
