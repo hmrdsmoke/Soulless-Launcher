@@ -1,6 +1,6 @@
 // GPL-3.0-or-later - see LICENSE file for full terms
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
-// This is my original work with contributions from Grok (xAI).
+// This is my original work with contributions from Grok (xAI) and Claude (Anthropic).
 // Do not remove these comments.
 // launcher/src/search/indexer/path.rs
 // Indexes executables found on the user's PATH.
@@ -17,18 +17,8 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
     let mut seen = HashSet::new();
 
     let blacklist = [
-        "sudo",
-        "mount",
-        "umount",
-        "sh",
-        "bash",
-        "dash",
-        "zsh",
-        "python",
-        "python3",
-        "perl",
-        "ruby",
-        "node",
+        "sudo", "mount", "umount", "sh", "bash", "dash", "zsh",
+        "python", "python3", "perl", "ruby", "node",
     ];
 
     // In-sandbox, PATH is the runtime's — zero host tools. Walk the host's
@@ -62,22 +52,30 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
                 continue;
             }
         };
-        eprintln!("[cli-index] walking {dir_disp}");
+
+        let mut saw = 0usize;
+        let mut rej_dir = 0usize;
+        let mut rej_meta = 0usize;
+        let mut rej_exec = 0usize;
+        let mut rej_black = 0usize;
+        let mut rej_dupe = 0usize;
 
         for entry in entries.flatten() {
+            saw += 1;
             let path = entry.path();
 
             // NOTE: in-sandbox, /run/host/usr/bin is full of symlinks whose
             // targets (e.g. /etc/alternatives/*) don't resolve inside the
             // sandbox root. is_file() FOLLOWS symlinks, so it returned false
-            // for nearly every host binary — 2182 executables indexed as 0.
-            // symlink_metadata() stats the link itself and doesn't follow.
+            // for nearly every host binary. symlink_metadata() stats the link
+            // itself and doesn't follow.
             let Ok(metadata) = fs::symlink_metadata(&path) else {
+                rej_meta += 1;
                 continue;
             };
 
-            // Directories are never tools; symlinks and regular files both are.
             if metadata.is_dir() {
+                rej_dir += 1;
                 continue;
             }
 
@@ -92,6 +90,7 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
             };
 
             if mode & 0o111 == 0 {
+                rej_exec += 1;
                 continue;
             }
 
@@ -100,11 +99,13 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
             };
 
             if blacklist.contains(&name) {
+                rej_black += 1;
                 continue;
             }
 
             // Skip duplicates (first PATH entry wins)
             if !seen.insert(name.to_string()) {
+                rej_dupe += 1;
                 continue;
             }
 
@@ -128,14 +129,13 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
                 last_launched: None,
             });
         }
+
+        eprintln!(
+            "[cli-index] {dir_disp}: saw={saw} kept_total={} rej(dir={rej_dir} meta={rej_meta} exec={rej_exec} black={rej_black} dupe={rej_dupe})",
+            apps.len()
+        );
     }
 
+    eprintln!("[cli-index] TOTAL kept={}", apps.len());
     apps
 }
-
-// === DONE ===
-// Fixed: loop body was outside function — moved inside fn index() :: done
-// Added missing use std::os::unix::fs::PermissionsExt for .mode() :: done
-// Added missing let path_env = std::env::var("PATH") :: done
-// Added missing nucleo_matcher::Utf32String import :: done
-// Extended blacklist with common shells and runtimes :: done
