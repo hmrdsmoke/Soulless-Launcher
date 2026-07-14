@@ -1,0 +1,130 @@
+.\" GPL-3.0-or-later - see LICENSE file for full terms
+.\" Copyright 2026 Michael Van Auker (HMRDSmoke)
+.TH SOULLESS\-LAUNCHER 1 "July 2026" "soulless\-launcher 1.1.0" "User Commands"
+.SH NAME
+soulless\-launcher \- command\-center launcher for the COSMIC desktop
+.SH SYNOPSIS
+.B soulless\-launcher
+.RI [ COMMAND ]
+.br
+.B soulless\-launcher
+.BR \-h | \-\-help
+.br
+.B soulless\-launcher
+.BR \-V | \-\-version
+.SH DESCRIPTION
+.B soulless\-launcher
+is a launcher for the COSMIC desktop environment. It provides universal search
+across applications, files, command\-line tools, Steam games, Flatpaks and
+AppImages; user\-defined drawers with drag\-and\-drop; an encrypted vault; and live
+system monitors.
+.PP
+With no arguments it runs as a resident daemon. It is normally started at login
+from
+.I /etc/xdg/autostart
+and stays warm for the session, showing and hiding its
+.BR wlr\-layer\-shell (7)
+surface on request rather than starting a fresh process each time. A companion
+COSMIC panel applet,
+.BR soulless\-applet ,
+activates it over D\-Bus.
+.PP
+Because the autostart entry is converted to a systemd user unit when the user
+manager starts, a
+.B full reboot
+is required after installation \- logging out and back in does not re\-scan
+.IR /etc/xdg/autostart .
+.SH COMMANDS
+.TP
+.B toggle
+Show the launcher if it is hidden, hide it if it is visible. The command is
+routed over D\-Bus to the running daemon; it does not start a second instance.
+If no daemon is running, one is started.
+.IP
+Note that running
+.B toggle
+from a terminal will only ever
+.I show
+the launcher: typing gives the terminal keyboard focus, which triggers the
+launcher's click\-away dismiss, so there is never a visible surface left to hide.
+The hide branch is reached from a keybind or script that does not steal focus.
+.SH OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Print a usage summary to standard output and exit.
+.TP
+.BR \-V ", " \-\-version
+Print version information to standard output and exit.
+.SH FILES
+.TP
+.I ~/.config/soulless/config.ron
+Main configuration.
+.TP
+.I ~/.config/soulless/theme.ron
+Colour overrides. Any subset of the theme's colour tokens may be given as hex
+values; unspecified tokens keep their defaults.
+.TP
+.I ~/.config/soulless/backgrounds/
+Right\-panel background images. The first image alphabetically is used.
+Portrait orientation, roughly 460x1100 pixels or larger.
+.TP
+.I ~/.local/share/soulless/drawers.json
+Saved drawer contents and layout.
+.TP
+.I ~/.cache/soulless/
+Index caches. Safe to delete; they are rebuilt on next launch.
+.TP
+.I /etc/xdg/autostart/com.github.hmrdsmoke.soulless\-launcher.desktop
+Autostart entry that starts the daemon at login.
+.SH ENVIRONMENT
+.TP
+.B RUST_LOG
+Tracing filter. Defaults to
+.BR warn .
+Set to
+.B info
+or
+.B debug
+for diagnostics.
+.TP
+.B COSMIC_SINGLE_INSTANCE
+Set to
+.B false
+or
+.B 0
+to disable single\-instance behaviour and force a new process. Intended for
+debugging.
+.SH EXIT STATUS
+.TP
+.B 0
+Success, including
+.B \-\-help
+and
+.BR \-\-version .
+.TP
+.B 1
+An unrecognized argument was given.
+.SH EXAMPLES
+.TP
+Toggle the launcher from a keybind:
+.B soulless\-launcher toggle
+.TP
+Run in the foreground with diagnostics:
+.B RUST_LOG=info soulless\-launcher
+.SH SEE ALSO
+.BR soulless\-applet (1),
+.BR busctl (1)
+.PP
+Project home:
+.UR https://github.com/hmrdsmoke/Soulless\-Launcher
+.UE
+.SH BUGS
+Report bugs at
+.UR https://github.com/hmrdsmoke/Soulless\-Launcher/issues
+.UE
+.SH AUTHOR
+Michael Van Auker (HMRDSmoke), with AI contributions credited per file.
+.SH COPYRIGHT
+Copyright \(co 2026 Michael Van Auker. License GPLv3+: GNU GPL version 3 or
+later. This is free software: you are free to change and redistribute it. There
+is NO WARRANTY, to the extent permitted by law.

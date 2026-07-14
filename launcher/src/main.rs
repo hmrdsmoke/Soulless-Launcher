@@ -50,10 +50,26 @@ fn main() -> cosmic::iced::Result {
     // ActivateAction("toggle") to it and exits without starting a second
     // instance. If no daemon is running, it becomes the daemon.
     let flags = match std::env::args().nth(1).as_deref() {
+        None => app::SoullessFlags::default(),
         Some("toggle") => app::SoullessFlags {
             subcommand: Some(app::SoullessSubCommand::Toggle),
         },
-        _ => app::SoullessFlags::default(),
+        Some("-h") | Some("--help") | Some("help") => {
+            print_help();
+            return Ok(());
+        }
+        Some("-V") | Some("--version") => {
+            println!("soulless-launcher {}", env!("CARGO_PKG_VERSION"));
+            return Ok(());
+        }
+        Some(other) => {
+            // Unrecognized args must NOT fall through to the daemon: without
+            // this, `soulless-launcher --help` would start a second instance
+            // instead of printing help.
+            eprintln!("soulless-launcher: unrecognized argument '{other}'");
+            eprintln!("Try 'soulless-launcher --help' for more information.");
+            std::process::exit(1);
+        }
     };
 
     let settings = cosmic::app::Settings::default()
@@ -67,4 +83,25 @@ fn main() -> cosmic::iced::Result {
         .no_main_window(true)
         .exit_on_close(false);
     cosmic::app::run_single_instance::<app::Soulless>(settings, flags)
+}
+
+/// Usage text. Goes to stdout and exits 0, per convention.
+fn print_help() {
+    println!("Usage: soulless-launcher [COMMAND]");
+    println!();
+    println!("A command-center launcher for the COSMIC desktop: universal search,");
+    println!("custom drawers, an encrypted vault, and live system monitors.");
+    println!();
+    println!("Commands:");
+    println!("  toggle           Show the launcher if hidden, hide it if visible");
+    println!();
+    println!("Options:");
+    println!("  -h, --help       Print this help and exit");
+    println!("  -V, --version    Print version information and exit");
+    println!();
+    println!("With no arguments, soulless-launcher runs as the resident daemon. It is");
+    println!("normally started at login from /etc/xdg/autostart and stays warm, showing");
+    println!("and hiding its layer surface on request rather than starting fresh.");
+    println!();
+    println!("See soulless-launcher(1) for full documentation.");
 }
