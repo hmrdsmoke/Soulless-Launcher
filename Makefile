@@ -20,6 +20,7 @@ export HOME   := $(REAL_HOME)
 # ===========================================================================
 PREFIX        ?= /usr/local
 BINDIR        := $(PREFIX)/bin
+MANDIR        := $(PREFIX)/share/man/man1
 APPDIR        := /usr/share/applications
 ICON_BASE     := /usr/share/icons/hicolor
 ICON_SIZES    := 16 22 24 48 64 128 256
@@ -68,6 +69,15 @@ install: release
 	@echo "Installing soulless-activate → $(BINDIR)/soulless-activate"
 	printf '#!/bin/sh\n/usr/bin/busctl --user call com.github.hmrdsmoke.SoullessLauncher /com/github/hmrdsmoke/SoullessLauncher org.freedesktop.DbusActivation Activate "a{sv}" 0\n' > /tmp/soulless-activate
 	install -Dm755 /tmp/soulless-activate $(BINDIR)/soulless-activate
+	@echo "Installing soulless → $(BINDIR)/soulless"
+	printf '#!/bin/sh\nexec /usr/local/bin/soulless-launcher "$$@"\n' > /tmp/soulless-cli
+	install -Dm755 /tmp/soulless-cli $(BINDIR)/soulless
+	@echo "Installing man page → $(MANDIR)/soulless-launcher.1.gz"
+	install -d $(MANDIR)
+	gzip -9 -c assets/soulless-launcher.1 > /tmp/soulless-launcher.1.gz
+	install -Dm644 /tmp/soulless-launcher.1.gz $(MANDIR)/soulless-launcher.1.gz
+	ln -sf soulless-launcher.1.gz $(MANDIR)/soulless.1.gz
+	mandb -q 2>/dev/null || true
 	@echo "Installing COSMIC shortcut..."
 	mkdir -p $(SHORTCUT_DIR)
 	@if [ ! -f $(SHORTCUT_DIR)/custom ]; then \
@@ -80,12 +90,17 @@ install: release
 	@echo ""
 	@echo "✓ Soulless installed."
 	@echo "  → Open COSMIC Panel settings and add the Soulless applet to your dock."
+	@echo "  → A full reboot starts the daemon automatically. To warm it now without"
+	@echo "    rebooting, run (as your user, NOT root):  soulless-launcher toggle"
 
 # ── Uninstall ─────────────────────────────────────────────────────────────────
 uninstall:
 	@echo "Removing Soulless..."
 	rm -f $(BINDIR)/soulless-launcher
 	rm -f $(BINDIR)/soulless-activate
+	rm -f $(BINDIR)/soulless
+	rm -f $(MANDIR)/soulless-launcher.1.gz
+	rm -f $(MANDIR)/soulless.1.gz
 	rm -f $(BINDIR)/$(APPLET_ID)
 	rm -f $(APPDIR)/com.github.hmrdsmoke.soulless-launcher.desktop
 	rm -f $(APPDIR)/$(APPLET_ID).desktop

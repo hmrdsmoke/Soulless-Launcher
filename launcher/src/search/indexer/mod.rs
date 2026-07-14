@@ -135,14 +135,21 @@ pub fn build_index() -> Vec<AppEntry> {
                     // Man pages live on the HOST — in-sandbox /usr/share/man is
                     // the runtime's, which has none of them, so every CLI tool
                     // failed this gate and the cli index came back empty.
-                    let has_man = std::path::Path::new(&hostpath::host(&format!(
-                        "/usr/share/man/man1/{}.1.gz", name
-                    )))
-                    .exists()
-                        || std::path::Path::new(&hostpath::host(&format!(
-                            "/usr/share/man/man1/{}.1", name
-                        )))
-                        .exists();
+                    //
+                    // Both man trees: /usr/share for distro packages, /usr/local/share
+                    // for anything built from source (which previously never indexed).
+                    let has_man = ["/usr/share/man/man1", "/usr/local/share/man/man1"]
+                        .iter()
+                        .any(|dir| {
+                            std::path::Path::new(&hostpath::host(&format!(
+                                "{}/{}.1.gz", dir, name
+                            )))
+                            .exists()
+                                || std::path::Path::new(&hostpath::host(&format!(
+                                    "{}/{}.1", dir, name
+                                )))
+                                .exists()
+                        });
                     // Extra noise filter
                     let not_noise = name.len() > 2
                         && !name.starts_with("x86_64")
