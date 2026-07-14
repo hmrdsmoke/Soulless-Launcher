@@ -41,7 +41,11 @@ fn parse_count(query: &str, default: usize) -> usize {
 }
 
 /// Returns Some(filtered indices) if the query is a smart query, None otherwise.
-pub fn interpret(query: &str, apps: &[AppEntry]) -> Option<Vec<usize>> {
+pub fn interpret(
+    query: &str,
+    apps: &[AppEntry],
+    first_seen: &std::collections::HashMap<String, u64>,
+) -> Option<Vec<usize>> {
     let q = query.trim().to_lowercase();
     let now = now_secs();
 
@@ -104,6 +108,28 @@ pub fn interpret(query: &str, apps: &[AppEntry]) -> Option<Vec<usize>> {
     }
 
     // ── Recent launches ───────────────────────────────────────────────────────
+    // Recently INSTALLED — distinct from recently launched: a just-installed
+    // app has never launched, so it's invisible to `recent` and buried in
+    // `unused`. first_seen is the index's own arrival ledger. 14-day window.
+    if q == "new" || q == "installed" || q == "just installed" || q == "new apps" {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let cutoff = now.saturating_sub(14 * 86_400);
+        let idx: Vec<usize> = apps
+            .iter()
+            .enumerate()
+            .filter(|(_, a)| {
+                first_seen
+                    .get(&a.id)
+                    .is_some_and(|t| *t >= cutoff && *t > 0)
+            })
+            .map(|(i, _)| i)
+            .collect();
+        return Some(idx);
+    }
+
     if q.contains("last") || q.contains("recent") {
         let count = parse_count(&q, 10);
         let mut recent: Vec<usize> = apps.iter().enumerate()

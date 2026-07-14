@@ -170,6 +170,12 @@ pub struct Search {
 
     filtered_apps: Vec<usize>,
 
+    /// id -> unix time the index FIRST saw this entry. Backed by
+    /// first_seen.json; survives apt upgrades (which reset .desktop mtimes)
+    /// because it's ours, not the filesystem's. Powers the `new` smart query
+    /// and the recently-installed row on the empty-query grid.
+    pub first_seen: std::collections::HashMap<String, u64>,
+
     pub show_search_results: bool,
     pub show_origin_egg: bool,
 
@@ -223,6 +229,7 @@ impl Search {
         }
         let mut all_apps = build_index_filtered();
         load_activity(&mut all_apps);
+        self.first_seen = update_first_seen(&all_apps);
         self.all_apps = all_apps;
         eprintln!("[launcher] index refreshed: {} entries", self.all_apps.len());
     }
@@ -232,6 +239,7 @@ impl Search {
 
         let mut all_apps = build_index_filtered();
         load_activity(&mut all_apps);
+        let first_seen = update_first_seen(&all_apps);
 
         let drawer_state =
             load_drawer_state().unwrap_or_default();
@@ -244,6 +252,8 @@ impl Search {
             all_apps,
 
             filtered_apps: Vec::new(),
+
+            first_seen,
 
             show_search_results: true,
             show_origin_egg: false,
@@ -1007,7 +1017,7 @@ impl Search {
         // Hidden origin vault: typing the passphrase reveals the origin story.
         self.show_origin_egg = crate::easter_egg::is_trigger(&self.query);
         // ── Smart query interpretation ─────────────────────────────────────
-        if let Some(mut results) = query::interpret(&self.query, &self.all_apps) {
+        if let Some(mut results) = query::interpret(&self.query, &self.all_apps, &self.first_seen) {
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
@@ -1029,6 +1039,39 @@ impl Search {
             let mut idxs: Vec<usize> = (0..self.all_apps.len()).collect();
             self.tier_sort(&mut idxs);
             idxs.truncate(SEARCH_RESULT_CAP);
+
+            // Recently installed float to the FRONT of the default grid:
+            // install an app, hit Super+Space, it's the first tile — no
+            // typing, no knowing the package name. 3-day window, newest
+            // first, capped to two grid rows so it stays quiet.
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            let cutoff = now.saturating_sub(3 * 86_400);
+            let mut fresh: Vec<usize> = idxs
+                .iter()
+                .copied()
+                .filter(|i| {
+                    self.first_seen
+                        .get(&self.all_apps[*i].id)
+                        .is_some_and(|t| *t >= cutoff && *t > 0)
+                })
+                .collect();
+            fresh.sort_by_key(|i| {
+                std::cmp::Reverse(
+                    self.first_seen.get(&self.all_apps[*i].id).copied().unwrap_or(0),
+                )
+            });
+            fresh.truncate(8);
+            if !fresh.is_empty() {
+                let fresh_set: std::collections::HashSet<usize> =
+                    fresh.iter().copied().collect();
+                idxs.retain(|i| !fresh_set.contains(i));
+                fresh.extend(idxs);
+                idxs = fresh;
+            }
+
             self.filtered_apps = idxs;
             self.show_search_results = true;
             return;
@@ -1288,6 +1331,59 @@ fn save_activity(apps: &[crate::search::indexer::AppEntry]) {
     if let Ok(json) = serde_json::to_string_pretty(&entries) {
         let _ = std::fs::write(&path, json);
     }
+}
+
+fn first_seen_path() -> Option<std::path::PathBuf> {
+    Some(dirs::data_local_dir()?
+        .join("soulless")
+        .join("first_seen.json"))
+}
+
+/// Load the first-seen ledger, stamp any ids the index knows that the ledger
+/// doesn't, persist if anything changed, and return the map.
+///
+/// FIRST-EVER RUN (no ledger file): everything is stamped 0, not now() —
+/// otherwise the entire system would read as "freshly installed" for days.
+/// The baseline is ancient by definition; only apps that arrive AFTER
+/// Soulless first met this machine count as new. Ids are never pruned when
+/// their app vanishes, so a source directory failing one scan can't cause a
+/// mass re-stamp later.
+pub fn update_first_seen(
+    apps: &[crate::search::indexer::AppEntry],
+) -> std::collections::HashMap<String, u64> {
+    let Some(path) = first_seen_path() else {
+        return std::collections::HashMap::new();
+    };
+    let existed = path.exists();
+    let mut map: std::collections::HashMap<String, u64> = existed
+        .then(|| std::fs::read_to_string(&path).ok())
+        .flatten()
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or_default();
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let stamp = if existed { now } else { 0 };
+
+    let mut changed = false;
+    for app in apps {
+        map.entry(app.id.clone()).or_insert_with(|| {
+            changed = true;
+            stamp
+        });
+    }
+
+    if changed || !existed {
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Ok(json) = serde_json::to_string(&map) {
+            let _ = std::fs::write(&path, json);
+        }
+    }
+    map
 }
 
 pub fn load_activity(apps: &mut Vec<crate::search::indexer::AppEntry>) {
