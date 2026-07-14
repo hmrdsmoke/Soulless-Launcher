@@ -347,14 +347,11 @@ pub fn view<'a>(
         // clamped so it never spills off-screen. (Replaces the old fixed
         // bottom-right corner placement.)
         // Clamp against the launcher's OWN fixed dimensions, not the monitor.
-        // cursor_pos is window-relative, so this is the correct bound and it
-        // sidesteps the (multi-monitor, scaled) screen-size capture entirely.
-        // The menu overlay lives inside `right`, whose top-left is inset from
-        // the surface origin by the outer padding (16) + toolbox (220) +
-        // panel spacing (12) = 248px horizontally, and the outer padding (16)
-        // vertically. cursor_pos is surface-relative, so convert it into
-        // right-panel-local coordinates before padding the overlay, else the
-        // menu lands 248px right / 16px below the actual cursor.
+        // context_menu_pos arrives ZONE-LOCAL: app.rs converts the surface-relative
+        // cursor into launcher-zone coordinates (subtracting the zone origin that
+        // placement::blur_rect computes) before storing it. The overlay is stacked
+        // over the whole launcher content, so it fills the 700x900 zone — these
+        // constants are the correct clamp bounds and no further offset applies.
         let win_w = crate::position::layout::WINDOW_WIDTH;
         let win_h = crate::position::layout::WINDOW_HEIGHT;
         let menu_w = 260.0_f32;

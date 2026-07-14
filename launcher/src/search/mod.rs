@@ -182,7 +182,6 @@ pub struct Search {
     /// renders at the cursor and stays put. Set by app.rs (which owns cursor_pos).
     pub context_menu_pos: cosmic::iced::Point,
     /// Window dimensions, for clamping the menu so it doesn't spill off-screen.
-    pub window_size: (f32, f32),
 
     pub app_picker: Option<AppPicker>,
 
@@ -257,7 +256,6 @@ impl Search {
 
             context_menu: None,
             context_menu_pos: cosmic::iced::Point::ORIGIN,
-            window_size: (1920.0, 1080.0),
 
             app_picker: None,
 
@@ -994,6 +992,12 @@ impl Search {
         self.show_search_results = true; // matches initial default
         self.show_origin_egg = false;
         self.app_picker = None;
+        // Context menus are transient UI, not state: they must not survive a
+        // dismiss. Without this, a menu left open when the launcher is dismissed
+        // reappears on every subsequent open until it's clicked away.
+        self.context_menu = None;
+        self.vault.context_menu_entry = None;
+        self.vault.hidden_context_menu = None;
         self.vault.lock(); // security: never reopen with an unlocked vault
         self.recompute_results();
     }

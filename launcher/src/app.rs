@@ -118,6 +118,11 @@ pub struct Soulless {
     window_id:  cosmic::iced::window::Id,
     dummy_id:   Option<cosmic::iced::window::Id>,
     screen_size: Option<(u32, u32)>,
+    /// Compositor-reported logical size of the launcher's layer surface, from its
+    /// own configure. Reliable per-output (unlike screen_size, which is whichever
+    /// Output event landed last). Used to locate the launcher zone within the
+    /// full-screen surface for cursor->zone coordinate conversion.
+    surface_size: Option<(f32, f32)>,
     /// Whether the layer surface is currently open. Guards destroy_layer_surface
     /// so a second dismiss trigger (e.g. Unfocused right after Esc) is a no-op
     /// instead of destroying an already-destroyed surface.
@@ -202,6 +207,7 @@ impl cosmic::Application for Soulless {
                 window_id,
                 dummy_id: Some(dummy_id),
                 screen_size: None,
+                surface_size: None,
                 surface_open: false,
                 cursor_pos: cosmic::iced::Point::ORIGIN,
                 windows: std::collections::HashMap::new(),
@@ -270,10 +276,23 @@ impl cosmic::Application for Soulless {
                         | crate::search::Message::ShowHiddenMenu(..)
                 );
                 if opens_menu {
-                    self.search.context_menu_pos = self.cursor_pos;
-                    if let Some((w, h)) = self.screen_size {
-                        self.search.window_size = (w as f32, h as f32);
-                    }
+                    // cursor_pos is SURFACE-relative (the layer surface is full-screen).
+                    // The menu overlay is stacked over the launcher content, so it fills
+                    // the 700x900 launcher zone and its padding origin is THAT zone's
+                    // top-left — not the screen's. Bridge the two spaces by subtracting
+                    // the zone's origin, which placement::blur_rect already computes from
+                    // the compositor-reported surface size. Without this the menu lands
+                    // off by the zone origin — hundreds of px whenever the launcher is
+                    // anchored away from the top-left corner.
+                    let (ox, oy) = self
+                        .surface_size
+                        .map(crate::position::placement::LauncherPosition::blur_rect)
+                        .map(|z| (z.x, z.y))
+                        .unwrap_or((0.0, 0.0));
+                    self.search.context_menu_pos = cosmic::iced::Point::new(
+                        self.cursor_pos.x - ox,
+                        self.cursor_pos.y - oy,
+                    );
                 }
                 if let Some(exec) = self.search.update(msg) {
                     crate::utils::spawn_exec(&exec);
@@ -338,6 +357,7 @@ impl cosmic::Application for Soulless {
                     "[launcher] SurfaceConfigured {}x{} -> blur rect",
                     size.width, size.height
                 );
+                self.surface_size = Some((size.width, size.height));
                 let zone = crate::position::placement::LauncherPosition::blur_rect((
                     size.width,
                     size.height,
