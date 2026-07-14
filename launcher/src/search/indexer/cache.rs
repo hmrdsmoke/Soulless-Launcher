@@ -115,6 +115,22 @@ fn source_dirs(source: &str) -> Vec<PathBuf> {
             PathBuf::from("/var/lib/flatpak/exports/share/applications"),
             home.join(".local/share/flatpak/exports/share/applications"),
         ],
-        _ => Vec::new(), // other sources keep time-based-only for now
+        "cli" => {
+            // Binaries appear/disappear in the bin dirs; the man1 dirs gate WHICH
+            // ones survive (the has_man filter in build_index). A change to either
+            // can change the CLI index, so both invalidate. Without this, `cli` fell
+            // to the `_` arm and was time-based only — a newly installed tool stayed
+            // invisible for up to 24h.
+            use crate::search::indexer::hostpath;
+            vec![
+                PathBuf::from(hostpath::host("/usr/bin")),
+                PathBuf::from(hostpath::host("/usr/local/bin")),
+                PathBuf::from(hostpath::host("/bin")),
+                PathBuf::from(hostpath::host("/usr/sbin")),
+                PathBuf::from(hostpath::host("/usr/share/man/man1")),
+                PathBuf::from(hostpath::host("/usr/local/share/man/man1")),
+            ]
+        }
+        _ => Vec::new(), // steam/wine/jetbrains/appimage: time-based only for now
     }
 }
