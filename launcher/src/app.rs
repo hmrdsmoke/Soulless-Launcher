@@ -702,7 +702,10 @@ impl cosmic::Application for Soulless {
         // Clear the bar on its edge using the bar's ACTUAL thickness (from config),
         // small gap on the other edges. Launcher sits just past the panel/dock
         // wherever it is and whatever size it is set to.
-        let gap = 8.0f32;
+        // Flush placement: zero gap puts the launcher touching the bar and the
+        // screen corner. MUST match placement::blur_rect's gap — blur region and
+        // cursor->zone conversion both derive from the same constant.
+        let gap = crate::ui::theme::get().window_gap;
         let bar_pad = bar_px as f32 + gap;
         let padding = match edge {
             cosmic::iced::platform_specific::shell::commands::layer_surface::Anchor::TOP =>

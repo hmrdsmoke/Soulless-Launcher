@@ -33,6 +33,10 @@ pub struct ThemeColors {
     // ── Window ──
     pub window_bg: Color,
     pub window_corner_radius: f32,
+    /// Gap between the launcher window and the screen edges / bar. 0 = flush
+    /// against the corner and panel. Single source of truth: view() placement,
+    /// blur_rect, and cursor->zone conversion all read THIS token.
+    pub window_gap: f32,
     pub window_border: Color,
     pub window_border_width: f32,
     // ── Steel toolbox panel ──
@@ -76,6 +80,7 @@ impl Default for ThemeColors {
 
             window_bg: Color { r: 0.042, g: 0.042, b: 0.048, a: 1.0 },
             window_corner_radius: 0.0,
+            window_gap: 0.0,
             window_border: Color { r: 0.22, g: 0.23, b: 0.25, a: 1.0 },
             window_border_width: 2.0,
 

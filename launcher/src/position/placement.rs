@@ -110,7 +110,8 @@ impl LauncherPosition {
         let (edge, wing, bar_px) = Self::applet_position();
         let horizontal_bar = matches!(edge, Anchor::TOP | Anchor::BOTTOM);
 
-        let gap = 8.0f32;
+        // MUST match view()'s gap in app.rs — see comment there.
+        let gap = crate::ui::theme::get().window_gap;
         let bar_pad = bar_px as f32 + gap;
         let (pad_top, pad_right, pad_bottom, pad_left) = match edge {
             Anchor::TOP    => (bar_pad, gap, gap, gap),

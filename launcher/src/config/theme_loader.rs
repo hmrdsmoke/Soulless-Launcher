@@ -26,6 +26,7 @@ struct ThemeFile {
     drawer_hint: Option<String>,
     window_bg: Option<String>,
     window_corner_radius: Option<f32>,
+    window_gap: Option<f32>,
     window_border: Option<String>,
     window_border_width: Option<f32>,
     steel_top: Option<String>,
@@ -118,6 +119,7 @@ pub fn load() -> ThemeColors {
 
     apply_color(&mut theme.text_steel, &file.text_steel, "text_steel");
     apply_color(&mut theme.text_ink, &file.text_ink, "text_ink");
+    apply_f32(&mut theme.window_gap, &file.window_gap);
     apply_color(&mut theme.drawer_title, &file.drawer_title, "drawer_title");
     apply_color(&mut theme.drawer_hint, &file.drawer_hint, "drawer_hint");
     apply_color(&mut theme.window_bg, &file.window_bg, "window_bg");
