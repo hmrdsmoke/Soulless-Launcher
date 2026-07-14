@@ -7,17 +7,12 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
 
 pub const FALLBACK_ICON: &str = "assets/launcher.png";
 
 pub fn fallback_icon() -> String {
     "/usr/share/icons/hicolor/48x48/apps/apport.png".to_string()
 }
-
-#[allow(dead_code)] // issue #6 — icon cache utilities
-/// Shared icon cache type.
-pub type SharedIconCache = Arc<RwLock<IconCache>>;
 
 #[derive(Debug, Default)]
 pub struct IconCache {
@@ -254,15 +249,4 @@ impl IconCache {
         eprintln!("Icon cache prewarmed: {} entries", self.cache.len());
     }
 
-    #[allow(dead_code)] // issue #6 — icon cache utilities
-    pub fn len(&self) -> usize { self.cache.len() }
-    #[allow(dead_code)] // issue #6
-    pub fn is_empty(&self) -> bool { self.cache.is_empty() }
-    #[allow(dead_code)] // issue #6
-    pub fn clear(&mut self) { self.cache.clear(); }
-}
-
-#[allow(dead_code)] // issue #6 — shared cache constructor
-pub fn shared_cache() -> SharedIconCache {
-    Arc::new(RwLock::new(IconCache::new()))
 }
