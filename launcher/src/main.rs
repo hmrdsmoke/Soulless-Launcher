@@ -44,6 +44,18 @@ fn main() -> cosmic::iced::Result {
     // and exit — but the exclusive flock would block that second process from ever
     // reaching run_single_instance.
 
+    // ── CLI: `soulless-launcher toggle` ──────────────────────────────────
+    // No clap — one subcommand, matched directly. run_single_instance does the
+    // routing: if the daemon owns the D-Bus name, this process sends
+    // ActivateAction("toggle") to it and exits without starting a second
+    // instance. If no daemon is running, it becomes the daemon.
+    let flags = match std::env::args().nth(1).as_deref() {
+        Some("toggle") => app::SoullessFlags {
+            subcommand: Some(app::SoullessSubCommand::Toggle),
+        },
+        _ => app::SoullessFlags::default(),
+    };
+
     let settings = cosmic::app::Settings::default()
         .size(cosmic::iced::Size::new(
             crate::position::layout::WINDOW_WIDTH,
@@ -54,5 +66,5 @@ fn main() -> cosmic::iced::Result {
         .resizable(None)
         .no_main_window(true)
         .exit_on_close(false);
-    cosmic::app::run_single_instance::<app::Soulless>(settings, app::SoullessFlags::default())
+    cosmic::app::run_single_instance::<app::Soulless>(settings, flags)
 }

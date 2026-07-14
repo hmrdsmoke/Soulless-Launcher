@@ -57,15 +57,17 @@ pub enum Message {
 
 #[derive(Debug, Clone)]
 pub enum SoullessSubCommand {
-    /// Reserved for a future `soulless toggle` CLI command (warm-daemon show/hide).
-    #[allow(dead_code)]
+    /// `soulless-launcher toggle` — show the warm daemon's surface if hidden,
+    /// hide it if visible. Routed to the running daemon by run_single_instance.
     Toggle,
 }
 
 impl std::fmt::Display for SoullessSubCommand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SoullessSubCommand::Toggle => write!(f, "Toggle"),
+            // Lowercase: this string goes on the wire. run_single_instance sends
+            // it as the D-Bus action name, and dbus_activation matches "toggle".
+            SoullessSubCommand::Toggle => write!(f, "toggle"),
         }
     }
 }
