@@ -214,6 +214,20 @@ pub struct AppPicker {
 // ── Search impl ───────────────────────────────────────────────────────────────
 
 impl Search {
+    /// Rebuild the app index in place. Cheap when nothing changed — the per-source
+    /// caches compare their own mtime against the application dirs' mtimes, so an
+    /// unchanged system just deserializes the cache. Called on activation so apps
+    /// installed while the daemon is resident actually show up.
+    pub fn refresh_index(&mut self) {
+        if !crate::search::indexer::cache::any_source_stale() {
+            return;
+        }
+        let mut all_apps = build_index_filtered();
+        load_activity(&mut all_apps);
+        self.all_apps = all_apps;
+        eprintln!("[launcher] index refreshed: {} entries", self.all_apps.len());
+    }
+
     pub fn new() -> Self {
         let matcher = Matcher::new(Config::DEFAULT);
 

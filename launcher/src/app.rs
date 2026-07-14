@@ -737,6 +737,7 @@ impl cosmic::Application for Soulless {
                     // Defer surface creation to the next event-loop cycle (like
                     // cosmic-launcher, which defers via its search-response round-trip).
                     // Creating the layer surface synchronously here does NOT map it.
+                    self.search.refresh_index();
                     self.search.reset_to_default();
                     self.surface_open = true;
                     eprintln!("[launcher] deferring surface creation via ShowSurface");
@@ -751,6 +752,7 @@ impl cosmic::Application for Soulless {
                 if self.surface_open {
                     self.dismiss()
                 } else {
+                    self.search.refresh_index();
                     self.search.reset_to_default();
                     self.surface_open = true;
                     crate::position::placement::LauncherPosition::open(

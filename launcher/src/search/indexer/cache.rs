@@ -52,6 +52,18 @@ pub fn load(source: &str) -> Option<Vec<AppEntry>> {
     Some(apps)
 }
 
+/// Cheap pre-check: has ANY app source changed since its cache was written?
+///
+/// The resident daemon builds its index once at startup. Without this, an app
+/// installed afterward stays invisible until the daemon restarts (i.e. reboot).
+/// This is a handful of stat() calls, so it can run on every activation; the
+/// expensive rebuild only happens when it returns true.
+pub fn any_source_stale() -> bool {
+    ["desktop", "flatpak", "snap", "steam", "jetbrains", "wine", "cli"]
+        .iter()
+        .any(|s| is_stale(s, 24))
+}
+
 pub fn is_stale(source: &str, hours: u64) -> bool {
     let path = cache_path(source);
     let Ok(meta) = fs::metadata(&path) else {
