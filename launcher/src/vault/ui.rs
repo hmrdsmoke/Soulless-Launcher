@@ -48,7 +48,8 @@ fn setup_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
         "This password encrypts everything in your vault.\n\
          If you forget it, your files cannot be recovered.",
     )
-    .size(13);
+    .size(13)
+    .align_x(cosmic::iced::alignment::Horizontal::Center);
 
     let password_field = text_input("Password (min 8 chars)", &vault.password_input)
         .on_input(SearchMessage::VaultPasswordChanged)
@@ -295,9 +296,12 @@ fn unlock_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
         space::vertical().height(Length::Fixed(16.0)),
         unlock_btn,
         space::vertical().height(Length::Fixed(40.0)),
+        // align_x: iced left-aligns wrapped/multi-line text by default, so the
+        // column centered the BLOCK while its lines stayed ragged inside it.
         text("This vault cannot be recovered. There is no password reset —\n\
               only permanent destruction.")
             .size(10)
+            .align_x(cosmic::iced::alignment::Horizontal::Center)
             .color(Color::from_rgb8(150, 150, 160)),
         space::vertical().height(Length::Fixed(8.0)),
         destroy_btn,
