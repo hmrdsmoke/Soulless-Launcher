@@ -1029,22 +1029,62 @@ fn search_results_view<'a>(
     // 4-column grid. Uniform geometry is what makes keyboard scroll-follow work
     // (mixed grid+list geometry made it impossible to compute a correct offset).
     if !pairs.is_empty() {
-        let grid = pairs
-            .chunks(GRID_COLUMNS)
-            .fold(column!().spacing(8), |col, chunk| {
-                let mut grid_row = row!().spacing(8);
-                for (flat, app) in chunk {
-                    grid_row = grid_row.push(app_icon_button(app, *flat == focused.unwrap_or(usize::MAX), *flat));
-                }
-                col.push(grid_row)
-            });
-        sections.push(grid.into());
+        // VIRTUAL WINDOW: build only the rows near the current scroll offset.
+        // iced's scrollable does not virtualize — every widget gets built and
+        // laid out even when off-screen — so an uncapped result set (3k+)
+        // meant thousands of tiles per keystroke. Measured: the scorer costs
+        // ~2ms; the rest was ALL widget construction. Fixed-height spacers
+        // stand in for the unbuilt rows so the scrollbar and offsets stay
+        // exactly as if the full grid existed. ROW_H is shared with keyboard
+        // scroll-follow, so the two can never disagree about where a row is.
+        let row_h = crate::search::ROW_H;
+        let rows_total = pairs.len().div_ceil(GRID_COLUMNS);
+        const VISIBLE_ROWS: usize = 10; // generous viewport estimate (~1080px)
+        const BUFFER: usize = 2;
+        let mut start = ((search.grid_scroll_y / row_h) as usize).saturating_sub(BUFFER);
+        let mut end = (start + VISIBLE_ROWS + 2 * BUFFER).min(rows_total);
+        // Pin the window to always contain the focused row: keyboard nav
+        // snaps the scrollable programmatically, and the window must never
+        // be somewhere the focus isn't.
+        if let Some(f) = focused {
+            let frow = f / GRID_COLUMNS;
+            start = start.min(frow.saturating_sub(BUFFER));
+            end = end.max((frow + 1 + BUFFER).min(rows_total));
+        }
+
+        let mut col = column!();
+        if start > 0 {
+            col = col.push(space::vertical().height(Length::Fixed(start as f32 * row_h)));
+        }
+        let lo = start * GRID_COLUMNS;
+        let hi = (end * GRID_COLUMNS).min(pairs.len());
+        for chunk in pairs[lo..hi].chunks(GRID_COLUMNS) {
+            let mut grid_row = row!().spacing(8);
+            for (flat, app) in chunk {
+                grid_row = grid_row.push(app_icon_button(app, *flat == focused.unwrap_or(usize::MAX), *flat));
+            }
+            // 8px baked into each row cell (100 tile + 8 = ROW_H exactly) so
+            // spacer math is fencepost-free and the scrollbar stays honest.
+            col = col.push(container(grid_row).padding(cosmic::iced::Padding {
+                top: 0.0,
+                right: 0.0,
+                bottom: 8.0,
+                left: 0.0,
+            }));
+        }
+        if end < rows_total {
+            col = col.push(space::vertical().height(Length::Fixed(
+                (rows_total - end) as f32 * row_h,
+            )));
+        }
+        sections.push(col.into());
     }
 
     // (legacy cli/text-row rendering removed — everything is a tile now)
 
     scrollable(column(sections).spacing(12))
         .id(cosmic::widget::Id::new("soulless-results-scroll"))
+        .on_scroll(|vp| SearchMessage::GridScrolled(vp.absolute_offset().y))
         .scrollbar_width(4)
         .scrollbar_padding(0)
         .scroller_width(4)

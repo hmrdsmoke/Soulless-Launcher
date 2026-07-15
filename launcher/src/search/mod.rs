@@ -27,6 +27,9 @@ use std::path::PathBuf;
 #[derive(Debug, Clone)]
 pub enum Message {
     QueryChanged(String),
+    /// Results grid scrolled — carries the absolute y offset. Drives the
+    /// virtual window; costs nothing (no recompute, no rescore).
+    GridScrolled(f32),
     AppClicked(String),
     /// Launch a hidden app from the vault grid by its hidden-app id.
     LaunchHiddenApp(String),
@@ -159,7 +162,11 @@ pub enum DrawerEditModal {
 /// Max search results kept (after smart-ranking + tier sort). Fuzzy fills the
 /// depth so a broad query shows up to this many, ordered best-first. Caps both
 /// render AND keyboard nav (they read filtered_apps), keeping them in sync.
-const SEARCH_RESULT_CAP: usize = 800;
+
+/// One grid row's pixel height: tile (100) + spacing (8). Shared by keyboard
+/// scroll-follow AND the virtual window in drawers::search_results_view —
+/// single source so the two can never disagree about where a row lives.
+pub const ROW_H: f32 = 108.0;
 
 pub struct Search {
     pub query: String,
@@ -175,6 +182,12 @@ pub struct Search {
     /// because it's ours, not the filesystem's. Powers the `new` smart query
     /// and the recently-installed row on the empty-query grid.
     pub first_seen: std::collections::HashMap<String, u64>,
+
+    /// Current absolute scroll offset of the results grid, reported by the
+    /// scrollable's on_scroll. Drives the virtual window: only rows near this
+    /// offset get built. Self-correcting — the scrollable is the truth and
+    /// this merely mirrors it, so no reset logic is needed on query change.
+    pub grid_scroll_y: f32,
 
     pub show_search_results: bool,
     pub show_origin_egg: bool,
@@ -254,6 +267,7 @@ impl Search {
             filtered_apps: Vec::new(),
 
             first_seen,
+            grid_scroll_y: 0.0,
 
             show_search_results: true,
             show_origin_egg: false,
@@ -471,6 +485,10 @@ impl Search {
                     }
                     Err(e) => self.vault.error = Some(e),
                 }
+                None
+            }
+            Message::GridScrolled(y) => {
+                self.grid_scroll_y = y;
                 None
             }
             Message::ShowHiddenMenu(id) => {
@@ -1028,7 +1046,6 @@ impl Search {
                 score_b.cmp(&score_a)
             });
             self.tier_sort(&mut results);
-            results.truncate(SEARCH_RESULT_CAP);
             self.filtered_apps = results;
             self.show_search_results = true;
             return;
@@ -1038,7 +1055,6 @@ impl Search {
             // default selection (index 0) lands on an app, not a file.
             let mut idxs: Vec<usize> = (0..self.all_apps.len()).collect();
             self.tier_sort(&mut idxs);
-            idxs.truncate(SEARCH_RESULT_CAP);
 
             // Recently installed float to the FRONT of the default grid:
             // install an app, hit Super+Space, it's the first tile — no
@@ -1093,7 +1109,6 @@ impl Search {
             let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
             fuzzy_only.sort_by(|a, b| query::score_app(&self.all_apps[*b], &self.query, now).cmp(&query::score_app(&self.all_apps[*a], &self.query, now)));
             self.tier_sort(&mut fuzzy_only);
-            fuzzy_only.truncate(SEARCH_RESULT_CAP);
             self.filtered_apps = fuzzy_only;
             return;
         }
@@ -1115,7 +1130,6 @@ impl Search {
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
         results.sort_by(|a, b| query::score_app(&self.all_apps[*b], &self.query, now).cmp(&query::score_app(&self.all_apps[*a], &self.query, now)));
         self.tier_sort(&mut results);
-        results.truncate(SEARCH_RESULT_CAP);
         self.filtered_apps = results;
     }
 
@@ -1200,7 +1214,7 @@ impl Search {
         // All search results now render as uniform square tiles in one 4-column
         // grid, so the focused item's pixel position is a simple row calc.
         const GRID_COLUMNS: usize = 4;
-        const ROW_H: f32 = 108.0; // tile (100) + grid spacing (8)
+        // (shared constant — see ROW_H at module scope)
         let idx = self.focused_app_idx?;
         let row = (idx / GRID_COLUMNS) as f32;
         // Bias up one row so the focused row isn't glued to the top edge.
