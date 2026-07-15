@@ -78,6 +78,23 @@ sudo make uninstall
 
 Custom backgrounds: drop any `.jpg`, `.png`, or `.webp` into `~/.config/soulless/backgrounds/`
 
+## Flatpak / COSMIC Store install
+
+Installing from the COSMIC Store works fully out of the box via the panel
+applet button. One thing the Flatpak **cannot** do is bind Super+Space for
+you — sandboxed apps aren't permitted to write compositor keybindings
+(that's the sandbox doing its job, not a bug). Adding it takes 30 seconds:
+
+**COSMIC Settings → Keyboard → Keyboard Shortcuts → Custom Shortcuts:**
+
+| Field    | Value                                                    |
+|----------|----------------------------------------------------------|
+| Name     | Soulless                                                 |
+| Command  | `flatpak run com.github.hmrdsmoke.soulless-launcher toggle` |
+| Shortcut | Super+Space                                              |
+
+`toggle` shows the launcher if hidden and hides it if visible.
+
 ## License
 
 GPL-3.0-or-later — see [LICENSE](LICENSE) for full terms.
