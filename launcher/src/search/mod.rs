@@ -1004,8 +1004,11 @@ impl Search {
             | AppSource::JetBrains
             | AppSource::Wine
             | AppSource::Proton => 0,
-            AppSource::File => 1,
-            AppSource::Binary | AppSource::Script => 2,
+            // CLI above files: a few hundred tools beat a couple thousand
+            // documents in browse order. Apps always first; the default
+            // selection never changes.
+            AppSource::Binary | AppSource::Script => 1,
+            AppSource::File => 2,
         });
     }
 
