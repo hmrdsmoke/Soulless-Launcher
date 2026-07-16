@@ -17,7 +17,20 @@ pub fn organizer_banner<'a, M: 'static + Clone + Send>(
 {
     let suggestion = state.pending.first()?;
 
-    let reason = text(&suggestion.suggestion.reason).size(11);
+    // Ink (black) on the steel toolbox — this line was unstyled and leaked
+    // the system theme (same disease as the old gold-header bug). Fill width
+    // bounds the text to the banner so long reasons WRAP instead of setting
+    // the column's intrinsic width and shoving the whole left lane over the
+    // right panel.
+    let reason = text(&suggestion.suggestion.reason)
+        .size(11)
+        .width(Length::Fill)
+        // WordOrGlyph: filenames are single unbroken tokens — Word wrapping
+        // (the default) can't break them, so a long name sailed straight past
+        // the lane into the right panel even with width bounded. This falls
+        // back to glyph-level breaking when a token can't fit on a line.
+        .wrapping(cosmic::iced::widget::text::Wrapping::WordOrGlyph)
+        .class(cosmic::theme::Text::Color(theme::get().text_ink));
 
     let steel_active = cosmic::widget::button::Style {
         background: Some(cosmic::iced::Color::BLACK.into()),
@@ -74,7 +87,7 @@ pub fn organizer_banner<'a, M: 'static + Clone + Send>(
     let banner = cosmic::iced::widget::container(
         column![reason, row![move_btn, skip_btn].spacing(8)].spacing(6).padding([8, 12])
     )
-    .width(Length::Fill);
+    .width(Length::Fixed(crate::position::layout::TOOLBOX_WIDTH));
 
     Some(cosmic::iced::widget::Themer::new(None::<cosmic::Theme>, banner).into())
 }
