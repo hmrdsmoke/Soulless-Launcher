@@ -270,7 +270,6 @@ impl cosmic::Application for Soulless {
                     crate::search::Message::RightClickSearchApp(..)
                         | crate::search::Message::RightClickDrawerApp(..)
                         | crate::search::Message::RightClickDrawerFile(..)
-                        | crate::search::Message::RightClickDrawerBackground(..)
                         | crate::search::Message::RightClickDrawerSidebar(..)
                         | crate::search::Message::VaultOpenFileMenu(..)
                         | crate::search::Message::ShowHiddenMenu(..)

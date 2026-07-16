@@ -9,7 +9,6 @@ pub mod state;
 use std::convert::Infallible;
 
 use crate::drawers::state::Drawer;
-use crate::search::AppPicker;
 use crate::search::ContextMenu;
 use crate::search::DrawerEditModal;
 use crate::search::Message as SearchMessage;
@@ -38,9 +37,6 @@ const CELL_HEIGHT: f32 = 100.0; // square tiles
 // so icons sit in a consistent container instead of floating on the wallpaper.
 const TILE_BG_IDLE: cosmic::iced::Color = cosmic::iced::Color { r: 1.0, g: 1.0, b: 1.0, a: 0.04 };
 
-// Cap picker render to prevent the freeze — was building 200+ widget trees
-// per frame. 50 is plenty; typing filters it down fast.
-const PICKER_MAX_RENDER: usize = 50;
 
 // ─────────────────────────────────────────────────────────────
 // DnD payload type — carries an app ID as plain text
@@ -222,8 +218,6 @@ pub fn view<'a>(
     let right_panel_content: Element<'a, SearchMessage> =
         if search.show_origin_egg {
             origin_egg_view()
-        } else if let Some(picker) = &search.app_picker {
-            app_picker_view(search, picker)
         } else if search.show_search_results {
             search_results_view(search)
         } else {
@@ -593,7 +587,7 @@ fn drawer_contents_view<'a>(
                             text("📂").size(48),
                             space::vertical().height(Length::Fixed(8.0)),
                             text("This drawer is empty.").size(16).color(crate::ui::theme::get().drawer_hint),
-                            text("Drop files here, or right-click to add apps.").size(13).color(crate::ui::theme::get().text_steel),
+                            text("Drop files here.").size(13).color(crate::ui::theme::get().text_steel),
                         ]
                         .spacing(8)
                         .align_x(Horizontal::Center)
@@ -604,9 +598,6 @@ fn drawer_contents_view<'a>(
             )
             .width(Length::Fill)
             .height(Length::Fill)
-        )
-        .on_right_press(
-            SearchMessage::RightClickDrawerBackground(drawer_name.to_string())
         )
         .into()
     } else {
@@ -855,19 +846,6 @@ pub fn context_menu_popup<'a>(menu: &'a ContextMenu, drawer_names: &'a [String])
 
 fn context_menu_view<'a>(menu: &'a ContextMenu, drawer_names: &[String]) -> Element<'a, SearchMessage> {
     match menu {
-        ContextMenu::DrawerBackground { drawer } => container(
-            column![
-                menu_item("➕ Add Apps", SearchMessage::OpenAppPicker(drawer.clone())),
-                menu_divider(),
-                menu_item("🗑 Clear Drawer", SearchMessage::ClearDrawer(drawer.clone())),
-            ]
-            .spacing(2)
-        )
-        .style(context_menu_style)
-        .padding(8)
-        .width(Length::Fixed(260.0))
-        .into(),
-
         ContextMenu::DrawerSidebar { drawer } => container(
             column![
                 menu_item("✏ Rename", SearchMessage::OpenRenameDrawer(drawer.clone())),
@@ -1192,76 +1170,6 @@ fn app_icon_button<'a>(
     ));
     area.into()
 }
-
-// ─────────────────────────────────────────────────────────────
-// App Picker — capped at PICKER_MAX_RENDER to prevent freeze
-// ─────────────────────────────────────────────────────────────
-
-fn app_picker_view<'a>(
-    search: &'a crate::search::Search,
-    picker: &'a AppPicker,
-) -> Element<'a, SearchMessage> {
-    let search_input = text_input("Search apps...", &picker.query)
-        .on_input(SearchMessage::AppPickerQueryChanged)
-        .padding(12);
-
-    // Only render first PICKER_MAX_RENDER items — full list was 200+ which
-    // caused the freeze by building thousands of widgets per frame.
-    let total = picker.filtered.len();
-    let apps: Vec<_> = picker
-        .filtered
-        .iter()
-        .take(PICKER_MAX_RENDER)
-        .filter_map(|i| search.app(*i))
-        .collect();
-
-    let list = apps.into_iter().fold(column!().spacing(6), |col, app| {
-        col.push(
-            mouse_area(
-                container(
-                    row![
-                        text(&app.name),
-                        space::horizontal().width(Length::Fill),
-                        text("➕"),
-                    ]
-                    .align_y(Vertical::Center)
-                    .padding(12)
-                )
-            )
-            .on_press(SearchMessage::AddAppToDrawer(
-                picker.drawer.clone(),
-                app.id.clone(),
-            ))
-        )
-    });
-
-    let mut content_col = column![
-        row![
-            text("Add Apps").size(22),
-            space::horizontal().width(Length::Fill),
-            mouse_area(text("✖")).on_press(SearchMessage::CloseAppPicker),
-        ],
-        search_input,
-        scrollable(list),
-    ]
-    .spacing(12);
-
-    if total > PICKER_MAX_RENDER {
-        content_col = content_col.push(
-            text(format!(
-                "Showing {} of {} — type to filter",
-                PICKER_MAX_RENDER, total
-            ))
-            .size(11),
-        );
-    }
-
-    container(content_col)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
-}
-
 // ─────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────

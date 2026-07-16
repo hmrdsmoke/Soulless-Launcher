@@ -44,7 +44,6 @@ pub enum Message {
     FocusPrev,
 
     // Context menu
-    RightClickDrawerBackground(String),
     RightClickDrawerSidebar(String),
     RightClickDrawerApp(String, String),
     RightClickDrawerFile(String, String),   // (drawer_name, file_path)
@@ -54,13 +53,9 @@ pub enum Message {
     RemoveFromVault(String),                 // hidden-app id → unhide (restores .desktop if it had one)
     CloseContextMenu,
 
-    // App picker
-    OpenAppPicker(String),
-    AppPickerQueryChanged(String),
     AddAppToDrawer(String, String),
     RemoveAppFromDrawer(String, String),
     ClearDrawer(String),
-    CloseAppPicker,
 
     // Drawer management
     CreateDrawer,
@@ -126,10 +121,6 @@ pub enum OpenDrawer {
 
 #[derive(Debug, Clone)]
 pub enum ContextMenu {
-    DrawerBackground {
-        drawer: String,
-    },
-
     DrawerSidebar {
         drawer: String,
     },
@@ -202,7 +193,6 @@ pub struct Search {
     pub context_menu_pos: cosmic::iced::Point,
     /// Window dimensions, for clamping the menu so it doesn't spill off-screen.
 
-    pub app_picker: Option<AppPicker>,
 
     pub vault: Vault,
 
@@ -221,12 +211,6 @@ pub struct Search {
     pub bg_image_path: Option<String>,
     /// Single loaded registry instance — search owns this; app.rs asks via app_by_id.
     pub registry: crate::registry::Registry,
-}
-
-pub struct AppPicker {
-    pub drawer: String,
-    pub query: String,
-    pub filtered: Vec<usize>,
 }
 
 // ── Search impl ───────────────────────────────────────────────────────────────
@@ -281,7 +265,6 @@ impl Search {
             context_menu: None,
             context_menu_pos: cosmic::iced::Point::ORIGIN,
 
-            app_picker: None,
 
             vault: Vault::new(),
 
@@ -368,7 +351,6 @@ impl Search {
 
                 self.context_menu = None;
 
-                self.app_picker = None;
 
                 None
             }
@@ -396,18 +378,6 @@ impl Search {
             }
 
             // ── Context menus ─────────────────────
-
-            Message::RightClickDrawerBackground(
-                drawer,
-            ) => {
-                self.context_menu = Some(
-                    ContextMenu::DrawerBackground {
-                        drawer,
-                    },
-                );
-
-                None
-            }
 
             Message::RightClickDrawerSidebar(
                 drawer,
@@ -512,61 +482,6 @@ impl Search {
             }
 
             // ── App picker ────────────────────────
-
-            Message::OpenAppPicker(drawer) => {
-                let mut picker = AppPicker {
-                    drawer,
-
-                    query: String::new(),
-
-                    filtered: Vec::new(),
-                };
-
-                picker.filtered =
-                    (0..self.all_apps.len())
-                        .collect();
-
-                self.app_picker =
-                    Some(picker);
-
-                self.context_menu = None;
-
-                None
-            }
-
-            Message::AppPickerQueryChanged(q) => {
-                if let Some(picker) =
-                    &mut self.app_picker
-                {
-                    picker.query = q.clone();
-
-                    let q_lower =
-                        q.to_lowercase();
-
-                    picker.filtered = self
-                        .all_apps
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, app)| {
-                            app.lower_name
-                                .contains(
-                                    &q_lower
-                                )
-                        })
-                        .map(|(i, _)| i)
-                        .collect();
-                }
-
-                None
-            }
-
-            Message::CloseAppPicker => {
-                self.app_picker = None;
-
-                None
-            }
-
-            // ── Drawer management ─────────────────
 
             Message::CreateDrawer => {
                 if self.drawer_state.drawers().len() >= 5 {
@@ -1022,7 +937,6 @@ impl Search {
         self.focused_app_idx = None;
         self.show_search_results = true; // matches initial default
         self.show_origin_egg = false;
-        self.app_picker = None;
         // Context menus are transient UI, not state: they must not survive a
         // dismiss. Without this, a menu left open when the launcher is dismissed
         // reappears on every subsequent open until it's clicked away.
