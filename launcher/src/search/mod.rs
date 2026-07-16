@@ -1386,6 +1386,17 @@ pub fn update_first_seen(
 
     let mut changed = false;
     for app in apps {
+        // Files are not "installed": stamping them meant every download
+        // flooded the fresh row and the `new` query, and file churn grew the
+        // ledger without bound. Apps and CLI tools only. Existing file stamps
+        // are actively removed so already-stamped downloads stop surfacing
+        // immediately instead of aging out.
+        if matches!(app.source, crate::search::indexer::AppSource::File) {
+            if map.remove(&app.id).is_some() {
+                changed = true;
+            }
+            continue;
+        }
         map.entry(app.id.clone()).or_insert_with(|| {
             changed = true;
             stamp
