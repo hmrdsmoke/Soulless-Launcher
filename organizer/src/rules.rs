@@ -17,10 +17,7 @@ pub struct MoveSuggestion {
 
 pub fn suggest(path: &Path) -> Option<MoveSuggestion> {
     let home = dirs::home_dir()?;
-    let name = path.file_name()?.to_str()?.to_lowercase();
     let ext = path.extension()?.to_str()?.to_lowercase();
-
-    let downloads = dirs::download_dir().unwrap_or_else(|| home.join("Downloads"));
 
     let docs = dirs::document_dir().unwrap_or_else(|| home.join("Documents"));
     let pics = dirs::picture_dir().unwrap_or_else(|| home.join("Pictures"));
@@ -44,10 +41,12 @@ pub fn suggest(path: &Path) -> Option<MoveSuggestion> {
         "pdf" | "doc" | "docx" | "odt" | "rtf" | "txt" | "md" | "rst" | "tex"
         | "pages" | "wpd" => Some(docs.clone()),
 
-        // Documents — data/config
-        "ron" | "toml" | "yaml" | "yml" | "json" | "xml" | "ini" | "cfg" | "conf" => {
-            Some(docs.join("Config"))
-        }
+        // Documents — structured data (and config-flavored files). Named
+        // "Data", not "Config": a downloaded .json is usually an export or a
+        // dump, almost never configuration, and "Config" in Documents reads
+        // confusingly against ~/.config. sql lives here too — a dump is data.
+        "ron" | "toml" | "yaml" | "yml" | "json" | "xml" | "ini" | "cfg" | "conf"
+        | "sql" => Some(docs.join("Data")),
 
         // Spreadsheets
         "xls" | "xlsx" | "ods" | "csv" | "tsv" | "numbers" => Some(docs.join("Spreadsheets")),
@@ -60,46 +59,51 @@ pub fn suggest(path: &Path) -> Option<MoveSuggestion> {
             Some(docs.join("Books"))
         }
 
-        // Code / scripts
-        "rs" | "py" | "js" | "ts" | "sh" | "bash" | "zsh" | "fish" | "rb" | "go"
-        | "c" | "cpp" | "h" | "hpp" | "java" | "kt" | "swift" | "lua" | "php"
-        | "html" | "css" | "scss" | "sql" => Some(home.join("Code")),
+        // Code — real source files only. Pruned from the old list: shell
+        // scripts (a downloaded .sh is almost always a run-once installer),
+        // html/css/scss (saved webpages, not projects), sql (moved to Data).
+        "rs" | "py" | "js" | "ts" | "rb" | "go"
+        | "c" | "cpp" | "h" | "hpp" | "java" | "kt" | "swift" | "lua" | "php" => {
+            Some(home.join("Code"))
+        }
+
+        // Run-once installers and page assets — stay where they landed.
+        "sh" | "bash" | "zsh" | "fish" | "html" | "css" | "scss" => return None,
 
         // AppImages
         "appimage" => Some(home.join("Applications")),
 
-        // Disk images / ISOs
-        "iso" | "img" | "dmg" => Some(home.join("Images")),
+        // Disk images: mount/burn-once artifacts — stay put. (The old
+        // ~/Images destination also collided with localized XDG Pictures,
+        // which literally IS ~/Images on French-locale systems.)
+        "iso" | "img" | "dmg" => return None,
 
-        // Installers / packages
-        "deb" | "rpm" | "pkg" | "exe" | "msi" => Some(downloads.clone()),
+        // Installers: install-and-delete artifacts — stay put. (Previously
+        // Some(downloads), which no-op'd for files already in Downloads but
+        // would usher a .deb found on the Desktop into Downloads.)
+        "deb" | "rpm" | "pkg" | "exe" | "msi" => return None,
 
         // Archives — stay in Downloads
         "zip" | "tar" | "gz" | "xz" | "bz2" | "7z" | "rar" | "zst" | "lz4" => {
             return None;
         }
 
-        // Fonts
-        "ttf" | "otf" | "woff" | "woff2" | "eot" => Some(home.join(".fonts")),
+        // Fonts: moving into the fonts dir effectively installs them — which
+        // is what a font download wants. Modern fontconfig path, not the
+        // deprecated ~/.fonts. woff/woff2/eot are web-page assets nobody
+        // installs locally — stay put.
+        "ttf" | "otf" => {
+            Some(dirs::font_dir().unwrap_or_else(|| home.join(".local/share/fonts")))
+        }
+        "woff" | "woff2" | "eot" => return None,
 
         _ => None,
     };
-    // Name-based overrides
-    let dest = dest.or_else(|| {
-        if name.contains("resume") || name.contains("curriculum") || (name.contains("cv") && !name.ends_with(".csv")) {
-            Some(docs.join("Career"))
-        } else if name.contains("invoice") || name.contains("receipt") || name.contains("tax") || name.contains("billing") {
-            Some(docs.join("Finance"))
-        } else if name.contains("screenshot") || name.starts_with("screen") || name.starts_with("scrot") {
-            Some(pics.join("Screenshots"))
-        } else if name.contains("wallpaper") || name.contains("background") {
-            Some(pics.join("Wallpapers"))
-        } else if name.contains("backup") || name.ends_with(".bak") {
-            Some(home.join("Backups"))
-        } else {
-            None
-        }
-    })?;
+    // Extensions only, deliberately: an extension is a fact about the file;
+    // a filename is a claim by whoever named it ("syntax.pdf" contains "tax",
+    // "opencv_notes.pdf" contains "cv"). The organizer acts on facts and
+    // leaves claims to the human — that's what Skip is for.
+    let dest = dest?;
     // Don't suggest if already in the right place
     if path.parent() == Some(dest.as_path()) {
         return None;
