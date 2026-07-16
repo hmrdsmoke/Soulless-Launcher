@@ -23,6 +23,11 @@ pub struct PendingSuggestion {
 pub struct OrganizerState {
     /// Suggestions waiting for user approval
     pub pending: Vec<PendingSuggestion>,
+    /// Skip means NO: paths the user has vetoed, persisted in
+    /// organizer_dismissed.json. Never suggested again while the file
+    /// exists; pruned when it disappears, so a fresh download with the
+    /// same name counts as a new file and earns a fresh ask.
+    pub dismissed: std::collections::HashSet<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -40,20 +45,35 @@ pub enum Message {
 impl OrganizerState {
     pub fn new() -> Self {
         let mut pending = load_pending();
+        let mut dismissed = load_dismissed();
+        // Prune vetoes whose file is gone — the filesystem is ground truth,
+        // and the ledger must not grow forever.
+        let before = dismissed.len();
+        dismissed.retain(|p| p.exists());
+        if dismissed.len() != before {
+            save_dismissed(&dismissed);
+        }
         let existing_paths: std::collections::HashSet<_> = pending.iter()
             .map(|p| p.suggestion.from.clone()).collect();
         for s in scan::scan() {
-            if !existing_paths.contains(&s.suggestion.from) {
+            if !existing_paths.contains(&s.suggestion.from)
+                && !dismissed.contains(&s.suggestion.from)
+            {
                 pending.push(s);
             }
         }
         save_pending(&pending);
-        Self { pending }
+        Self { pending, dismissed }
     }
 
     pub fn update(&mut self, msg: Message) {
         match msg {
             Message::FileDetected(path) => {
+                if self.dismissed.contains(&path)
+                    || self.pending.iter().any(|p| p.suggestion.from == path)
+                {
+                    return;
+                }
                 if let Some(suggestion) = rules::suggest(&path) {
                     self.pending.push(PendingSuggestion { suggestion });
                     save_pending(&self.pending);
@@ -73,7 +93,9 @@ impl OrganizerState {
             }
             Message::DismissSuggestion(idx) => {
                 if idx < self.pending.len() {
-                    self.pending.remove(idx);
+                    let s = self.pending.remove(idx);
+                    self.dismissed.insert(s.suggestion.from);
+                    save_dismissed(&self.dismissed);
                     save_pending(&self.pending);
                 }
             }
@@ -133,6 +155,27 @@ fn watcher_stream() -> impl cosmic::iced::futures::Stream<Item = Message> {
 }
 
 // ── Persistence ───────────────────────────────────────────────────────────────
+
+fn dismissed_path() -> Option<std::path::PathBuf> {
+    Some(dirs::data_local_dir()?.join("soulless").join("organizer_dismissed.json"))
+}
+
+fn save_dismissed(dismissed: &std::collections::HashSet<PathBuf>) {
+    let Some(path) = dismissed_path() else { return };
+    if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
+    let items: Vec<String> = dismissed.iter()
+        .map(|p| p.to_string_lossy().to_string()).collect();
+    if let Ok(json) = serde_json::to_string_pretty(&items) {
+        let _ = std::fs::write(&path, json);
+    }
+}
+
+fn load_dismissed() -> std::collections::HashSet<PathBuf> {
+    let Some(path) = dismissed_path() else { return Default::default() };
+    let Ok(text) = std::fs::read_to_string(&path) else { return Default::default() };
+    let Ok(items): Result<Vec<String>, _> = serde_json::from_str(&text) else { return Default::default() };
+    items.into_iter().map(PathBuf::from).collect()
+}
 
 fn pending_path() -> Option<std::path::PathBuf> {
     Some(dirs::data_local_dir()?.join("soulless").join("organizer_pending.json"))
