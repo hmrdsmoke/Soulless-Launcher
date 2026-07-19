@@ -2,7 +2,8 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-// launcher/src/keybinds/actions.rs
+
+// src/keybinds/actions.rs
 // Defines what each key does in the launcher.
 
 use crate::search;
@@ -13,8 +14,8 @@ use cosmic::iced::keyboard::{self, key::Named};
 /// snap per keypress (no continuous re-render). Called only from explicit
 /// arrow-key handlers, so hover (which routes elsewhere) never triggers it.
 fn scroll_to_focused<Message: 'static>(search: &search::Search) -> Task<Message> {
-    // Section-aware pixel offset (icon grid vs thin text rows) lives on Search,
-    // which owns the data needed to classify the focused item.
+    // The pixel offset lives on Search, which owns the grid geometry
+    // (ROW_H / GRID_COLUMNS at search module scope).
     if let Some(y) = search.focused_scroll_offset() {
         return cosmic::iced::widget::scrollable::scroll_to(
             cosmic::widget::Id::new("soulless-results-scroll"),
@@ -42,17 +43,21 @@ where
         // ── Esc → close launcher ─────────────────────────────────────────
         keyboard::Key::Named(Named::Escape) => f_exit(),
 
-        // ── ArrowDown → into search results, else next drawer ─────────────
+        // ── ArrowDown → down one grid ROW in results, else next drawer ────
         keyboard::Key::Named(Named::ArrowDown) => {
-            // If search results are showing, Arrow Down navigates into/through
-            // them instead of jumping to drawers.
+            // In the results grid, Down moves a full row (+GRID_COLUMNS).
+            // Left/Right own the ±1 moves; Down/Up own the vertical.
             if search.show_search_results {
                 let len = search.current_grid_len();
                 if len > 0 {
+                    let cols = search::GRID_COLUMNS;
                     let next_idx = match search.focused_app_idx {
                         None => 0,
-                        Some(i) if i + 1 < len => i + 1,
-                        Some(i) => i, // already at last result, stay
+                        Some(i) if i + cols < len => i + cols,
+                        // Above a partial last row with no tile directly
+                        // below: drop to the last item instead of sticking.
+                        Some(i) if i / cols < (len - 1) / cols => len - 1,
+                        Some(i) => i, // already in the last row, stay
                     };
                     search.update(search::Message::FocusApp(next_idx));
                 }
@@ -80,20 +85,22 @@ where
             Task::none()
         }
 
-        // ── ArrowUp → up through results (top returns to search), else prev drawer ─
+        // ── ArrowUp → up one grid ROW (top row returns to search), else prev drawer ─
         keyboard::Key::Named(Named::ArrowUp) => {
             if search.show_search_results {
+                let cols = search::GRID_COLUMNS;
                 match search.focused_app_idx {
-                    Some(0) | None => {
-                        // At the top of results — return focus to the search bar.
+                    Some(i) if i >= cols => {
+                        search.update(search::Message::FocusApp(i - cols));
+                        return scroll_to_focused(search);
+                    }
+                    _ => {
+                        // Anywhere in the top row (or unfocused) — return
+                        // focus to the search bar.
                         search.update(search::Message::ClearFocus);
                         return cosmic::widget::text_input::focus(
                             cosmic::widget::Id::new("soulless-search-bar")
                         );
-                    }
-                    Some(i) => {
-                        search.update(search::Message::FocusApp(i - 1));
-                        return scroll_to_focused(search);
                     }
                 }
             }
@@ -124,7 +131,11 @@ where
             if let Some(idx) = search.focused_app_idx
                 && let Some(exec) = search.focused_exec(idx) {
                     search.record_launch_by_exec(&exec);
-                    crate::utils::spawn_exec(&exec);
+                    let clean = crate::utils::strip_desktop_placeholders(&exec);
+                    let _ = std::process::Command::new("sh")
+                        .arg("-c")
+                        .arg(&clean)
+                        .spawn();
                     return f_exit();
                 }
             Task::none()
@@ -189,6 +200,7 @@ where
 // V opens vault :: done
 // ArrowLeft/ArrowRight navigate app grid :: done #16
 // Enter launches focused app :: done #18
+// Ctrl+1-9 jump to drawer by index :: done #19
+// ArrowUp/ArrowDown move by grid row in results (±GRID_COLUMNS) :: done
 // === PLANNED ===
 // ArrowDown from last drawer → enter app grid :: see issue #17
-// Ctrl+1-9 jump to drawer by index :: done #19

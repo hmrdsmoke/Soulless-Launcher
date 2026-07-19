@@ -159,6 +159,11 @@ pub enum DrawerEditModal {
 /// single source so the two can never disagree about where a row lives.
 pub const ROW_H: f32 = 108.0;
 
+/// Results-grid column count. Shared by the view's row chunking, keyboard
+/// row navigation (keybinds::actions), and scroll-follow math — same
+/// single-source rule as ROW_H: nav and layout can never disagree.
+pub const GRID_COLUMNS: usize = 4;
+
 pub struct Search {
     pub query: String,
 
@@ -1127,10 +1132,11 @@ impl Search {
     /// on top, then a thin text-row list (binaries/files, 1-col) below. The flat
     /// focused index spans both, but they have different geometry, so we compute
     /// the focused item's real Y position section-aware.
+    /// Pixel scroll offset to keep the focused search-result item visible.
+    /// All results render as uniform square tiles in one GRID_COLUMNS-wide
+    /// grid, so the focused item's pixel position is a simple row calc.
     pub fn focused_scroll_offset(&self) -> Option<f32> {
-        // All search results now render as uniform square tiles in one 4-column
-        // grid, so the focused item's pixel position is a simple row calc.
-        const GRID_COLUMNS: usize = 4;
+        // (shared constants — see ROW_H / GRID_COLUMNS at module scope)
         // (shared constant — see ROW_H at module scope)
         let idx = self.focused_app_idx?;
         let row = (idx / GRID_COLUMNS) as f32;

@@ -27,7 +27,7 @@ use cosmic::iced::clipboard::mime::{AllowedMimeTypes, AsMimeTypes};
 use cosmic::widget::dnd_destination::dnd_destination_for_data;
 
 use crate::position::layout::TOOLBOX_WIDTH;
-const GRID_COLUMNS: usize = 4;
+use crate::search::GRID_COLUMNS; // single source — search owns grid geometry (with ROW_H)
 const ICON_SIZE: f32 = 42.0;
 // Fixed cell width so every app tile is identical and columns align across rows.
 // 460px panel / 4 cols, minus gaps/padding, leaves ~100px per cell.
