@@ -112,10 +112,13 @@ pub fn view<'a>(
         container(
             mouse_area(
                 container(
+                    // Steel like the drawer buttons at rest — bare text here
+                    // inherited the system theme. (Emoji ignores text fill.)
                     row![
                         text("➕").size(18),
                         space::horizontal().width(Length::Fixed(12.0)),
-                        text("New Drawer").size(15),
+                        text("New Drawer").size(15)
+                            .color(crate::ui::theme::get().drawer_btn_text),
                     ]
                     .align_y(Vertical::Center)
                     .padding(14)
@@ -140,7 +143,9 @@ pub fn view<'a>(
         "⬇  Drop here"
     };
     let drop_inner: cosmic::Element<'_, SearchMessage> = cosmic::widget::container(
-        cosmic::widget::text(drop_label).size(11),
+        cosmic::widget::text(drop_label).size(11)
+            // Dim gold hint — was bare, leaked the system theme.
+            .class(cosmic::theme::Text::Color(crate::ui::theme::get().drawer_hint)),
     )
     .width(Length::Fill)
     .padding([8, 14])
@@ -197,10 +202,12 @@ pub fn view<'a>(
         container(
             mouse_area(
                 container(
+                    // Same treatment as the New Drawer row — steel at rest.
                     row![
                         text("🔒").size(20),
                         space::horizontal().width(Length::Fixed(12.0)),
-                        text("Vault").size(16),
+                        text("Vault").size(16)
+                            .color(crate::ui::theme::get().drawer_btn_text),
                     ]
                     .align_y(Vertical::Center)
                     .padding(14)
@@ -262,7 +269,8 @@ pub fn view<'a>(
                 space::vertical().height(Length::Fixed(16.0)),
                 row![
                     mouse_area(
-                        container(text("Save").size(14))
+                        // Chips set bg but forgot text — ambient theme leaked.
+                        container(text("Save").size(14).color(crate::ui::theme::get().text_steel))
                             .padding([8, 20])
                             .style(|_: &Theme| container::Style {
                                 background: Some(
@@ -275,7 +283,7 @@ pub fn view<'a>(
                     .on_press(SearchMessage::DrawerEditConfirm),
                     space::horizontal().width(Length::Fixed(12.0)),
                     mouse_area(
-                        container(text("Cancel").size(14))
+                        container(text("Cancel").size(14).color(crate::ui::theme::get().text_steel))
                             .padding([8, 20])
                             .style(|_: &Theme| container::Style {
                                 background: Some(
@@ -635,7 +643,11 @@ fn drawer_contents_view<'a>(
                 });
             container(
                 column![
-                    container(text("Files").size(11)).padding([4, 0]),
+                    container(
+                        text("Files").size(11)
+                            .color(crate::ui::theme::get().text_steel),
+                    )
+                    .padding([4, 0]),
                     files_list,
                 ]
                 .spacing(4)
@@ -666,7 +678,9 @@ fn drawer_contents_view<'a>(
         cosmic::widget::container(
             cosmic::widget::text(
                 if is_file_hover { "Drop to add files" } else { "Drop files here to add them" }
-            ).size(11),
+            ).size(11)
+                // Dim gold hint — mirrors the header's drop hint styling.
+                .class(cosmic::theme::Text::Color(crate::ui::theme::get().drawer_hint)),
         )
         .width(Length::Fill)
         .height(Length::Fill)
@@ -776,7 +790,8 @@ fn drawer_file_row<'a>(
 ) -> Element<'a, SearchMessage> {
     let is_dir = std::path::Path::new(&file.path).is_dir();
     let emoji = if is_dir { "📂" } else { file_emoji(&file.name) };
-    let name = text(&file.name).size(13);
+    let name = text(&file.name).size(13)
+        .color(crate::ui::theme::get().text_steel);
     mouse_area(
         container(
             row![
@@ -1086,17 +1101,26 @@ fn origin_egg_view<'a>() -> Element<'a, SearchMessage> {
     let content = column![
         skull,
         space::vertical().height(Length::Fixed(16.0)),
-        text("HMRDSmoke").size(28),
+        // Tokened — the egg panel holds its own in any system theme.
+        // Gold name, steel body, dim-gold asides.
+        text("HMRDSmoke").size(28)
+            .color(crate::ui::theme::get().drawer_title),
         space::vertical().height(Length::Fixed(12.0)),
-        text("US Army Veteran").size(15),
-        text("Father of A Young Man And Sweet Daughter").size(15),
-        text("Family Man - Funny Guy").size(15),
+        text("US Army Veteran").size(15)
+            .color(crate::ui::theme::get().text_steel),
+        text("Father of A Young Man And Sweet Daughter").size(15)
+            .color(crate::ui::theme::get().text_steel),
+        text("Family Man - Funny Guy").size(15)
+            .color(crate::ui::theme::get().text_steel),
         space::vertical().height(Length::Fixed(4.0)),
-        text("- bio by my son -").size(12),
+        text("- bio by my son -").size(12)
+            .color(crate::ui::theme::get().drawer_hint),
         space::vertical().height(Length::Fixed(20.0)),
-        text("Soulless - where it started").size(13),
+        text("Soulless - where it started").size(13)
+            .color(crate::ui::theme::get().text_steel),
         space::vertical().height(Length::Fixed(8.0)),
-        text(sig).size(13),
+        text(sig).size(13)
+            .color(crate::ui::theme::get().drawer_hint),
     ]
     .spacing(2)
     .align_x(Horizontal::Center);
