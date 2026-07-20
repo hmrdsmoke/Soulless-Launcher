@@ -94,10 +94,21 @@ fn read_net_bytes() -> Option<(u64, u64)> {
 
     for line in data.lines().skip(2) {
         let line  = line.trim();
-        let colon = line.find(':')?;
+        // continue, not `?` — one malformed line dropped the entire sample.
+        let Some(colon) = line.find(':') else { continue };
         let iface = line[..colon].trim();
 
         if iface == "lo" {
+            continue;
+        }
+        // Virtual interfaces double-count: VPN traffic appears on tun/wg
+        // AND the physical NIC it tunnels through; containers add veth/br
+        // noise. Sum physical-ish interfaces only.
+        if iface.starts_with("tun") || iface.starts_with("tap")
+            || iface.starts_with("wg") || iface.starts_with("docker")
+            || iface.starts_with("veth") || iface.starts_with("br-")
+            || iface.starts_with("virbr") || iface.starts_with("vnet")
+        {
             continue;
         }
 

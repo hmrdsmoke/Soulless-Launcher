@@ -136,7 +136,12 @@ fn read_cpu_temp() -> Option<f32> {
     let entries = std::fs::read_dir("/sys/class/hwmon").ok()?;
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = std::fs::read_to_string(path.join("name")).ok()?;
+        // continue, not `?` — one unreadable hwmon node aborted the whole
+        // scan, and enumeration order varies by boot: CPU temp vanished
+        // intermittently depending on which node came up first.
+        let Ok(name) = std::fs::read_to_string(path.join("name")) else {
+            continue;
+        };
         let name = name.trim();
         if (name == "coretemp" || name == "k10temp")
             && let Ok(raw) = std::fs::read_to_string(path.join("temp1_input"))

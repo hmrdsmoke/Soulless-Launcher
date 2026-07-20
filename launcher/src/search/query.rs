@@ -130,7 +130,10 @@ pub fn interpret(
         return Some(idx);
     }
 
-    if q.contains("last") || q.contains("recent") {
+    // Word-boundary, not substring — contains() hijacked ordinary app
+    // queries: "elastic", "blaster", "lastpass" all diverted into
+    // recent-launches mode.
+    if q.split_whitespace().any(|w| w == "last" || w == "recent") {
         let count = parse_count(&q, 10);
         let mut recent: Vec<usize> = apps.iter().enumerate()
             .filter(|(_, a)| a.last_launched.is_some())
