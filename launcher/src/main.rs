@@ -54,9 +54,6 @@ fn main() -> cosmic::iced::Result {
         Some("toggle") => app::SoullessFlags {
             subcommand: Some(app::SoullessSubCommand::Toggle),
         },
-        Some("warm") => app::SoullessFlags {
-            subcommand: Some(app::SoullessSubCommand::Warm),
-        },
         Some("-h") | Some("--help") | Some("help") => {
             print_help();
             return Ok(());
@@ -97,14 +94,13 @@ fn print_help() {
     println!();
     println!("Commands:");
     println!("  toggle           Show the launcher if hidden, hide it if visible");
-    println!("  warm             Start the resident daemon without showing the window");
     println!();
     println!("Options:");
     println!("  -h, --help       Print this help and exit");
     println!("  -V, --version    Print version information and exit");
     println!();
     println!("With no arguments, soulless-launcher runs as the resident daemon. It is");
-    println!("normally started by the Soulless panel applet and stays warm, showing");
+    println!("normally started at login from /etc/xdg/autostart and stays warm, showing");
     println!("and hiding its layer surface on request rather than starting fresh.");
     println!();
     println!("See soulless-launcher(1) for full documentation.");
