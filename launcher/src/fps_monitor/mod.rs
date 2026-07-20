@@ -17,7 +17,10 @@ use std::time::Duration;
 /// Number of frametime samples kept for the sparkline.
 pub const HISTORY: usize = 60;
 
-/// How often we re-read the MangoHud log file.
+/// Deliberately 16ms: the tick IS the probe. A healthy loop services the
+/// timer on schedule and reads ~60; a bogged loop slips ticks and the
+/// number drops. Self-measuring responsiveness — do not "optimize" this
+/// to a slower cadence or the readout becomes meaningless.
 const TICK_FPS_MS: u64 = 16;
 
 // ── Message ───────────────────────────────────────────────────────────────────

@@ -8,12 +8,6 @@
 use crate::fps_monitor::HISTORY;
 use std::time::Instant;
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-/// How often the subscription fires in ms — must match TICK_FPS_MS in mod.rs
-#[allow(dead_code)]
-const TICK_MS: f32 = 500.0;
-
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
@@ -99,20 +93,3 @@ fn push_capped(v: &mut Vec<f32>, value: f32) {
 // ft_history: frametime sparkline history :: done
 // Clamped to 5s gap — ignores suspend/resume spikes :: done
 // No external deps — pure std timing :: done
-
-// === DONE ===
-// FpsState: fps, fps_avg, fps_1_low, frametime_ms, ft_history :: done
-// tick(): reads shared frame timestamps, computes FPS + stats :: done
-// run_presentation_listener(): background thread, wp_presentation_feedback :: done
-// Presented event → pushes Instant to shared ring buffer :: done
-// FPS = frames in last 1 second window :: done
-// 1% low = worst frametime bucket converted back to FPS :: done
-// Graceful fallback if compositor doesn't support wp_presentation :: done
-
-// === DONE ===
-// FpsState: fps, frametime_ms, fps_1_low, fps_avg, ft_history :: done
-// tick(): watches latest MangoHud CSV, re-parses only on file growth :: done
-// Game switch detection: resets samples when log path changes :: done
-// 1% low: bottom 1% of HISTORY FPS samples, min 1 :: done
-// ft_history: HISTORY-length frametime sparkline :: done
-// parse_mangohud_csv(): skips '#' comments, finds fps/frametime columns :: done
