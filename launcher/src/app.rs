@@ -892,12 +892,24 @@ impl cosmic::Application for Soulless {
             }),
 
             cosmic::iced::window::open_events().map(Message::WindowOpened),
-            // DIAGNOSTIC: monitors disabled to test RequestResize spam source
+            // Organizer stays always-on — watching Downloads while hidden is
+            // its entire job.
             soulless_organizer::subscription().map(Message::Organizer),
-            crate::network_monitor::subscription().map(Message::Network),
-            crate::system_monitor::subscription().map(Message::System),
-            crate::hardware_monitor::subscription().map(Message::Hardware),
-            crate::fps_monitor::subscription().map(Message::Fps),
+            // Monitors: alive only while the surface is up. The resident
+            // daemon spends most of its life hidden — no sampling, no
+            // nvidia-smi/df/ping spawns, no 16ms FPS heartbeat while nothing
+            // is on screen. Subscription diffing starts/stops these cleanly
+            // on open/close; histories freeze and resume.
+            if self.surface_open {
+                Subscription::batch([
+                    crate::network_monitor::subscription().map(Message::Network),
+                    crate::system_monitor::subscription().map(Message::System),
+                    crate::hardware_monitor::subscription().map(Message::Hardware),
+                    crate::fps_monitor::subscription().map(Message::Fps),
+                ])
+            } else {
+                Subscription::none()
+            },
         ])
     }
 }
