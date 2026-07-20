@@ -131,11 +131,10 @@ where
             if let Some(idx) = search.focused_app_idx
                 && let Some(exec) = search.focused_exec(idx) {
                     search.record_launch_by_exec(&exec);
-                    let clean = crate::utils::strip_desktop_placeholders(&exec);
-                    let _ = std::process::Command::new("sh")
-                        .arg("-c")
-                        .arg(&clean)
-                        .spawn();
+                    // Shared launch path: strips placeholders, routes through
+                    // flatpak-spawn --host when sandboxed, and reaps the child
+                    // (raw spawn here leaked one zombie per Enter launch).
+                    crate::utils::spawn_exec(&exec);
                     return f_exit();
                 }
             Task::none()
