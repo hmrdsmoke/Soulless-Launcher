@@ -7,6 +7,17 @@
 
 use sysinfo::System;
 use crate::hardware_monitor::HISTORY;
+use std::sync::OnceLock;
+
+/// Process-wide NVML handle. init() dlopens the driver and handshakes —
+/// far too heavy to repeat every 2s tick. Attempted once, outcome cached
+/// (including failure: a box with no NVIDIA driver stays that way for
+/// the session).
+static NVML: OnceLock<Option<nvml_wrapper::Nvml>> = OnceLock::new();
+
+fn nvml() -> Option<&'static nvml_wrapper::Nvml> {
+    NVML.get_or_init(|| nvml_wrapper::Nvml::init().ok()).as_ref()
+}
 
 #[derive(Debug)]
 pub struct HardwareState {
@@ -25,8 +36,11 @@ pub struct HardwareState {
 
 impl Clone for HardwareState {
     fn clone(&self) -> Self {
-        let mut sys = System::new_all();
-        sys.refresh_all();
+        // Cheap by design: System isn't Clone, and new_all()+refresh_all()
+        // enumerates every process on the box — a landmine if any iced code
+        // ever clones monitor state. A bare System::new() suffices: the
+        // next tick() refreshes what it reads.
+        let sys = System::new();
         Self {
             cpu_temp_c:     self.cpu_temp_c,
             cpu_freq_mhz:   self.cpu_freq_mhz,
@@ -100,11 +114,9 @@ struct GpuSnapshot {
 }
 
 fn read_gpu_nvml() -> Option<GpuSnapshot> {
-    use nvml_wrapper::Nvml;
     use nvml_wrapper::enum_wrappers::device::{Clock, ClockId, TemperatureSensor};
 
-    let nvml   = Nvml::init().ok()?;
-    let device = nvml.device_by_index(0).ok()?;
+    let device = nvml()?.device_by_index(0).ok()?;
 
     let temp           = device.temperature(TemperatureSensor::Gpu).unwrap_or(0);
     let core_clock_mhz = device.clock(Clock::Graphics, ClockId::Current).unwrap_or(0);
@@ -264,7 +276,7 @@ fn push_capped(v: &mut Vec<f32>, value: f32) {
 // Fixed: refresh_cpu() → refresh_cpu_all() :: done
 // Fixed: System doesn't impl Clone — manual Clone impl rebuilds System :: done
 // Fixed: derive(Clone) removed from struct, manual impl added :: done
-// read_gpu_nvml(): NVML init per tick, device 0 :: done
+// read_gpu_nvml(): persistent NVML handle (OnceLock), device 0 :: done
 // read_cpu_temp(): sysfs coretemp + k10temp :: done
 
 // === DONE ===
@@ -272,4 +284,4 @@ fn push_capped(v: &mut Vec<f32>, value: f32) {
 // tick(): refreshes sysinfo, reads sysfs CPU temp, reads NVML GPU stats :: done
 // push_capped(): rolls HISTORY-length histories for CPU, GPU, RAM :: done
 // read_cpu_temp(): walks /sys/class/hwmon, handles coretemp + k10temp :: done
-// read_gpu_nvml(): NVML init per tick, device 0, usage/temp/clock/vram :: done
+// read_gpu_nvml(): persistent NVML handle, device 0, usage/temp/clock/vram :: done
