@@ -55,6 +55,11 @@ pub fn interpret(
             .filter(|(_, a)| matches!(a.source, AppSource::File))
             .map(|(i, _)| i).collect());
     }
+    if q == "folders" || q == "folder" || q == "dirs" {
+        return Some(apps.iter().enumerate()
+            .filter(|(_, a)| matches!(a.source, AppSource::Folder))
+            .map(|(i, _)| i).collect());
+    }
     if q == "apps" || q == "app" {
         return Some(apps.iter().enumerate()
             .filter(|(_, a)| matches!(a.source, AppSource::Desktop | AppSource::Flatpak | AppSource::AppImage))

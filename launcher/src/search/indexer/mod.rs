@@ -59,6 +59,10 @@ pub enum AppSource {
     Wine,
     Proton,
     File,
+    /// Directories from the file source. Split from File so smart queries
+    /// can tell documents from folders. Appended last: old .bin caches
+    /// stay wire-compatible (and the file source is never cached anyway).
+    Folder,
 }
 
 use crate::search::indexer::icon::IconCache;

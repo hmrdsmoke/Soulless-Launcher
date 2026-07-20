@@ -112,7 +112,7 @@ fn push_entry(
         name: name.clone(),
         exec: format!("xdg-open {}", path.display()),
         icon_path: if is_dir { folder_icon.to_string() } else { file_icon.to_string() },
-        source: AppSource::File,
+        source: if is_dir { AppSource::Folder } else { AppSource::File },
         desktop_path: None,
         lower_name,
         haystack: Utf32String::from(name.as_str()),

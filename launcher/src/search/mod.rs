@@ -928,7 +928,7 @@ impl Search {
             // documents in browse order. Apps always first; the default
             // selection never changes.
             AppSource::Binary | AppSource::Script => 1,
-            AppSource::File => 2,
+            AppSource::File | AppSource::Folder => 2,
         });
     }
 
@@ -1331,7 +1331,11 @@ pub fn update_first_seen(
         // ledger without bound. Apps and CLI tools only. Existing file stamps
         // are actively removed so already-stamped downloads stop surfacing
         // immediately instead of aging out.
-        if matches!(app.source, crate::search::indexer::AppSource::File) {
+        if matches!(
+            app.source,
+            crate::search::indexer::AppSource::File
+                | crate::search::indexer::AppSource::Folder
+        ) {
             if map.remove(&app.id).is_some() {
                 changed = true;
             }
