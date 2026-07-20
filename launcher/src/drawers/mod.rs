@@ -265,7 +265,29 @@ pub fn view<'a>(
                     .on_input(SearchMessage::DrawerEditInputChanged)
                     .on_submit(SearchMessage::DrawerEditConfirm)
                     .padding(12)
-                    .size(16),
+                    .size(16)
+                    // Silver field, ink text — bare input took the stock iced
+                    // palette (blue focus ring + blue selection). Pin every
+                    // status; focused border darkens to ink.
+                    .style(|_: &Theme, status| {
+                        let t = crate::ui::theme::get();
+                        let focused = matches!(
+                            status,
+                            cosmic::iced::widget::text_input::Status::Focused { .. }
+                        );
+                        cosmic::iced::widget::text_input::Style {
+                            background: t.steel_top.into(),
+                            border: cosmic::iced::Border {
+                                color: if focused { t.text_ink } else { t.drawer_btn_active },
+                                width: 1.0,
+                                radius: cosmic::iced::border::rounded(0).radius,
+                            },
+                            icon: t.text_ink,
+                            placeholder: Color { a: 0.45, ..t.text_ink },
+                            value: t.text_ink,
+                            selection: t.drawer_btn_active,
+                        }
+                    }),
                 space::vertical().height(Length::Fixed(16.0)),
                 row![
                     mouse_area(
