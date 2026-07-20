@@ -112,13 +112,13 @@ pub fn view<'a>(
         container(
             mouse_area(
                 container(
-                    // Steel like the drawer buttons at rest — bare text here
+                    // Ink on the silver panel — steel text washed out; bare text
                     // inherited the system theme. (Emoji ignores text fill.)
                     row![
                         text("➕").size(18),
                         space::horizontal().width(Length::Fixed(12.0)),
                         text("New Drawer").size(15)
-                            .color(crate::ui::theme::get().drawer_btn_text),
+                            .color(crate::ui::theme::get().text_ink),
                     ]
                     .align_y(Vertical::Center)
                     .padding(14)
@@ -202,12 +202,12 @@ pub fn view<'a>(
         container(
             mouse_area(
                 container(
-                    // Same treatment as the New Drawer row — steel at rest.
+                    // Same treatment as the New Drawer row — ink on steel.
                     row![
                         text("🔒").size(20),
                         space::horizontal().width(Length::Fixed(12.0)),
                         text("Vault").size(16)
-                            .color(crate::ui::theme::get().drawer_btn_text),
+                            .color(crate::ui::theme::get().text_ink),
                     ]
                     .align_y(Vertical::Center)
                     .padding(14)
