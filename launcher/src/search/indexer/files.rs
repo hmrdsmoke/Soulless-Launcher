@@ -2,8 +2,20 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
-// launcher/src/search/indexer/files.rs
-// Indexes files and folders under common home directories.
+
+// ── File source contract ──────────────────────────────────────────────────────
+//
+// Deliberately shallow. The old everything-index walked home two levels deep
+// and materialized every file it found — unbounded entry count held for the
+// daemon's life, rescanned per keystroke, rebuilt synchronously on the
+// activation path. The index is for *launching points*, not a file manager:
+//
+//   1. The six XDG dirs themselves (Documents, Downloads, ...).
+//   2. Everything at the TOP LEVEL of each XDG dir — files and folders.
+//   3. Folders (only) at the top level of home.
+//
+// No recursion anywhere. Seven readdirs total, entry count bounded by what
+// a human keeps at their top levels. Deeper navigation is one xdg-open away.
 
 use super::{AppEntry, AppSource};
 use super::icon::IconCache;
@@ -28,43 +40,15 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
     let folder_icon = icons.resolve(Some("folder"));
     let file_icon = icons.resolve(Some("text-x-generic"));
 
+    // ── 1 + 2: each XDG dir itself, then its top level ───────────────────────
     for dir in &xdg_dirs {
-        // Add the XDG dir itself as an entry
-        if let Some(dir_name) = dir.file_name().and_then(|n| n.to_str()) {
-            let name = dir_name.to_string();
-            let lower_name = name.to_lowercase();
-            apps.push(AppEntry {
-                id: format!("file:{}", dir.display()),
-                name: name.clone(),
-                exec: format!("xdg-open {}", dir.display()),
-                icon_path: folder_icon.clone(),
-                source: AppSource::File,
-                desktop_path: None,
-                lower_name,
-                haystack: Utf32String::from(name.as_str()),
-                keywords: Vec::new(),
-                categories: vec!["File".to_string()],
-                launch_count: 0,
-                last_launched: None,
-            });
-        }
-
-        scan_dir(dir, &folder_icon, &file_icon, &mut apps);
-
-        // One level deeper — scan subdirectories
-        let Ok(entries) = fs::read_dir(dir) else { continue };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() && !is_hidden(&path) {
-                scan_dir(&path, &folder_icon, &file_icon, &mut apps);
-            }
-        }
+        push_entry(dir, true, &folder_icon, &file_icon, &mut apps);
+        scan_top(dir, true, &folder_icon, &file_icon, &mut apps);
     }
 
-    // ── Full home scan with exclusions ──────────────────────────────────────
+    // ── 3: folders at the top level of home ──────────────────────────────────
     let exclude = [
-        "snap", "flatpak", ".var", "node_modules", "target",
-        ".cargo", ".rustup", ".steam", ".local",
+        "snap", "flatpak", "node_modules", "target",
     ];
     let vault_dir = crate::vault::vault_dir();
     let Ok(home_entries) = fs::read_dir(&home) else {
@@ -74,70 +58,69 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
         let path = entry.path();
         if is_hidden(&path) { continue; }
         if path == vault_dir { continue; }
-        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
-        if exclude.contains(&name.as_str()) { continue; }
-        // Skip dirs already covered by XDG scan
+        if !path.is_dir() { continue; }          // folders only at home level
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if exclude.contains(&name) { continue; }
+        // XDG dirs already added above
         if xdg_dirs.contains(&path) { continue; }
-        if path.is_dir() {
-            scan_dir(&path, &folder_icon, &file_icon, &mut apps);
-            let Ok(sub_entries) = fs::read_dir(&path) else { continue };
-            for sub in sub_entries.flatten() {
-                let sub_path = sub.path();
-                if sub_path.is_dir() && !is_hidden(&sub_path) {
-                    scan_dir(&sub_path, &folder_icon, &file_icon, &mut apps);
-                }
-            }
-        }
+        push_entry(&path, true, &folder_icon, &file_icon, &mut apps);
     }
+
     apps
 }
 
-fn scan_dir(dir: &Path, folder_icon: &str, file_icon: &str, apps: &mut Vec<AppEntry>) {
+/// Index every non-hidden entry at the top level of `dir` — files and
+/// folders if `include_files`, folders only otherwise. Never recurses.
+fn scan_top(
+    dir: &Path,
+    include_files: bool,
+    folder_icon: &str,
+    file_icon: &str,
+    apps: &mut Vec<AppEntry>,
+) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
     };
-
-
     for entry in entries.flatten() {
         let path = entry.path();
-
         if is_hidden(&path) {
             continue;
         }
-
-        let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
-            continue;
-        };
-
         let is_dir = path.is_dir();
-        let name = file_name.to_string();
-        let lower_name = name.to_lowercase();
-        let id = format!("file:{}", path.display());
-        let exec = format!("xdg-open {}", path.display());
-
-        let icon_path = if is_dir {
-            folder_icon.to_string()
-        } else {
-            file_icon.to_string()
-        };
-
-
-        apps.push(AppEntry {
-            id,
-            name: name.clone(),
-            exec,
-            icon_path,
-            source: AppSource::File,
-            desktop_path: None,
-            lower_name,
-            haystack: Utf32String::from(name.as_str()),
-            keywords: Vec::new(),
-            categories: vec!["File".to_string()],
-            launch_count: 0,
-            last_launched: None,
-        });
+        if !is_dir && !include_files {
+            continue;
+        }
+        push_entry(&path, is_dir, folder_icon, file_icon, apps);
     }
+}
 
+fn push_entry(
+    path: &Path,
+    is_dir: bool,
+    folder_icon: &str,
+    file_icon: &str,
+    apps: &mut Vec<AppEntry>,
+) {
+    let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+        return;
+    };
+    let name = file_name.to_string();
+    let lower_name = name.to_lowercase();
+
+    apps.push(AppEntry {
+        id: format!("file:{}", path.display()),
+        name: name.clone(),
+        exec: format!("xdg-open {}", path.display()),
+        icon_path: if is_dir { folder_icon.to_string() } else { file_icon.to_string() },
+        source: AppSource::File,
+        desktop_path: None,
+        lower_name,
+        haystack: Utf32String::from(name.as_str()),
+        keywords: Vec::new(),
+        categories: vec!["File".to_string()],
+        launch_count: 0,
+        last_launched: None,
+    });
 }
 
 fn is_hidden(path: &Path) -> bool {
