@@ -24,6 +24,8 @@ pub struct StatsState {
     // previous /proc/stat values for delta CPU calculation
     prev_idle:  u64,
     prev_total: u64,
+    // ticks until the next df refresh — see tick()'s Disk section
+    disk_tick_countdown: u32,
 }
 
 impl Default for StatsState {
@@ -39,6 +41,7 @@ impl Default for StatsState {
             disk_pct:     0.0,
             prev_idle:    0,
             prev_total:   0,
+            disk_tick_countdown: 0,
         }
     }
 }
@@ -79,7 +82,15 @@ impl StatsState {
         push_capped(&mut self.gpu_history, self.gpu_pct);
 
         // ── Disk ─────────────────────────────────────────────────────────
-        self.disk_pct = read_disk_pct().unwrap_or(self.disk_pct);
+        // df is a fork+exec to learn a number that moves by the hour —
+        // refresh every 30th tick (~30s visible), reuse the cached value
+        // between. History still gets a point per tick so the graph scrolls.
+        if self.disk_tick_countdown == 0 {
+            self.disk_pct = read_disk_pct().unwrap_or(self.disk_pct);
+            self.disk_tick_countdown = 30;
+        } else {
+            self.disk_tick_countdown -= 1;
+        }
         push_capped(&mut self.disk_history, self.disk_pct);
     }
 }
