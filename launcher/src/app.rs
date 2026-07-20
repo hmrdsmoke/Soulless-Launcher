@@ -60,6 +60,10 @@ pub enum SoullessSubCommand {
     /// `soulless-launcher toggle` — show the warm daemon's surface if hidden,
     /// hide it if visible. Routed to the running daemon by run_single_instance.
     Toggle,
+    /// `soulless-launcher warm` — start the daemon WITHOUT showing the window.
+    /// The safe prewarm token: self-delivered on becoming the daemon (boots
+    /// dark), forwarded by a losing race instance (no-op on the winner).
+    Warm,
 }
 
 impl std::fmt::Display for SoullessSubCommand {
@@ -68,6 +72,7 @@ impl std::fmt::Display for SoullessSubCommand {
             // Lowercase: this string goes on the wire. run_single_instance sends
             // it as the D-Bus action name, and dbus_activation matches "toggle".
             SoullessSubCommand::Toggle => write!(f, "toggle"),
+            SoullessSubCommand::Warm => write!(f, "warm"),
         }
     }
 }
@@ -801,6 +806,11 @@ impl cosmic::Application for Soulless {
                     .map(cosmic::Action::App)
                 }
             }
+            // Warm: deliberately does nothing. Exists so a spawner (the applet's
+            // prewarm) can start this daemon without a window appearing, and so
+            // the two-panel prewarm race is benign — the loser forwards "warm"
+            // and the winner no-ops it.
+            Details::ActivateAction { action, .. } if action == "warm" => Task::none(),
             _ => Task::none(),
         }
     }
