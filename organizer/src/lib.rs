@@ -114,16 +114,28 @@ fn watcher_stream() -> impl cosmic::iced::futures::Stream<Item = Message> {
         use notify::{RecursiveMode, Watcher, EventKind};
         use notify::event::CreateKind;
 
-        let downloads = dirs::download_dir()
-            .unwrap_or_else(|| dirs::home_dir().unwrap().join("Downloads"));
-
+        // Every failure below degrades gracefully: the organizer feature goes
+        // dormant but the daemon lives. panic = "abort" in release means any
+        // expect() here would kill the applet/launcher outright on machines
+        // with no ~/Downloads (fresh accounts, non-English XDG layouts) or an
+        // exhausted inotify watch limit.
+        let Some(downloads) = dirs::download_dir()
+            .or_else(|| dirs::home_dir().map(|h| h.join("Downloads")))
+        else {
+            eprintln!("[organizer] no home dir — organizer disabled");
+            return;
+        };
         let (notify_tx, notify_rx) = std::sync::mpsc::channel();
-
-        let mut watcher = notify::recommended_watcher(move |res| {
+        let Ok(mut watcher) = notify::recommended_watcher(move |res| {
             let _ = notify_tx.send(res);
-        }).expect("organizer: failed to create watcher");
-        watcher.watch(&downloads, RecursiveMode::NonRecursive)
-            .expect("organizer: failed to watch Downloads");
+        }) else {
+            eprintln!("[organizer] watcher create failed — organizer disabled");
+            return;
+        };
+        if let Err(e) = watcher.watch(&downloads, RecursiveMode::NonRecursive) {
+            eprintln!("[organizer] cannot watch {}: {e} — organizer disabled", downloads.display());
+            return;
+        }
 
         // Keep watcher alive and poll on a background thread
         let (event_tx, event_rx) = std::sync::mpsc::channel::<std::path::PathBuf>();
