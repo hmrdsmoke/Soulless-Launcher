@@ -148,16 +148,19 @@ pub fn interpret(
 
 /// Score an app for ranking within search results.
 /// Higher = better match. Combines match tier with usage habits.
-pub fn score_app(app: &AppEntry, query: &str, now: u64) -> u32 {
-    let lower_name = app.name.to_lowercase();
-    let q = query.trim().to_lowercase();
+/// `query_lower` must be pre-trimmed and pre-lowered by the caller. Runs
+/// once per candidate per keystroke — must not allocate. Reads the
+/// index-time lower_name instead of re-lowering the display name.
+pub fn score_app(app: &AppEntry, query_lower: &str, now: u64) -> u32 {
+    let lower_name = app.lower_name.as_str();
+    let q = query_lower;
 
     // Match tier — prefix always beats contains, contains beats fuzzy
     let tier_score: u32 = if lower_name == q {
         100_000  // exact
-    } else if lower_name.starts_with(&q) {
+    } else if lower_name.starts_with(q) {
         75_000   // prefix
-    } else if lower_name.contains(&q) {
+    } else if lower_name.contains(q) {
         50_000   // contains
     } else {
         25_000   // fuzzy

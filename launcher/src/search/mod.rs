@@ -957,16 +957,22 @@ impl Search {
         // Hidden origin vault: typing the passphrase reveals the origin story.
         self.show_origin_egg = crate::easter_egg::is_trigger(&self.query);
         // ── Smart query interpretation ─────────────────────────────────────
-        if let Some(mut results) = query::interpret(&self.query, &self.all_apps, &self.first_seen) {
+        if let Some(results) = query::interpret(&self.query, &self.all_apps, &self.first_seen) {
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs();
-            results.sort_by(|a, b| {
-                let score_a = query::score_app(&self.all_apps[*a], &self.query, now);
-                let score_b = query::score_app(&self.all_apps[*b], &self.query, now);
-                score_b.cmp(&score_a)
-            });
+            // Decorate-sort-undecorate: score each index once, then an
+            // integer sort. The comparator form re-ran score_app O(n log n)
+            // times per keystroke. Stable sort_by_key keeps tie order
+            // identical to the old stable sort_by.
+            let mut scored: Vec<(u32, usize)> = results
+                .into_iter()
+                .map(|i| (query::score_app(&self.all_apps[i], &query, now), i))
+                .collect();
+            scored.sort_by_key(|(s, _)| std::cmp::Reverse(*s));
+            let mut results: Vec<usize> =
+                scored.into_iter().map(|(_, i)| i).collect();
             self.tier_sort(&mut results);
             self.filtered_apps = results;
             self.show_search_results = true;
@@ -1027,9 +1033,15 @@ impl Search {
 
         // If prefix found nothing, go 100% fuzzy
         if prefix_results.is_empty() {
-            let mut fuzzy_only = self.fuzzy_results(&query, usize::MAX, &std::collections::HashSet::new());
+            let fuzzy_only = self.fuzzy_results(&query, usize::MAX, &std::collections::HashSet::new());
             let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
-            fuzzy_only.sort_by(|a, b| query::score_app(&self.all_apps[*b], &self.query, now).cmp(&query::score_app(&self.all_apps[*a], &self.query, now)));
+            let mut scored: Vec<(u32, usize)> = fuzzy_only
+                .into_iter()
+                .map(|i| (query::score_app(&self.all_apps[i], &query, now), i))
+                .collect();
+            scored.sort_by_key(|(s, _)| std::cmp::Reverse(*s));
+            let mut fuzzy_only: Vec<usize> =
+                scored.into_iter().map(|(_, i)| i).collect();
             self.tier_sort(&mut fuzzy_only);
             self.filtered_apps = fuzzy_only;
             return;
@@ -1050,13 +1062,19 @@ impl Search {
         results.extend(contains);
 
         let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
-        results.sort_by(|a, b| query::score_app(&self.all_apps[*b], &self.query, now).cmp(&query::score_app(&self.all_apps[*a], &self.query, now)));
+        let mut scored: Vec<(u32, usize)> = results
+            .into_iter()
+            .map(|i| (query::score_app(&self.all_apps[i], &query, now), i))
+            .collect();
+        scored.sort_by_key(|(s, _)| std::cmp::Reverse(*s));
+        let mut results: Vec<usize> =
+            scored.into_iter().map(|(_, i)| i).collect();
         self.tier_sort(&mut results);
         self.filtered_apps = results;
     }
 
     fn fuzzy_results(
-        &self,
+        &mut self,
         _query_lower: &str,
         budget: usize,
         exclude: &std::collections::HashSet<usize>,
@@ -1072,8 +1090,10 @@ impl Search {
             AtomKind::Fuzzy,
         );
 
-        let mut matcher =
-            self.matcher.clone();
+        // Reuse the persistent matcher — the clone reallocated nucleo's
+        // scratch buffers every keystroke. Disjoint field borrow: matcher
+        // mutable, all_apps immutable, both through self.
+        let mut matcher = &mut self.matcher;
 
         let mut scored:
             Vec<(u32, usize)> = self
