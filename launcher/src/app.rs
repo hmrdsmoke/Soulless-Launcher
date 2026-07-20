@@ -226,6 +226,20 @@ impl cosmic::Application for Soulless {
     fn update(&mut self, message: Self::Message) -> Task<cosmic::Action<Self::Message>> {
         match message {
             Message::Network(msg) => {
+                // Ping runs on the blocking pool: measure() shells
+                // `ping -c 4 -W 1` and parks up to ~4s. Inline in update or
+                // a subscription map, that stalls the executor.
+                if matches!(msg, crate::network_monitor::Message::FetchPing) {
+                    return Task::perform(
+                        tokio::task::spawn_blocking(crate::network_monitor::ping::measure),
+                        |res| {
+                            let (ping_ms, jitter_ms) = res.unwrap_or((0.0, 0.0));
+                            cosmic::Action::App(Message::Network(
+                                crate::network_monitor::Message::PingResult { ping_ms, jitter_ms },
+                            ))
+                        },
+                    );
+                }
                 self.network.update(msg);
                 Task::none()
             }

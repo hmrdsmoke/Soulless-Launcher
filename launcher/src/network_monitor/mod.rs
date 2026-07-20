@@ -29,6 +29,9 @@ const TICK_PING_S:  u64 = 10;
 #[derive(Debug, Clone)]
 pub enum Message {
     BandwidthTick,
+    /// Timer fired — app.rs runs the blocking measure() off-executor and
+    /// answers with PingResult.
+    FetchPing,
     PingResult { ping_ms: f32, jitter_ms: f32 },
 }
 
@@ -55,6 +58,10 @@ impl NetworkState {
                 self.bandwidth.tick();
             }
 
+            Message::FetchPing => {
+                // Handled in app.rs (needs a Task to reach the blocking
+                // pool); nothing to do at the state level.
+            }
             Message::PingResult { ping_ms, jitter_ms } => {
                 self.ping.update(ping_ms, jitter_ms);
             }
@@ -82,13 +89,12 @@ pub fn subscription() -> Subscription<Message> {
         cosmic::iced::time::every(Duration::from_millis(TICK_BW_MS))
             .map(|_| Message::BandwidthTick),
 
-        // 10 s ping — measure() is synchronous so runs on the subscription
-        // worker thread, keeping the UI responsive.
+        // 10 s ping trigger. measure() blocks up to ~4s (ping -c 4 -W 1), so
+        // it must NOT run inline here — a time::every map executes inside the
+        // stream poll on the executor, parking a runtime worker. The tick
+        // just emits FetchPing; app.rs runs measure() on the blocking pool.
         cosmic::iced::time::every(Duration::from_secs(TICK_PING_S))
-            .map(|_| {
-                let (ping_ms, jitter_ms) = ping::measure();
-                Message::PingResult { ping_ms, jitter_ms }
-            }),
+            .map(|_| Message::FetchPing),
     ])
 }
 
