@@ -32,7 +32,7 @@ pub struct StatsState {
 
     pub cpu_pct:  f32,
     pub ram_pct:  f32,
-    pub gpu_pct:  f32,
+    pub gpu_pct:  Option<f32>,
     pub disk_pct: f32,
 
     // previous /proc/stat values for delta CPU calculation
@@ -51,7 +51,7 @@ impl Default for StatsState {
             disk_history: vec![0.0; HISTORY],
             cpu_pct:      0.0,
             ram_pct:      0.0,
-            gpu_pct:      0.0,
+            gpu_pct:      None,
             disk_pct:     0.0,
             prev_idle:    0,
             prev_total:   0,
@@ -92,8 +92,14 @@ impl StatsState {
         push_capped(&mut self.ram_history, self.ram_pct);
 
         // ── GPU ──────────────────────────────────────────────────────────
-        self.gpu_pct = read_gpu_pct().unwrap_or(self.gpu_pct);
-        push_capped(&mut self.gpu_history, self.gpu_pct);
+        // Non-sticky: a failed read shows a dash rather than holding the last
+        // number, and nothing is pushed to the history — a run of zeros would
+        // draw a floor in the sparkline indistinguishable from a genuinely
+        // idle GPU.
+        self.gpu_pct = read_gpu_pct();
+        if let Some(pct) = self.gpu_pct {
+            push_capped(&mut self.gpu_history, pct);
+        }
 
         // ── Disk ─────────────────────────────────────────────────────────
         // df is a fork+exec to learn a number that moves by the hour —
@@ -192,10 +198,12 @@ fn read_gpu_pct() -> Option<f32> {
     }
 
     // ── Intel (i915 sysfs) ────────────────────────────────────────────────
-    // /sys/class/drm/card*/gt/gt0/rc6_enable (not a utilisation metric)
-    // Better: /sys/class/drm/card*/gt_cur_freq_mhz ratio — not reliable.
-    // Fall back to 0 rather than showing nothing.
-    Some(0.0)
+    // No usable utilisation metric: rc6_enable is a power state, and the
+    // gt_cur_freq_mhz ratio doesn't track load reliably. Nothing to report.
+    //
+    // None, not Some(0.0): a box with no readable GPU was showing a hard 0%,
+    // indistinguishable from an idle card that really is at zero.
+    None
 }
 
 /// Returns disk usage % for the filesystem containing "/".
@@ -219,6 +227,12 @@ fn read_disk_pct() -> Option<f32> {
 
     None
 }
+
+// === DONE ===
+// gpu_pct is Option<f32> — None renders as a dash, not a false 0% :: done
+// read_gpu_pct() returns None when no source is readable :: done
+// Non-sticky: failed read flips to dash, doesn't hold the last value :: done
+// No history push without data — avoids a fake floor in the sparkline :: done
 
 // === DONE ===
 // read_gpu_pct(): NVML via cached OnceLock handle, was fork+exec nvidia-smi :: done

@@ -36,7 +36,7 @@ pub fn view(state: &SystemState) -> Element<'_, Message> {
     let ram_val    = text(fmt_pct(state.stats.ram_pct)).size(9).color(RAM_COLOR);
 
     let gpu_label  = text("GPU").size(9).color(GPU_COLOR);
-    let gpu_val    = text(fmt_pct(state.stats.gpu_pct)).size(9).color(GPU_COLOR);
+    let gpu_val    = text(fmt_opt_pct(state.stats.gpu_pct)).size(9).color(GPU_COLOR);
 
     let disk_label = text("DSK").size(9).color(DISK_COLOR);
     let disk_val   = text(fmt_pct(state.stats.disk_pct)).size(9).color(DISK_COLOR);
@@ -63,6 +63,16 @@ pub fn view(state: &SystemState) -> Element<'_, Message> {
 fn fmt_pct(pct: f32) -> String {
     format!("{:.0}%", pct)
 }
+
+/// Percentage that may be unavailable — no readable GPU shows a dash rather
+/// than 0%, which would be indistinguishable from an idle card.
+fn fmt_opt_pct(pct: Option<f32>) -> String {
+    pct.map(|p| format!("{:.0}%", p))
+        .unwrap_or_else(|| "—".to_string())
+}
+
+// === DONE ===
+// fmt_opt_pct(): GPU shows a dash when there's no readable source :: done
 
 // === DONE ===
 // view(): 140×70 layout — sparkline graph on top, 4-column stats row below :: done
