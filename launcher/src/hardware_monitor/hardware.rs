@@ -2,6 +2,7 @@
 // Copyright 2026 Michael Van Auker (HMRDSmoke)
 // This is my original work with contributions from Claude (Anthropic).
 // Do not remove these comments.
+
 // launcher/src/hardware_monitor/hardware.rs
 // Hardware sampling - CPU/GPU temps, frequencies, and history.
 
@@ -90,13 +91,18 @@ impl HardwareState {
             push_capped(&mut self.cpu_history, t);
         }
 
-        if let Some(gpu) = read_gpu_nvml() {
-            self.gpu_temp_c    = Some(gpu.temp);
-            self.gpu_clock_mhz = Some(gpu.core_clock_mhz);
-            self.gpu_mem_clock  = Some(gpu.mem_clock_mhz);
-            self.gpu_vram_used  = Some(gpu.vram_used_mb);
-            self.gpu_vram_total = Some(gpu.vram_total_mb);
-            push_capped(&mut self.gpu_history, gpu.temp as f32);
+        // NVML first (NVIDIA proprietary), then sysfs (amdgpu/nouveau/i915).
+        // sysfs fills what the driver exposes and leaves the rest None —
+        // amdgpu gives temp+clocks+VRAM, nouveau usually temp only.
+        if let Some(gpu) = read_gpu_nvml().or_else(read_gpu_sysfs) {
+            self.gpu_temp_c     = gpu.temp;
+            self.gpu_clock_mhz  = gpu.core_clock_mhz;
+            self.gpu_mem_clock  = gpu.mem_clock_mhz;
+            self.gpu_vram_used  = gpu.vram_used_mb;
+            self.gpu_vram_total = gpu.vram_total_mb;
+            if let Some(t) = gpu.temp {
+                push_capped(&mut self.gpu_history, t as f32);
+            }
         }
     }
 }
@@ -105,12 +111,14 @@ impl Default for HardwareState {
     fn default() -> Self { Self::new() }
 }
 
+/// Every field optional: NVML supplies all of them, sysfs supplies whatever
+/// the driver exposes. A None field renders as "—" in the view.
 struct GpuSnapshot {
-    temp:           u32,
-    core_clock_mhz: u32,
-    mem_clock_mhz:  u32,
-    vram_used_mb:   u64,
-    vram_total_mb:  u64,
+    temp:           Option<u32>,
+    core_clock_mhz: Option<u32>,
+    mem_clock_mhz:  Option<u32>,
+    vram_used_mb:   Option<u64>,
+    vram_total_mb:  Option<u64>,
 }
 
 fn read_gpu_nvml() -> Option<GpuSnapshot> {
@@ -118,18 +126,110 @@ fn read_gpu_nvml() -> Option<GpuSnapshot> {
 
     let device = nvml()?.device_by_index(0).ok()?;
 
-    let temp           = device.temperature(TemperatureSensor::Gpu).unwrap_or(0);
-    let core_clock_mhz = device.clock(Clock::Graphics, ClockId::Current).unwrap_or(0);
-    let mem_clock_mhz  = device.clock(Clock::Memory,   ClockId::Current).unwrap_or(0);
-    let mem            = device.memory_info().ok()?;
+    // ok() not unwrap_or(0): a failed read is unknown, not zero. Zero is a
+    // legitimate clock value on an idle card, so conflating them would show
+    // a real "0 MHz" indistinguishable from a broken sensor.
+    let temp           = device.temperature(TemperatureSensor::Gpu).ok();
+    let core_clock_mhz = device.clock(Clock::Graphics, ClockId::Current).ok();
+    let mem_clock_mhz  = device.clock(Clock::Memory,   ClockId::Current).ok();
+    let mem            = device.memory_info().ok();
 
     Some(GpuSnapshot {
         temp,
         core_clock_mhz,
         mem_clock_mhz,
-        vram_used_mb:  mem.used  / 1_048_576,
-        vram_total_mb: mem.total / 1_048_576,
+        vram_used_mb:  mem.as_ref().map(|m| m.used  / 1_048_576),
+        vram_total_mb: mem.as_ref().map(|m| m.total / 1_048_576),
     })
+}
+
+// ── sysfs GPU fallback — amdgpu / nouveau / i915 ──────────────────────────────
+//
+// Drivers that aren't NVIDIA-proprietary expose stats through the kernel's
+// DRM and hwmon interfaces instead of a userspace library. Paths:
+//
+//   /sys/class/drm/card*/device/hwmon/hwmon*/name          driver name
+//   /sys/class/drm/card*/device/hwmon/hwmon*/temp1_input   temp, millidegrees
+//   /sys/class/drm/card*/device/hwmon/hwmon*/freq1_input   core clock, Hz
+//   /sys/class/drm/card*/device/hwmon/hwmon*/freq2_input   mem clock, Hz
+//   /sys/class/drm/card*/device/mem_info_vram_used         VRAM used, bytes
+//   /sys/class/drm/card*/device/mem_info_vram_total        VRAM total, bytes
+//
+// amdgpu exposes all of it; nouveau typically temp only; i915 varies.
+
+/// Drivers we recognise, most-preferred first. A box with integrated + discrete
+/// graphics enumerates both, and /sys/class/drm order is not guaranteed — match
+/// on driver name rather than taking whichever card readdir hands over first,
+/// so the discrete card wins instead of the iGPU.
+const GPU_DRIVER_PRIORITY: &[&str] = &["amdgpu", "nouveau", "radeon", "i915", "xe"];
+
+fn read_gpu_sysfs() -> Option<GpuSnapshot> {
+    let mut best: Option<(usize, std::path::PathBuf, std::path::PathBuf)> = None;
+
+    // continue, not `?` — same lesson as read_cpu_temp(): one unreadable node
+    // must not abort the scan, and enumeration order varies by boot.
+    let cards = std::fs::read_dir("/sys/class/drm").ok()?;
+    for card in cards.flatten() {
+        let device = card.path().join("device");
+        let Ok(hwmons) = std::fs::read_dir(device.join("hwmon")) else {
+            continue;
+        };
+
+        for hwmon in hwmons.flatten() {
+            let hwmon_path = hwmon.path();
+            let Ok(name) = std::fs::read_to_string(hwmon_path.join("name")) else {
+                continue;
+            };
+            let name = name.trim();
+
+            let Some(rank) = GPU_DRIVER_PRIORITY.iter().position(|d| *d == name) else {
+                continue;
+            };
+
+            // Lower rank wins; first match at a given rank is kept.
+            if best.as_ref().is_none_or(|(r, _, _)| rank < *r) {
+                best = Some((rank, hwmon_path, device.clone()));
+            }
+        }
+    }
+
+    let (_, hwmon, device) = best?;
+
+    let temp = read_u64(&hwmon.join("temp1_input"))
+        .map(|milli| (milli / 1000) as u32);
+
+    // hwmon freq*_input is Hz; the UI wants MHz.
+    let core_clock_mhz = read_u64(&hwmon.join("freq1_input"))
+        .map(|hz| (hz / 1_000_000) as u32);
+    let mem_clock_mhz = read_u64(&hwmon.join("freq2_input"))
+        .map(|hz| (hz / 1_000_000) as u32);
+
+    let vram_used_mb  = read_u64(&device.join("mem_info_vram_used"))
+        .map(|b| b / 1_048_576);
+    let vram_total_mb = read_u64(&device.join("mem_info_vram_total"))
+        .map(|b| b / 1_048_576);
+
+    // A card that yielded nothing readable is the same as no card at all.
+    if temp.is_none()
+        && core_clock_mhz.is_none()
+        && mem_clock_mhz.is_none()
+        && vram_used_mb.is_none()
+        && vram_total_mb.is_none()
+    {
+        return None;
+    }
+
+    Some(GpuSnapshot {
+        temp,
+        core_clock_mhz,
+        mem_clock_mhz,
+        vram_used_mb,
+        vram_total_mb,
+    })
+}
+
+fn read_u64(path: &std::path::Path) -> Option<u64> {
+    std::fs::read_to_string(path).ok()?.trim().parse::<u64>().ok()
 }
 
 fn read_cpu_temp() -> Option<f32> {
@@ -248,6 +348,15 @@ fn push_capped(v: &mut Vec<f32>, value: f32) {
     v.push(value);
     if v.len() > HISTORY { v.remove(0); }
 }
+
+// === DONE ===
+// GpuSnapshot fields all Option — partial data from sysfs renders as "—" :: done
+// read_gpu_nvml(): .ok() not unwrap_or(0) — failed read is unknown, not zero :: done
+// read_gpu_sysfs(): amdgpu/nouveau/radeon/i915/xe via DRM + hwmon :: done
+// GPU_DRIVER_PRIORITY: driver-name match, discrete wins over iGPU :: done
+// sysfs scan uses continue-not-? so one bad node can't abort it :: done
+// hwmon freq*_input is Hz → MHz; temp1_input is millidegrees → °C :: done
+// All-None snapshot returns None — no card is the same as no data :: done
 
 // === DONE ===
 // read_ram_freq_cached(): reads ~/.cache/soulless/ram_freq.txt first :: done
