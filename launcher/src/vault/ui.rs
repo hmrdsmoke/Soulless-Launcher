@@ -300,7 +300,7 @@ fn unlock_view<'a>(vault: &'a Vault) -> Element<'a, SearchMessage> {
         // column centered the BLOCK while its lines stayed ragged inside it.
         text("This vault cannot be recovered. There is no password reset —\n\
               only permanent destruction.")
-            .size(10)
+            .size(12)
             .align_x(cosmic::iced::alignment::Horizontal::Center)
             .color(Color::from_rgb8(150, 150, 160)),
         space::vertical().height(Length::Fixed(8.0)),
