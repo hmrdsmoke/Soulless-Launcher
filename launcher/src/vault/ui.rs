@@ -541,9 +541,16 @@ fn file_row<'a>(
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
 
+/// The vault surface. Ink black from the theme, not a local constant: the old
+/// hardcoded rgb8(18, 18, 28) was blue-shifted and sat as a visibly foreign
+/// rectangle inside the red right panel.
+///
+/// This is full-bleed — drawers/mod.rs drops the shared right-panel padding for
+/// the vault so this background reaches the panel edges instead of floating in
+/// a red frame. The internal inset comes from each view's own padding.
 fn vault_bg(_: &Theme) -> container::Style {
     container::Style {
-        background: Some(Color::from_rgb8(18, 18, 28).into()),
+        background: Some(crate::ui::theme::get().window_bg.into()),
         border: cosmic::iced::border::rounded(0),
         ..Default::default()
     }

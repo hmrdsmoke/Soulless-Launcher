@@ -237,10 +237,20 @@ pub fn view<'a>(
 
     // ── Pass raw content to ui::panels for styling ───────────────────────
     let toolbox: Element<'a, SearchMessage> = main_toolbox.into();
+    // The vault paints its own full-bleed background, so it takes no outer
+    // padding — with the shared 16px it rendered as a black rectangle floating
+    // inside a red frame. Every other view is content sitting on the red panel
+    // and still wants the inset. show_search_results / show_origin_egg win over
+    // current_open_drawer above, so they must be excluded here too.
+    let vault_full_bleed = matches!(search.current_open_drawer, OpenDrawer::Vault)
+        && !search.show_search_results
+        && !search.show_origin_egg;
+    let right_pad = if vault_full_bleed { 0 } else { 16 };
+
     let right: Element<'a, SearchMessage> = container(right_panel_content)
         .width(Length::Fill)
         .height(Length::Fill)
-        .padding([16, 16, 16, 16])
+        .padding([right_pad, right_pad, right_pad, right_pad])
         .into();
     let base = (toolbox, right);
     if let Some(modal) = &search.drawer_edit {
