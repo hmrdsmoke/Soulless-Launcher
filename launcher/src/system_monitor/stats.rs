@@ -6,6 +6,20 @@
 // System stats sampling - CPU/RAM/GPU/disk history state.
 
 use crate::system_monitor::HISTORY;
+use std::sync::OnceLock;
+
+/// Module-local NVML handle. The hardware monitor keeps its own; the two
+/// widgets stay self-contained so either can be dropped without touching
+/// the other. Cost is one extra dlopen at first use, not per tick.
+///
+/// init() dlopens the driver and handshakes — far too heavy to repeat every
+/// tick. Attempted once, outcome cached (including failure: a box with no
+/// NVIDIA driver stays that way for the session).
+static NVML: OnceLock<Option<nvml_wrapper::Nvml>> = OnceLock::new();
+
+fn nvml() -> Option<&'static nvml_wrapper::Nvml> {
+    NVML.get_or_init(|| nvml_wrapper::Nvml::init().ok()).as_ref()
+}
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -152,18 +166,17 @@ fn parse_kb(line: &str) -> Option<u64> {
     line.split_whitespace().nth(1)?.parse().ok()
 }
 
-/// Returns GPU usage % by trying nvidia-smi, then AMD sysfs.
+/// Returns GPU usage % by trying NVML, then AMD sysfs.
 /// Returns None if no GPU info is available.
 fn read_gpu_pct() -> Option<f32> {
     // ── NVIDIA ────────────────────────────────────────────────────────────
-    if let Ok(out) = std::process::Command::new("nvidia-smi")
-        .args(["--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"])
-        .output()
-        && out.status.success() {
-            let s = String::from_utf8_lossy(&out.stdout);
-            if let Ok(v) = s.trim().parse::<f32>() {
-                return Some(v.clamp(0.0, 100.0));
-            }
+    // NVML, not `nvidia-smi`: shelling out was a fork+exec every tick to
+    // learn one integer, and it needed the binary on PATH. The library call
+    // reads the same counter through the cached handle.
+    if let Some(nvml) = nvml()
+        && let Ok(device) = nvml.device_by_index(0)
+        && let Ok(util) = device.utilization_rates() {
+            return Some((util.gpu as f32).clamp(0.0, 100.0));
         }
 
     // ── AMD (amdgpu sysfs) ────────────────────────────────────────────────
@@ -206,6 +219,11 @@ fn read_disk_pct() -> Option<f32> {
 
     None
 }
+
+// === DONE ===
+// read_gpu_pct(): NVML via cached OnceLock handle, was fork+exec nvidia-smi :: done
+// NVML handle is module-local — system_monitor stays independent of
+// hardware_monitor so either widget can be dropped alone :: done
 
 // === DONE ===
 // StatsState: rolling HISTORY-sample histories for CPU/RAM/GPU/Disk :: done
