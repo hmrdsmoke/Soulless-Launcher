@@ -10,18 +10,11 @@ pub mod graph;
 pub mod view;
 
 use cosmic::iced::{Element, Subscription};
-use std::time::Duration;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 /// Number of frametime samples kept for the sparkline.
 pub const HISTORY: usize = 60;
-
-/// Deliberately 16ms: the tick IS the probe. A healthy loop services the
-/// timer on schedule and reads ~60; a bogged loop slips ticks and the
-/// number drops. Self-measuring responsiveness — do not "optimize" this
-/// to a slower cadence or the readout becomes meaningless.
-const TICK_FPS_MS: u64 = 16;
 
 // ── Message ───────────────────────────────────────────────────────────────────
 
@@ -68,14 +61,23 @@ pub fn view(state: &FpsMonitorState) -> Element<'_, Message> {
 // ── Subscription ─────────────────────────────────────────────────────────────
 
 pub fn subscription() -> Subscription<Message> {
-    cosmic::iced::time::every(Duration::from_millis(TICK_FPS_MS))
-        .map(|_| Message::FpsTick)
+    // Real frame callbacks, not a fixed timer. wayland_frames() fires on the
+    // compositor's wl_surface.frame callback (and iced's RedrawRequested),
+    // so the interval between ticks IS the true frame interval — and fps.rs,
+    // which just times the gap between ticks and divides, now reports actual
+    // frames rather than "did the event loop service a 16ms timer."
+    //
+    // Reactive consequence: iced only paints when the surface has a reason to,
+    // so at full idle this fires rarely and the readout drops toward zero. It
+    // climbs to the real refresh rate during interaction and while the monitor
+    // graphs are repainting. That's honest — it measures frames actually drawn.
+    cosmic::iced::window::wayland_frames().map(|_| Message::FpsTick)
 }
 
 // === DONE ===
 // FpsMonitorState: wraps FpsState :: done
 // Message: FpsTick :: done
 // update(): dispatches tick :: done
-// subscription(): 500ms poll :: done
+// subscription(): ticks on real wl_surface.frame callbacks (wayland_frames) :: done
 // view(): delegates to view::view() :: done
 // HISTORY constant shared with fps.rs :: done
