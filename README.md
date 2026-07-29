@@ -17,6 +17,8 @@ This is the toolbox you need to organize the tools you use.
 - **File organizer** — background watcher that detects misplaced files and suggests moves system-wide
 - **Stable app IDs** — apps pinned to drawers survive renames and reinstalls via UUID registry
 - **Live system monitors** — network, CPU, GPU, RAM, FPS, disk built in
+- **Widget pages** — yellow/black dots under the toolbox flip the widget area between pages
+- **Scratch terminal** — a page-sized command box for quick one-liners; run it, read it, your working terminal stays clean
 - **Custom backgrounds** — drop any image into `~/.config/soulless/backgrounds/`
 - **Instant startup** — disk cache means it opens instantly every time
 - **Keyboard navigation** — Tab cycles drawers, arrow keys navigate grid, Enter launches, Ctrl+1-9 jumps to drawer
