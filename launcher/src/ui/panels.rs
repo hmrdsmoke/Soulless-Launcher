@@ -15,20 +15,18 @@ use cosmic::iced::widget::{column, container, row, space};
 pub fn compose<'a, M: 'static + Clone + Send>(
     toolbox: Element<'a, M>,
     right: Element<'a, M>,
-    net: Element<'a, M>,
-    sys: Element<'a, M>,
-    hw: Element<'a, M>,
-    fps: Element<'a, M>,
+    dots: Element<'a, M>,
+    widgets: Element<'a, M>,
     bg_handle: Option<cosmic::iced::widget::image::Handle>,
 ) -> Element<'a, M> {
-    let monitors = monitor_grid(net, sys, hw, fps);
-
-    // Left column: steel toolbox + widgets below
+    // Left column: steel toolbox, then the dot strip in the black band,
+    // then the page area (monitor grid or terminal box).
     let left_col = column![
         launcher_steel(toolbox),
-        monitors,
+        dots,
+        widgets,
     ]
-    .spacing(12)
+    .spacing(8)
     .width(Length::Fixed(TOOLBOX_WIDTH));
 
     // Right panel: full height
@@ -149,7 +147,7 @@ fn right_content_panel<'a, M: 'static + Clone + Send>(
 }
 
 // TODO: move to ui/widgets.rs — see refactor plan
-fn monitor_grid<'a, M: 'static + Clone + Send>(
+pub fn monitor_grid<'a, M: 'static + Clone + Send>(
     net: Element<'a, M>,
     sys: Element<'a, M>,
     hw: Element<'a, M>,
@@ -170,11 +168,28 @@ fn monitor_grid<'a, M: 'static + Clone + Send>(
         row![hw, fps].spacing(theme::get().widget_spacing),
     ]
     .spacing(4)
-    .padding([8, 0, 4, 0])
+    .padding([0, 0, 4, 0])
     .into()
 }
 
 // TODO: move to ui/widgets.rs — see refactor plan
+/// The Terminal page: one box wearing the entire 2x2 footprint — two widget
+/// heights plus the 4px row gap, full toolbox width, same chrome. Identical
+/// envelope to monitor_grid so pages swap without the layout moving.
+pub fn terminal_frame<'a, M: 'static + Clone + Send>(
+    inner: Element<'a, M>,
+) -> Element<'a, M> {
+    let full_height = theme::get().widget_height * 2.0 + 4.0;
+    container(
+        container(inner)
+            .width(Length::Fill)
+            .height(Length::Fixed(full_height))
+            .style(widget_style),
+    )
+    .padding([0, 0, 4, 0])
+    .into()
+}
+
 fn widget_style(_: &cosmic::iced::Theme) -> cosmic::iced::widget::container::Style {
     cosmic::iced::widget::container::Style {
         background: Some(theme::get().widget_bg.into()),

@@ -36,6 +36,8 @@ pub enum Message {
     System(SystemMessage),
     Hardware(HardwareMessage),
     Fps(FpsMessage),
+    Terminal(crate::terminal::Message),
+    PageSelected(crate::ui::pages::Page),
     WindowEvent(cosmic::iced::Event),
     WindowOpened(cosmic::iced::window::Id),
     /// A surface's compositor configure: (surface id, logical size).
@@ -112,6 +114,8 @@ pub struct Soulless {
     system:     crate::system_monitor::SystemState,
     hardware:   crate::hardware_monitor::HardwareMonitorState,
     fps:        crate::fps_monitor::FpsMonitorState,
+    terminal:   crate::terminal::TerminalBox,
+    page:       crate::ui::pages::Page,
     organizer:  soulless_organizer::OrganizerState,
     config:     crate::config::SoullessConfig,
     bg_handle:  Option<cosmic::iced::widget::image::Handle>,
@@ -201,6 +205,8 @@ impl cosmic::Application for Soulless {
                 system:     crate::system_monitor::SystemState::new(),
                 hardware:   crate::hardware_monitor::HardwareMonitorState::new(),
                 fps:        crate::fps_monitor::FpsMonitorState::new(),
+                terminal:   crate::terminal::TerminalBox::new(),
+                page:       crate::ui::pages::Page::Monitors,
                 organizer: soulless_organizer::OrganizerState::new(),
                 config,
                 bg_handle,
@@ -225,6 +231,17 @@ impl cosmic::Application for Soulless {
 
     fn update(&mut self, message: Self::Message) -> Task<cosmic::Action<Self::Message>> {
         match message {
+            Message::Terminal(msg) => self
+                .terminal
+                .update(msg)
+                .map(Message::Terminal)
+                .map(cosmic::Action::App),
+
+            Message::PageSelected(p) => {
+                self.page = p;
+                Task::none()
+            }
+
             Message::Network(msg) => {
                 // Ping runs on the blocking pool: measure() shells
                 // `ping -c 4 -W 1` and parks up to ~4s. Inline in update or
@@ -582,6 +599,12 @@ impl cosmic::Application for Soulless {
                 }
             }
             Message::EnterPressed => {
+                // Terminal page owns Enter: the box's on_submit runs the
+                // command. Without this gate the global listener would ALSO
+                // launch the focused search result and dismiss the window.
+                if self.page == crate::ui::pages::Page::Terminal {
+                    return Task::none();
+                }
                 if let Some(idx) = self.search.focused_app_idx
                     && let Some(exec) = self.search.focused_exec(idx) {
                         self.search.record_launch_by_exec(&exec);
@@ -615,18 +638,27 @@ impl cosmic::Application for Soulless {
 
     fn view(&self) -> Element<'_, Self::Message> {
         let (toolbox, right, _drop_zone, menu_overlay) = crate::drawers::view(&self.search);
-        let net = if self.config.show_system_monitor {
-            crate::network_monitor::view(&self.network).map(Message::Network)
-        } else { cosmic::iced::widget::space::horizontal().into() };
-        let sys = if self.config.show_system_monitor {
-            crate::system_monitor::view(&self.system).map(Message::System)
-        } else { cosmic::iced::widget::space::horizontal().into() };
-        let hw = if self.config.show_system_monitor {
-            crate::hardware_monitor::view(&self.hardware).map(Message::Hardware)
-        } else { cosmic::iced::widget::space::horizontal().into() };
-        let fps = if self.config.show_system_monitor {
-            crate::fps_monitor::view(&self.fps).map(Message::Fps)
-        } else { cosmic::iced::widget::space::horizontal().into() };
+        let page_area: cosmic::iced::Element<'_, Message> = match self.page {
+            crate::ui::pages::Page::Monitors => {
+                let net = if self.config.show_system_monitor {
+                    crate::network_monitor::view(&self.network).map(Message::Network)
+                } else { cosmic::iced::widget::space::horizontal().into() };
+                let sys = if self.config.show_system_monitor {
+                    crate::system_monitor::view(&self.system).map(Message::System)
+                } else { cosmic::iced::widget::space::horizontal().into() };
+                let hw = if self.config.show_system_monitor {
+                    crate::hardware_monitor::view(&self.hardware).map(Message::Hardware)
+                } else { cosmic::iced::widget::space::horizontal().into() };
+                let fps = if self.config.show_system_monitor {
+                    crate::fps_monitor::view(&self.fps).map(Message::Fps)
+                } else { cosmic::iced::widget::space::horizontal().into() };
+                crate::ui::panels::monitor_grid(net, sys, hw, fps)
+            }
+            crate::ui::pages::Page::Terminal => crate::ui::panels::terminal_frame(
+                crate::terminal::view(&self.terminal).map(Message::Terminal),
+            ),
+        };
+        let dots = crate::ui::pages::dot_strip(self.page, Message::PageSelected);
         let banner = if self.config.organizer_enabled {
             crate::ui::organizer::organizer_banner(&self.organizer, Message::Organizer)
         } else { None };
@@ -641,7 +673,8 @@ impl cosmic::Application for Soulless {
                 col.into()
             },
             right.map(Message::Search),
-            net, sys, hw, fps,
+            dots,
+            page_area,
             self.bg_handle.clone(),
         );
         let composed = match menu_overlay {
@@ -777,6 +810,8 @@ impl cosmic::Application for Soulless {
                     // Creating the layer surface synchronously here does NOT map it.
                     self.search.refresh_index();
                     self.search.reset_to_default();
+                    self.terminal.reset();
+                    self.page = crate::ui::pages::Page::Monitors;
                     self.surface_open = true;
                     eprintln!("[launcher] deferring surface creation via ShowSurface");
                     cosmic::task::message(cosmic::Action::App(Message::ShowSurface))
@@ -792,6 +827,8 @@ impl cosmic::Application for Soulless {
                 } else {
                     self.search.refresh_index();
                     self.search.reset_to_default();
+                    self.terminal.reset();
+                    self.page = crate::ui::pages::Page::Monitors;
                     self.surface_open = true;
                     crate::position::placement::LauncherPosition::open(
                         self.window_id,

@@ -7,6 +7,7 @@
 
 pub mod theme;
 pub mod panels;
+pub mod pages;
 pub mod widgets;
 
 /// Focus tasks — run once when the real launcher window opens.
