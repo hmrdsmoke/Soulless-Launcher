@@ -42,24 +42,24 @@ pub fn view(state: &FpsMonitorState) -> Element<'_, Message> {
 
     // ── Average ───────────────────────────────────────────────────────────────
     let avg_col = column![
-        text("avg").size(9).color(AVG_COLOR),
-        text(fmt_fps(fps.fps_avg)).size(9).color(AVG_COLOR),
+        text("avg").size(sc(9.0)).color(AVG_COLOR),
+        text(fmt_fps(fps.fps_avg)).size(sc(9.0)).color(AVG_COLOR),
     ]
     .spacing(1)
     .width(Length::Fill);
 
     // ── 1% low ────────────────────────────────────────────────────────────────
     let low_col = column![
-        text("1%lo").size(9).color(LOW_COLOR),
-        text(fmt_fps(fps.fps_1_low)).size(9).color(LOW_COLOR),
+        text("1%lo").size(sc(9.0)).color(LOW_COLOR),
+        text(fmt_fps(fps.fps_1_low)).size(sc(9.0)).color(LOW_COLOR),
     ]
     .spacing(1)
     .width(Length::Fill);
 
     // ── Frametime ─────────────────────────────────────────────────────────────
     let ft_col = column![
-        text("ft").size(9).color(FPS_COLOR),
-        text(fmt_ft(fps.frametime_ms)).size(9).color(FPS_COLOR),
+        text("ft").size(sc(9.0)).color(FPS_COLOR),
+        text(fmt_ft(fps.frametime_ms)).size(sc(9.0)).color(FPS_COLOR),
     ]
     .spacing(1)
     .width(Length::Fill);
@@ -69,8 +69,8 @@ pub fn view(state: &FpsMonitorState) -> Element<'_, Message> {
 
     // ── Big FPS bottom line ───────────────────────────────────────────────────
     let fps_row = row![
-        text("fps").size(9).color(live_color),
-        text(fmt_fps(fps.fps)).size(14).color(live_color),
+        text("fps").size(sc(9.0)).color(live_color),
+        text(fmt_fps(fps.fps)).size(sc(14.0)).color(live_color),
     ].spacing(4).align_y(cosmic::iced::alignment::Vertical::Bottom);
 
     container(
@@ -107,3 +107,4 @@ fn fmt_ft(ms: f32) -> String {
 // ft col: latest frametime in ms :: done
 // fmt_fps(): shows — when no game active :: done
 // fmt_ft(): shows — when no game active :: done
+fn sc(base: f32) -> f32 { base * crate::ui::theme::get().widget_scale }

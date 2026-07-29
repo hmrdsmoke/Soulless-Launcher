@@ -27,17 +27,17 @@ pub fn view(state: &NetworkState) -> Element<'_, Message> {
     .into();
 
     // ── Stats row ──────────────────────────────────────────────────────────
-    let down_label = text("↓").size(9).color(DOWN_COLOR);
-    let down_val   = text(fmt_speed(state.bandwidth.down_kbps)).size(9).color(DOWN_COLOR);
+    let down_label = text("↓").size(sc(9.0)).color(DOWN_COLOR);
+    let down_val   = text(fmt_speed(state.bandwidth.down_kbps)).size(sc(9.0)).color(DOWN_COLOR);
 
-    let up_label   = text("↑").size(9).color(UP_COLOR);
-    let up_val     = text(fmt_speed(state.bandwidth.up_kbps)).size(9).color(UP_COLOR);
+    let up_label   = text("↑").size(sc(9.0)).color(UP_COLOR);
+    let up_val     = text(fmt_speed(state.bandwidth.up_kbps)).size(sc(9.0)).color(UP_COLOR);
 
-    let ping_label = text("ping").size(9).color(PING_COLOR);
-    let ping_val   = text(fmt_ping(state.ping.ping_ms)).size(9).color(PING_COLOR);
+    let ping_label = text("ping").size(sc(9.0)).color(PING_COLOR);
+    let ping_val   = text(fmt_ping(state.ping.ping_ms)).size(sc(9.0)).color(PING_COLOR);
 
-    let jitter_label = text("jitr").size(9).color(JITTER_COLOR);
-    let jitter_val   = text(fmt_jitter(state.ping.jitter_ms)).size(9).color(JITTER_COLOR);
+    let jitter_label = text("jitr").size(sc(9.0)).color(JITTER_COLOR);
+    let jitter_val   = text(fmt_jitter(state.ping.jitter_ms)).size(sc(9.0)).color(JITTER_COLOR);
 
     let stats = row![
         column![down_label,   down_val  ].spacing(1).width(Length::Fill),
@@ -80,3 +80,4 @@ fn fmt_jitter(ms: f32) -> String {
 // view(): 140×70 layout — sparkline graph on top, 4-column stats row below :: done
 // fmt_speed(): auto-scales K/M :: done
 // fmt_ping() / fmt_jitter(): shows — before first measurement :: done
+fn sc(base: f32) -> f32 { base * crate::ui::theme::get().widget_scale }

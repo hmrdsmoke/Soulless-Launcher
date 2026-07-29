@@ -101,8 +101,8 @@ impl Default for ThemeColors {
             widget_bg: Color { r: 0.118, g: 0.118, b: 0.118, a: 0.9 },
             widget_border: Color { r: 0.3, g: 0.3, b: 0.3, a: 0.4 },
             widget_corner_radius: 0.0,
-            widget_scale: 0.75,
-            widget_height: 95.0,
+            widget_scale: 1.0,
+            widget_height: 122.0,
             widget_spacing: 4,
 
             drawer_btn_bg: Color { r: 0.08, g: 0.08, b: 0.09, a: 1.0 },

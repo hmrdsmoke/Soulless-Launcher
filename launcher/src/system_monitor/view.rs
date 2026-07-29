@@ -29,17 +29,17 @@ pub fn view(state: &SystemState) -> Element<'_, Message> {
     .into();
 
     // ── Stats row ──────────────────────────────────────────────────────────
-    let cpu_label  = text("CPU").size(9).color(CPU_COLOR);
-    let cpu_val    = text(fmt_pct(state.stats.cpu_pct)).size(9).color(CPU_COLOR);
+    let cpu_label  = text("CPU").size(sc(9.0)).color(CPU_COLOR);
+    let cpu_val    = text(fmt_pct(state.stats.cpu_pct)).size(sc(9.0)).color(CPU_COLOR);
 
-    let ram_label  = text("RAM").size(9).color(RAM_COLOR);
-    let ram_val    = text(fmt_pct(state.stats.ram_pct)).size(9).color(RAM_COLOR);
+    let ram_label  = text("RAM").size(sc(9.0)).color(RAM_COLOR);
+    let ram_val    = text(fmt_pct(state.stats.ram_pct)).size(sc(9.0)).color(RAM_COLOR);
 
-    let gpu_label  = text("GPU").size(9).color(GPU_COLOR);
-    let gpu_val    = text(fmt_opt_pct(state.stats.gpu_pct)).size(9).color(GPU_COLOR);
+    let gpu_label  = text("GPU").size(sc(9.0)).color(GPU_COLOR);
+    let gpu_val    = text(fmt_opt_pct(state.stats.gpu_pct)).size(sc(9.0)).color(GPU_COLOR);
 
-    let disk_label = text("DSK").size(9).color(DISK_COLOR);
-    let disk_val   = text(fmt_pct(state.stats.disk_pct)).size(9).color(DISK_COLOR);
+    let disk_label = text("DSK").size(sc(9.0)).color(DISK_COLOR);
+    let disk_val   = text(fmt_pct(state.stats.disk_pct)).size(sc(9.0)).color(DISK_COLOR);
 
     let stats = row![
         column![cpu_label,  cpu_val ].spacing(1).width(Length::Fill),
@@ -77,3 +77,4 @@ fn fmt_opt_pct(pct: Option<f32>) -> String {
 // === DONE ===
 // view(): 140×70 layout — sparkline graph on top, 4-column stats row below :: done
 // fmt_pct(): formats percentage value :: done
+fn sc(base: f32) -> f32 { base * crate::ui::theme::get().widget_scale }

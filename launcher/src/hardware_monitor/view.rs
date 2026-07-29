@@ -45,9 +45,9 @@ pub fn view(state: &HardwareMonitorState) -> Element<'_, Message> {
         .unwrap_or_else(|| "—".to_string());
 
     let cpu_col = column![
-        text("cpu").size(9).color(CPU_COLOR),
-        text(cpu_temp_str).size(9).color(cpu_temp_color),
-        text(fmt_cpu_freq(hw.cpu_freq_mhz)).size(9).color(CPU_COLOR),
+        text("cpu").size(sc(9.0)).color(CPU_COLOR),
+        text(cpu_temp_str).size(sc(9.0)).color(cpu_temp_color),
+        text(fmt_cpu_freq(hw.cpu_freq_mhz)).size(sc(9.0)).color(CPU_COLOR),
     ]
     .spacing(1)
     .width(Length::Fill);
@@ -64,9 +64,9 @@ pub fn view(state: &HardwareMonitorState) -> Element<'_, Message> {
         .unwrap_or_else(|| "—".to_string());
 
     let gpu_col = column![
-        text("gpu").size(9).color(GPU_COLOR),
-        text(gpu_temp_str).size(9).color(gpu_temp_color),
-        text(gpu_clock_str).size(9).color(GPU_COLOR),
+        text("gpu").size(sc(9.0)).color(GPU_COLOR),
+        text(gpu_temp_str).size(sc(9.0)).color(gpu_temp_color),
+        text(gpu_clock_str).size(sc(9.0)).color(GPU_COLOR),
     ]
     .spacing(1)
     .width(Length::Fill);
@@ -77,9 +77,9 @@ pub fn view(state: &HardwareMonitorState) -> Element<'_, Message> {
         .unwrap_or_else(|| "—".to_string());
 
     let ram_col = column![
-        text("ram").size(9).color(RAM_COLOR),
-        text(ram_freq_str).size(9).color(RAM_COLOR),
-        text("").size(9),
+        text("ram").size(sc(9.0)).color(RAM_COLOR),
+        text(ram_freq_str).size(sc(9.0)).color(RAM_COLOR),
+        text("").size(sc(9.0)),
     ]
     .spacing(1)
     .width(Length::Fill);
@@ -139,3 +139,4 @@ fn fmt_cpu_freq(mhz: u64) -> String {
 // temp_color() wired — hot red, warm orange, cool stays accent colour :: done
 // fmt_freq(): auto-scales MHz → GHz :: done
 // fmt_ram(): auto-scales MB → GB :: done
+fn sc(base: f32) -> f32 { base * crate::ui::theme::get().widget_scale }
