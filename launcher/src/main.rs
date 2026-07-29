@@ -12,6 +12,7 @@ mod network_monitor;
 mod system_monitor;
 mod hardware_monitor;
 mod fps_monitor;
+mod terminal;
 mod keybinds;
 mod position;
 mod search;
