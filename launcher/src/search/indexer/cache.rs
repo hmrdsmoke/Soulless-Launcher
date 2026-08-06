@@ -131,6 +131,19 @@ fn source_dirs(source: &str) -> Vec<PathBuf> {
                 PathBuf::from(hostpath::host("/usr/local/share/man/man1")),
             ]
         }
-        _ => Vec::new(), // steam/wine/jetbrains/appimage: time-based only for now
+        // AppImages appear/disappear as bare files in these dirs — deleting
+        // one (including via right-click uninstall) must invalidate, or the
+        // ghost tile rents for a day. Mirrors appimage.rs's scan list.
+        "snap" => vec![
+            home.join("Applications"),
+            home.join("AppImages"),
+            home.join("Downloads"),
+        ],
+        // Steam installs/uninstalls rewrite appmanifest_*.acf here.
+        "steam" => vec![
+            home.join(".steam/steam/steamapps"),
+            home.join(".local/share/Steam/steamapps"),
+        ],
+        _ => Vec::new(), // wine/jetbrains: time-based only for now
     }
 }
