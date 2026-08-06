@@ -974,6 +974,42 @@ impl Search {
             let mut results: Vec<usize> =
                 scored.into_iter().map(|(_, i)| i).collect();
             self.tier_sort(&mut results);
+
+            // The smart view answers first — then anything actually NAMED
+            // that. Same prefix/fuzzy/contains gauntlet as a normal query,
+            // minus whatever the smart set already claimed, appended behind.
+            // Kills reserved words: a folder named "game" is reachable
+            // through the `game` query instead of shadowed by it. Uniform
+            // across every smart query by design.
+            let smart_set: std::collections::HashSet<usize> =
+                results.iter().copied().collect();
+            let mut tail: Vec<usize> = self.all_apps.iter().enumerate()
+                .filter(|(i, app)| !smart_set.contains(i)
+                    && app.lower_name.starts_with(&query))
+                .map(|(i, _)| i)
+                .collect();
+            let mut exclude = smart_set;
+            exclude.extend(tail.iter().copied());
+            let fuzzy = self.fuzzy_results(&query, usize::MAX, &exclude);
+            exclude.extend(fuzzy.iter().copied());
+            tail.extend(fuzzy);
+            let contains: Vec<usize> = self.all_apps.iter().enumerate()
+                .filter(|(i, app)| !exclude.contains(i)
+                    && app.lower_name.contains(&query))
+                .map(|(i, _)| i)
+                .collect();
+            tail.extend(contains);
+            if !tail.is_empty() {
+                let mut scored: Vec<(u32, usize)> = tail.into_iter()
+                    .map(|i| (query::score_app(&self.all_apps[i], &query, now), i))
+                    .collect();
+                scored.sort_by_key(|(s, _)| std::cmp::Reverse(*s));
+                let mut tail: Vec<usize> =
+                    scored.into_iter().map(|(_, i)| i).collect();
+                self.tier_sort(&mut tail);
+                results.extend(tail);
+            }
+
             self.filtered_apps = results;
             self.show_search_results = true;
             return;
