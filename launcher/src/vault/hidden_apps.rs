@@ -20,8 +20,12 @@
 // ── The filter ────────────────────────────────────────────────────────────────
 // The search index is built at startup, BEFORE the vault is unlocked, so the
 // launcher must know which source IDs to drop WITHOUT the vault key. The filter
-// (hidden_apps/.filter) holds one Blake2b hash per hidden app:
+// (hidden_apps/.filter) holds two Blake2b hashes per hidden app:
 //     Blake2b512( "soulless-hidden-v1" || per-install salt || source_id )
+//     Blake2b512( "soulless-hidden-v1" || per-install salt || "name:<lower name>" )
+// The second key exists because the index dedups by lowercase name — the name
+// IS the display identity — so a hidden app stays hidden when the same game
+// arrives through another source (Steam appmanifest vs its .desktop shortcut).
 // Hashes — not plaintext IDs — because the .meta names are encrypted precisely
 // so hidden apps aren't identifiable while locked; a plaintext "steam:238960"
 // line would leak the same information the encryption protects. The per-install
@@ -122,7 +126,7 @@ pub fn hide(
     // Record in the filter so the app stays out of the search index across
     // restarts, locked or unlocked. On failure, roll back the blob + meta so
     // nothing is left hidden-but-unfiltered.
-    if let Err(e) = filter_add(source_id) {
+    if let Err(e) = filter_add(&[source_id, &name_key(name)]) {
         let _ = std::fs::remove_file(dir.join(format!("{id}{HIDDEN_ENC_EXT}")));
         let _ = std::fs::remove_file(dir.join(format!("{id}{HIDDEN_META_EXT}")));
         return Err(e);
@@ -183,9 +187,12 @@ pub fn unhide(key: &[u8], app: &HiddenApp) -> Result<(), String> {
             .map_err(|e| format!("Could not restore .desktop: {e}"))?;
     }
 
+    let name_k = name_key(&app.meta.name);
+    let mut removals: Vec<&str> = vec![name_k.as_str()];
     if let Some(source_id) = &app.meta.source_id {
-        filter_remove(source_id)?;
+        removals.push(source_id);
     }
+    filter_remove(&removals)?;
 
     let _ = std::fs::remove_file(&enc_path);
     let _ = std::fs::remove_file(dir.join(format!("{}{}", app.id, HIDDEN_META_EXT)));
@@ -244,8 +251,14 @@ fn hash_id(salt: &[u8], source_id: &str) -> String {
         .collect()
 }
 
-/// Add a source ID's hash to the filter file (idempotent).
-fn filter_add(source_id: &str) -> Result<(), String> {
+/// Filter key for an app's display name. Lowercased, namespaced so it can
+/// never collide with a real source id (no indexer mints "name:" ids).
+pub fn name_key(name: &str) -> String {
+    format!("name:{}", name.to_lowercase())
+}
+
+/// Add key hashes to the filter file (idempotent, one write for all keys).
+fn filter_add(keys: &[&str]) -> Result<(), String> {
     let salt = super::read_salt()
         .ok_or_else(|| "Vault salt missing — cannot record hidden app.".to_string())?;
     let mut hashes: HashSet<String> = std::fs::read_to_string(filter_path())
@@ -256,24 +269,27 @@ fn filter_add(source_id: &str) -> Result<(), String> {
                 .collect()
         })
         .unwrap_or_default();
-    hashes.insert(hash_id(&salt, source_id));
+    for key in keys {
+        hashes.insert(hash_id(&salt, key));
+    }
     write_filter(&hashes)
 }
 
 /// Remove a source ID's hash from the filter file. Deletes the file when the
 /// last entry goes, keeping the vault dir clean.
-fn filter_remove(source_id: &str) -> Result<(), String> {
+fn filter_remove(keys: &[&str]) -> Result<(), String> {
     let Some(salt) = super::read_salt() else {
         return Ok(()); // no salt → nothing was ever filtered
     };
     let Ok(text) = std::fs::read_to_string(filter_path()) else {
         return Ok(()); // no filter file → nothing to remove
     };
-    let target = hash_id(&salt, source_id);
+    let targets: HashSet<String> =
+        keys.iter().map(|k| hash_id(&salt, k)).collect();
     let hashes: HashSet<String> = text
         .lines()
         .map(|l| l.trim().to_string())
-        .filter(|l| !l.is_empty() && *l != target)
+        .filter(|l| !l.is_empty() && !targets.contains(l))
         .collect();
     if hashes.is_empty() {
         let _ = std::fs::remove_file(filter_path());

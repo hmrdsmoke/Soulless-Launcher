@@ -1195,7 +1195,24 @@ fn shell_escape(path: &str) -> String {
 fn build_index_filtered() -> Vec<AppEntry> {
     let mut apps = build_index();
     let filter = crate::vault::hidden_apps::HiddenFilter::load();
-    apps.retain(|a| !filter.is_hidden(&a.id));
+    apps.retain(|a| {
+        if filter.is_hidden(&a.id) {
+            return false;
+        }
+        // Twin-door guard: the index dedups by lowercase name, so the name is
+        // the display identity. Check it too, or hiding a Steam game's
+        // .desktop shortcut lets the appmanifest twin walk back in on the
+        // next rebuild (and get first_seen-stamped as brand new — straight
+        // to the top of the fresh row). Files/folders keep path identity.
+        if matches!(
+            a.source,
+            crate::search::indexer::AppSource::File
+                | crate::search::indexer::AppSource::Folder
+        ) {
+            return true;
+        }
+        !filter.is_hidden(&crate::vault::hidden_apps::name_key(&a.lower_name))
+    });
     apps
 }
 
