@@ -947,7 +947,7 @@ fn context_menu_view<'a>(menu: &'a ContextMenu, drawer_names: &[String]) -> Elem
         .padding(8)
         .width(Length::Fixed(260.0))
         .into(),
-        ContextMenu::SearchApp { app_id, exec } => {
+        ContextMenu::SearchApp { app_id, exec, uninstall_armed } => {
             let mut items = column![
                 menu_item("↗ Launch", SearchMessage::AppClicked(exec.clone())),
             ]
@@ -963,6 +963,20 @@ fn context_menu_view<'a>(menu: &'a ContextMenu, drawer_names: &[String]) -> Elem
                 "🔒 Add to vault",
                 SearchMessage::HideApp(app_id.clone()),
             ));
+            if crate::search::can_uninstall(exec) {
+                items = items.push(menu_divider());
+                if *uninstall_armed {
+                    items = items.push(menu_item(
+                        "🗑 Confirm uninstall?",
+                        SearchMessage::ConfirmUninstall(app_id.clone()),
+                    ));
+                } else {
+                    items = items.push(menu_item(
+                        "🗑 Uninstall",
+                        SearchMessage::RequestUninstall(app_id.clone()),
+                    ));
+                }
+            }
             container(items)
                 .style(context_menu_style)
                 .padding(8)

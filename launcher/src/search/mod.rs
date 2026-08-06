@@ -49,6 +49,8 @@ pub enum Message {
     RightClickDrawerFile(String, String),   // (drawer_name, file_path)
     RightClickSearchApp(String, String),    // (app_id, exec)
     HideApp(String),                         // app_id → hide into vault (any source)
+    RequestUninstall(String),                // app_id → arm the confirm step
+    ConfirmUninstall(String),                // app_id → execute per-source uninstall
     ShowHiddenMenu(String),                  // hidden-app id → open its menu
     RemoveFromVault(String),                 // hidden-app id → unhide (restores .desktop if it had one)
     CloseContextMenu,
@@ -137,6 +139,8 @@ pub enum ContextMenu {
     SearchApp {
         app_id: String,
         exec: String,
+        /// Two-step uninstall confirm: first click arms, second executes.
+        uninstall_armed: bool,
     },
 }
 
@@ -417,6 +421,7 @@ impl Search {
                     Some(ContextMenu::SearchApp {
                         app_id,
                         exec,
+                        uninstall_armed: false,
                     });
                 None
             }
@@ -437,6 +442,58 @@ impl Search {
                 self.context_menu = None;
 
                 None
+            }
+            Message::RequestUninstall(app_id) => {
+                // Rearm the open menu in place — second click executes.
+                if let Some(ContextMenu::SearchApp { app_id: id, uninstall_armed, .. }) =
+                    &mut self.context_menu
+                {
+                    if *id == app_id {
+                        *uninstall_armed = true;
+                    }
+                }
+                None
+            }
+            Message::ConfirmUninstall(app_id) => {
+                self.context_menu = None;
+                let Some(entry) = self.all_apps.iter().find(|a| a.id == app_id).cloned() else {
+                    return None;
+                };
+                match uninstall_plan(&entry) {
+                    Some(UninstallPlan::Steam { appid }) => {
+                        // Valve's dialog does the confirming; the spawn path
+                        // dismisses us so it isn't buried under the Exclusive
+                        // keyboard layer. Tile stays until the next summon's
+                        // refresh — the dialog can be cancelled, and dropping
+                        // the tile now would lie.
+                        Some(format!("steam steam://uninstall/{appid}"))
+                    }
+                    Some(UninstallPlan::Flatpak { flatpak_id }) => {
+                        // -y: no TTY to answer prompts. Spawn path dismisses;
+                        // the flatpak dirs' mtime change makes the next
+                        // summon's refresh_index sweep the tile.
+                        Some(format!("flatpak uninstall -y {flatpak_id}"))
+                    }
+                    Some(UninstallPlan::AppImage { file, desktop_litter }) => {
+                        // We own the file — delete directly, stay open, drop
+                        // the tile only on success. No optimism.
+                        match std::fs::remove_file(&file) {
+                            Ok(()) => {
+                                if let Some(dp) = desktop_litter {
+                                    let _ = std::fs::remove_file(&dp);
+                                    indexer::cache::invalidate("desktop");
+                                }
+                                self.all_apps.retain(|a| a.id != entry.id);
+                                // AppImage index is cached under the "snap" key.
+                                indexer::cache::invalidate("snap");
+                                self.recompute_results();
+                            }
+                            Err(e) => eprintln!("[launcher] appimage uninstall failed: {e}"),
+                        }
+                        None
+                    }
+                    None => None,
+                }
             }
             Message::HideApp(app_id) => {
                 self.context_menu = None;
@@ -1421,4 +1478,53 @@ pub fn load_activity(apps: &mut Vec<crate::search::indexer::AppEntry>) {
             app.last_launched = entry.last_launched;
         }
     }
+}
+// ── Uninstall plans ──────────────────────────────────────────────────────────
+// Identity-based, not source-based: the name dedup means a Flatpak or Steam
+// game usually lives in the index as its .desktop twin, so the exec is the
+// truth about what an app IS. Sources the launcher can't uninstall honestly
+// (apt, wine, jetbrains, plain binaries) return None and no menu entry shows.
+
+pub enum UninstallPlan {
+    Steam { appid: String },
+    Flatpak { flatpak_id: String },
+    AppImage { file: String, desktop_litter: Option<String> },
+}
+
+/// Cheap render-time check: does this exec belong to an uninstallable app?
+pub fn can_uninstall(exec: &str) -> bool {
+    exec.contains("steam://rungameid/")
+        || exec.contains("flatpak run")
+        || exec.trim().to_lowercase().ends_with(".appimage")
+}
+
+pub fn uninstall_plan(app: &indexer::AppEntry) -> Option<UninstallPlan> {
+    // Steam — twins and untwinned both exec through the rungameid URL.
+    if let Some(rest) = app.exec.split("steam://rungameid/").nth(1) {
+        let appid: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        if !appid.is_empty() {
+            return Some(UninstallPlan::Steam { appid });
+        }
+    }
+    // Flatpak — exports name their .desktop by app id, and both desktop: and
+    // flatpak: index ids end with that filename. No exec parsing.
+    if app.exec.contains("flatpak run") {
+        let fname = app.id.split_once(':').map(|(_, f)| f).unwrap_or("");
+        if let Some(fid) = fname.strip_suffix(".desktop") {
+            if !fid.is_empty() {
+                return Some(UninstallPlan::Flatpak { flatpak_id: fid.to_string() });
+            }
+        }
+        return None;
+    }
+    // AppImage — the exec IS the file we own; a desktop twin also owns its
+    // .desktop litter.
+    let trimmed = app.exec.trim();
+    if trimmed.to_lowercase().ends_with(".appimage") {
+        return Some(UninstallPlan::AppImage {
+            file: trimmed.to_string(),
+            desktop_litter: app.desktop_path.clone(),
+        });
+    }
+    None
 }
