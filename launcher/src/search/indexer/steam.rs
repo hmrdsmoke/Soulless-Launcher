@@ -46,6 +46,15 @@ pub fn index() -> Vec<AppEntry> {
             continue;
         };
 
+        // Valve tooling ships as appmanifests too — Proton builds, Steam
+        // Linux Runtimes, redistributables. Not games, not meaningfully
+        // launchable; skip them so they stay out of the grid, the `game`
+        // smart query, and the fresh row (every Proton update arrives as
+        // a NEW appmanifest and was getting first_seen-stamped).
+        if is_valve_tooling(&game_name) {
+            continue;
+        }
+
         let lower_name = game_name.to_lowercase();
 
         let icon_path = resolve_steam_icon(&appid);
@@ -128,3 +137,13 @@ fn extract_field(contents: &str, field: &str) -> Option<String> {
 // Added missing launch_count, last_launched fields :: done
 // Added closing braces for struct, loop, and fn index() :: done
 // Added extract_field() helper for .acf manifest parsing :: done
+/// Valve infrastructure that ships appmanifests but isn't a game:
+/// Proton builds (incl. Hotfix / Experimental / anti-cheat runtimes),
+/// Steam Linux Runtimes (scout/soldier/sniper), and the Steamworks
+/// redistributable bundle.
+fn is_valve_tooling(name: &str) -> bool {
+    let n = name.to_lowercase();
+    n.starts_with("proton")
+        || n.starts_with("steam linux runtime")
+        || n.starts_with("steamworks common redistributable")
+}

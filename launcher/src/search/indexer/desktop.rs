@@ -102,6 +102,18 @@ pub fn index(
             let lower_name =
                 name_str.to_lowercase();
 
+            // Categories= from the .desktop — semicolon list per the
+            // freedesktop spec. Was indexed as Vec::new() since day one
+            // (dead freight); the `game` smart query now reads it.
+            let categories: Vec<String> = desktop
+                .desktop_entry("Categories")
+                .map(|c| {
+                    c.split(';')
+                        .filter(|t| !t.trim().is_empty())
+                        .map(|t| t.trim().to_string())
+                        .collect()
+                })
+                .unwrap_or_default();
             let id = format!(
                 "desktop:{}",
                 path.file_name()
@@ -130,7 +142,7 @@ pub fn index(
 
                 keywords: Vec::new(),
 
-                categories: Vec::new(),
+                categories,
 
                 launch_count: 0,
 

@@ -66,8 +66,17 @@ pub fn interpret(
             .map(|(i, _)| i).collect());
     }
     if q == "games" || q == "game" {
+        // Identity, not door: the index dedups by name and desktop wins,
+        // so twinned Steam games live as their .desktop shortcut (source
+        // Desktop, exec steam://rungameid/...). Steam source catches the
+        // untwinned, the exec catches the twins, Categories=Game catches
+        // native and Flatpak games.
         return Some(apps.iter().enumerate()
-            .filter(|(_, a)| matches!(a.source, AppSource::Steam))
+            .filter(|(_, a)| {
+                matches!(a.source, AppSource::Steam)
+                    || a.exec.contains("steam://rungameid")
+                    || a.categories.iter().any(|c| c == "Game")
+            })
             .map(|(i, _)| i).collect());
     }
     if q == "flatpak" || q == "flatpaks" {
