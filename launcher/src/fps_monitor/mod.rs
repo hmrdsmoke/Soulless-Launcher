@@ -49,7 +49,7 @@ impl FpsMonitorState {
         match message {
             Message::FpsTick => {
                 self.fps.tick();
-                self.monitors.record_fps(self.fps.fps);
+                self.monitors.record_fps(self.fps.fps_avg);
             }
             Message::Output(evt, key) => {
                 self.monitors.apply(evt, key);
