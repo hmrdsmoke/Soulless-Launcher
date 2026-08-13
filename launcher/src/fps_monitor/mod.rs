@@ -24,6 +24,9 @@ pub const HISTORY: usize = 60;
 pub enum Message {
     FpsTick,
     Output(OutputEvent, String),
+    /// The launcher surface was configured at this logical size —
+    /// road-B join to the census (app.rs forwards its configure event).
+    SurfaceOn(i32, i32),
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -46,9 +49,13 @@ impl FpsMonitorState {
         match message {
             Message::FpsTick => {
                 self.fps.tick();
+                self.monitors.record_fps(self.fps.fps);
             }
             Message::Output(evt, key) => {
                 self.monitors.apply(evt, key);
+            }
+            Message::SurfaceOn(w, h) => {
+                self.monitors.surface_on(w, h);
             }
         }
     }
@@ -96,4 +103,4 @@ pub fn monitors_subscription() -> Subscription<Message> {
 // subscription(): frame ticks (gated); monitors_subscription(): census, ungated via app.rs :: done
 // view(): delegates to view::view() :: done
 // HISTORY constant shared with fps.rs :: done
-// monitors.rs: OutputEvent census + stderr roster proof :: done (concern one)
+// monitors.rs: census + size-join active output + live fps fan-in :: done (concern three)

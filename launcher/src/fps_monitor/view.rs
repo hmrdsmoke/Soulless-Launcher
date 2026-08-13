@@ -56,11 +56,13 @@ pub fn view(state: &FpsMonitorState) -> Element<'_, Message> {
         );
     } else {
         for m in &state.monitors.monitors {
+            let live = m.live_fps.map(fmt_fps).unwrap_or_else(|| "—".into());
+            let live_color = m.live_fps.map(fps_color).unwrap_or(LOW_COLOR);
             stats = stats.push(
                 column![
                     text(m.name.clone()).size(sc(9.0)).color(AVG_COLOR),
                     text(fmt_hz(m.refresh_mhz)).size(sc(9.0)).color(FPS_COLOR),
-                    text("—").size(sc(9.0)).color(LOW_COLOR),
+                    text(live).size(sc(9.0)).color(live_color),
                 ]
                 .spacing(1)
                 .width(Length::Fill),
@@ -98,7 +100,7 @@ fn fmt_hz(mhz: i32) -> String {
 // Fixed: container height bumped 70 → 90px to fit graph + 2-row stats :: done
 // Fixed: graph height reduced 28px to match hardware monitor :: done
 // Live FPS: size 14, colour-coded green/blue/orange/red :: done
-// per-monitor cells from census: name / cfg Hz / live-fps dash :: done (concern two)
+// per-monitor cells: name / cfg Hz / live fps via size-join :: done (concern three)
 // Both widgets now 140×90 — consistent with each other :: done
 
 // === DONE ===

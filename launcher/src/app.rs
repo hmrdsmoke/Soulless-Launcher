@@ -383,6 +383,12 @@ impl cosmic::Application for Soulless {
             // region from it. Dummy or anything else: quiet no-op. Resized
             // re-fires so blur tracks size changes; backend updates in place.
             Message::SurfaceConfigured(id, size) if id == self.window_id => {
+                // Road-B join: tell the fps widget which output this surface
+                // landed on, by logical size, against the census.
+                self.fps.update(crate::fps_monitor::Message::SurfaceOn(
+                    size.width as i32,
+                    size.height as i32,
+                ));
                 eprintln!(
                     "[launcher] SurfaceConfigured {}x{} -> blur rect",
                     size.width, size.height

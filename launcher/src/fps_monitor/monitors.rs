@@ -29,12 +29,21 @@ pub struct Monitor {
     pub name: String,
     /// Current-mode refresh in millihertz (164834 = 164.834 Hz). 0 = unknown.
     pub refresh_mhz: i32,
+    /// Logical size in compositor space — the join column for matching a
+    /// configured surface to its output (road B). None until known.
+    pub logical_size: Option<(i32, i32)>,
+    /// Last live fps measured while the launcher sat on this output.
+    /// None until first visit.
+    pub live_fps: Option<f32>,
 }
 
 /// The census: every output the compositor has announced and not removed.
 #[derive(Debug, Clone, Default)]
 pub struct MonitorsState {
     pub monitors: Vec<Monitor>,
+    /// Census key of the output the surface is currently configured on —
+    /// set by the size join, cleared never (last known wins).
+    pub active_key: Option<String>,
 }
 
 impl MonitorsState {
@@ -42,7 +51,7 @@ impl MonitorsState {
     pub fn apply(&mut self, evt: wayland::OutputEvent, key: String) {
         match evt {
             wayland::OutputEvent::Created(info) => {
-                let (global_id, name, refresh_mhz) = info
+                let (global_id, name, refresh_mhz, logical_size) = info
                     .as_ref()
                     .map(|i| {
                         (
@@ -55,14 +64,15 @@ impl MonitorsState {
                                 .find(|m| m.current)
                                 .map(|m| m.refresh_rate)
                                 .unwrap_or(0),
+                            i.logical_size,
                         )
                     })
-                    .unwrap_or_else(|| (0, String::from("unknown"), 0));
+                    .unwrap_or_else(|| (0, String::from("unknown"), 0, None));
                 eprintln!(
                     "[MONITORS] created  {name} ({:.3} Hz) key={key}",
                     refresh_mhz as f64 / 1000.0
                 );
-                self.upsert(Monitor { key, global_id, name, refresh_mhz });
+                self.upsert(Monitor { key, global_id, name, refresh_mhz, logical_size, live_fps: None });
                 self.census();
             }
             wayland::OutputEvent::InfoUpdate(i) => {
@@ -80,7 +90,14 @@ impl MonitorsState {
                     "[MONITORS] update   {name} ({:.3} Hz) key={key}",
                     refresh_mhz as f64 / 1000.0
                 );
-                self.upsert(Monitor { key, global_id: i.id, name, refresh_mhz });
+                self.upsert(Monitor {
+                    key,
+                    global_id: i.id,
+                    name,
+                    refresh_mhz,
+                    logical_size: i.logical_size,
+                    live_fps: None,
+                });
                 self.census();
             }
             wayland::OutputEvent::Removed => {
@@ -91,12 +108,42 @@ impl MonitorsState {
         }
     }
 
-    /// Replace the row with the same key, or append a new one.
-    fn upsert(&mut self, m: Monitor) {
+    /// Replace the row with the same key, or append a new one. A refresh
+    /// of census fields must not wipe the measured number: live_fps
+    /// carries over from the old row.
+    fn upsert(&mut self, mut m: Monitor) {
         if let Some(slot) = self.monitors.iter_mut().find(|x| x.key == m.key) {
+            m.live_fps = m.live_fps.or(slot.live_fps);
             *slot = m;
         } else {
             self.monitors.push(m);
+        }
+    }
+
+    /// Road-B join: the surface was just configured at width x height —
+    /// mark the census row whose logical size matches as the active one.
+    pub fn surface_on(&mut self, w: i32, h: i32) {
+        let hit = self
+            .monitors
+            .iter()
+            .find(|m| m.logical_size == Some((w, h)))
+            .map(|m| m.key.clone());
+        match &hit {
+            Some(k) => eprintln!("[MONITORS] surface  {w}x{h} -> key={k}"),
+            None => eprintln!("[MONITORS] surface  {w}x{h} -> no census match"),
+        }
+        if hit.is_some() {
+            self.active_key = hit;
+        }
+    }
+
+    /// Live tick fan-in: store the current fps on whichever row the
+    /// surface is active on.
+    pub fn record_fps(&mut self, fps: f32) {
+        if let Some(k) = &self.active_key {
+            if let Some(m) = self.monitors.iter_mut().find(|x| &x.key == k) {
+                m.live_fps = Some(fps);
+            }
         }
     }
 
