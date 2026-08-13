@@ -7,9 +7,11 @@
 
 pub mod fps;
 pub mod graph;
+pub mod monitors;
 pub mod view;
 
 use cosmic::iced::{Element, Subscription};
+use cosmic::iced::event::wayland::OutputEvent;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -21,6 +23,7 @@ pub const HISTORY: usize = 60;
 #[derive(Debug, Clone)]
 pub enum Message {
     FpsTick,
+    Output(OutputEvent, String),
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -28,12 +31,14 @@ pub enum Message {
 #[derive(Debug, Clone)]
 pub struct FpsMonitorState {
     pub fps: fps::FpsState,
+    pub monitors: monitors::MonitorsState,
 }
 
 impl FpsMonitorState {
     pub fn new() -> Self {
         Self {
             fps: fps::FpsState::new(),
+            monitors: monitors::MonitorsState::default(),
         }
     }
 
@@ -41,6 +46,9 @@ impl FpsMonitorState {
         match message {
             Message::FpsTick => {
                 self.fps.tick();
+            }
+            Message::Output(evt, key) => {
+                self.monitors.apply(evt, key);
             }
         }
     }
@@ -74,10 +82,18 @@ pub fn subscription() -> Subscription<Message> {
     cosmic::iced::window::wayland_frames().map(|_| Message::FpsTick)
 }
 
+/// Monitor census subscription — kept OUT of the visibility-gated batch.
+/// Output Created events fire once at registry bind; a subscriber created
+/// on first surface-open starts deaf. app.rs runs this from tick zero.
+pub fn monitors_subscription() -> Subscription<Message> {
+    monitors::subscription().map(|(evt, key)| Message::Output(evt, key))
+}
+
 // === DONE ===
 // FpsMonitorState: wraps FpsState :: done
 // Message: FpsTick :: done
 // update(): dispatches tick :: done
-// subscription(): ticks on real wl_surface.frame callbacks (wayland_frames) :: done
+// subscription(): frame ticks (gated); monitors_subscription(): census, ungated via app.rs :: done
 // view(): delegates to view::view() :: done
 // HISTORY constant shared with fps.rs :: done
+// monitors.rs: OutputEvent census + stderr roster proof :: done (concern one)

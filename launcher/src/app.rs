@@ -947,6 +947,11 @@ impl cosmic::Application for Soulless {
             // its entire job.
             soulless_organizer::subscription().map(Message::Organizer),
             // Monitors: alive only while the surface is up. The resident
+            // Monitor census: ungated on purpose. Pure event-driven — no
+            // timers, no sampling — and output Created fires once at
+            // registry bind, so a gated subscriber starts deaf. Proven by
+            // the applet-spawned instance catching both outputs at spawn.
+            crate::fps_monitor::monitors_subscription().map(Message::Fps),
             // daemon spends most of its life hidden — no sampling, no
             // nvidia-smi/df/ping spawns, no 16ms FPS heartbeat while nothing
             // is on screen. Subscription diffing starts/stops these cleanly
