@@ -40,32 +40,33 @@ pub fn view(state: &FpsMonitorState) -> Element<'_, Message> {
     // ── Live FPS — colour-coded big number ────────────────────────────────────
     let live_color = fps_color(fps.fps);
 
-    // ── Average ───────────────────────────────────────────────────────────────
-    let avg_col = column![
-        text("avg").size(sc(9.0)).color(AVG_COLOR),
-        text(fmt_fps(fps.fps_avg)).size(sc(9.0)).color(AVG_COLOR),
-    ]
-    .spacing(1)
-    .width(Length::Fill);
-
-    // ── 1% low ────────────────────────────────────────────────────────────────
-    let low_col = column![
-        text("1%lo").size(sc(9.0)).color(LOW_COLOR),
-        text(fmt_fps(fps.fps_1_low)).size(sc(9.0)).color(LOW_COLOR),
-    ]
-    .spacing(1)
-    .width(Length::Fill);
-
-    // ── Frametime ─────────────────────────────────────────────────────────────
-    let ft_col = column![
-        text("ft").size(sc(9.0)).color(FPS_COLOR),
-        text(fmt_ft(fps.frametime_ms)).size(sc(9.0)).color(FPS_COLOR),
-    ]
-    .spacing(1)
-    .width(Length::Fill);
-
-    // ── Small stats row ───────────────────────────────────────────────────────
-    let stats = row![avg_col, low_col, ft_col].spacing(2);
+    // ── Per-monitor cells (concern two: shell from the census) ────────────────
+    // One column per connected display: connector name on top, configured
+    // Hz from the census below, live per-screen fps as a dash until the
+    // tagged frame ticks land (concern three).
+    let mut stats = row![].spacing(2);
+    if state.monitors.monitors.is_empty() {
+        stats = stats.push(
+            column![
+                text("outputs").size(sc(9.0)).color(AVG_COLOR),
+                text("—").size(sc(9.0)).color(AVG_COLOR),
+            ]
+            .spacing(1)
+            .width(Length::Fill),
+        );
+    } else {
+        for m in &state.monitors.monitors {
+            stats = stats.push(
+                column![
+                    text(m.name.clone()).size(sc(9.0)).color(AVG_COLOR),
+                    text(fmt_hz(m.refresh_mhz)).size(sc(9.0)).color(FPS_COLOR),
+                    text("—").size(sc(9.0)).color(LOW_COLOR),
+                ]
+                .spacing(1)
+                .width(Length::Fill),
+            );
+        }
+    }
 
     // ── Big FPS bottom line ───────────────────────────────────────────────────
     let fps_row = row![
@@ -88,15 +89,16 @@ fn fmt_fps(fps: f32) -> String {
     if fps > 0.0 { format!("{:.0}", fps) } else { "—".to_string() }
 }
 
-fn fmt_ft(ms: f32) -> String {
-    if ms > 0.0 { format!("{:.1}ms", ms) } else { "—".to_string() }
+/// Census refresh: millihertz → "144.0" (or — when unknown).
+fn fmt_hz(mhz: i32) -> String {
+    if mhz > 0 { format!("{:.1}", mhz as f64 / 1000.0) } else { "—".to_string() }
 }
 
 // === DONE ===
 // Fixed: container height bumped 70 → 90px to fit graph + 2-row stats :: done
 // Fixed: graph height reduced 28px to match hardware monitor :: done
 // Live FPS: size 14, colour-coded green/blue/orange/red :: done
-// avg / 1%lo / ft: size 9, fits in remaining space :: done
+// per-monitor cells from census: name / cfg Hz / live-fps dash :: done (concern two)
 // Both widgets now 140×90 — consistent with each other :: done
 
 // === DONE ===
