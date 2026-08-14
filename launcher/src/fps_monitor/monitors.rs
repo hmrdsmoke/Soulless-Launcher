@@ -172,6 +172,19 @@ pub fn subscription() -> Subscription<(wayland::OutputEvent, String)> {
     })
 }
 
+/// Per-window redraw ticks: RedrawRequested tagged with its window Id.
+/// This is the real paint clock -- the wayland Frame event is never
+/// constructed in this stack (proven empirically), and wayland_frames
+/// sums every window blind, including the invisible sandbox dummy.
+pub fn redraws_subscription() -> Subscription<String> {
+    event::listen_raw(|ev, _status, wid| match ev {
+        Event::Window(cosmic::iced::window::Event::RedrawRequested(_)) => {
+            Some(format!("{wid:?}"))
+        }
+        _ => None,
+    })
+}
+
 // === DONE ===
 // Monitor row: key / global_id / name / refresh_mhz :: done
 // MonitorsState: upsert-by-key census, Removed handled by key :: done

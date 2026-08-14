@@ -386,6 +386,7 @@ impl cosmic::Application for Soulless {
                 // Road-B join: tell the fps widget which output this surface
                 // landed on, by logical size, against the census.
                 self.fps.update(crate::fps_monitor::Message::SurfaceOn(
+                    format!("{id:?}"),
                     size.width as i32,
                     size.height as i32,
                 ));

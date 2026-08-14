@@ -22,11 +22,12 @@ pub const HISTORY: usize = 60;
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    FpsTick,
+    /// One redraw tick, tagged with the window Id it painted.
+    FpsTick(String),
     Output(OutputEvent, String),
     /// The launcher surface was configured at this logical size —
     /// road-B join to the census (app.rs forwards its configure event).
-    SurfaceOn(i32, i32),
+    SurfaceOn(String, i32, i32),
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -35,6 +36,9 @@ pub enum Message {
 pub struct FpsMonitorState {
     pub fps: fps::FpsState,
     pub monitors: monitors::MonitorsState,
+    /// The real launcher window's Id string -- ticks from any other
+    /// window (the sandbox dummy) are ignored.
+    pub real_window: Option<String>,
 }
 
 impl FpsMonitorState {
@@ -42,19 +46,23 @@ impl FpsMonitorState {
         Self {
             fps: fps::FpsState::new(),
             monitors: monitors::MonitorsState::default(),
+            real_window: None,
         }
     }
 
     pub fn update(&mut self, message: Message) {
         match message {
-            Message::FpsTick => {
-                self.fps.tick();
-                self.monitors.record_fps(self.fps.fps_avg);
+            Message::FpsTick(wid) => {
+                if self.real_window.as_ref() == Some(&wid) {
+                    self.fps.tick();
+                    self.monitors.record_fps(self.fps.fps_avg);
+                }
             }
             Message::Output(evt, key) => {
                 self.monitors.apply(evt, key);
             }
-            Message::SurfaceOn(w, h) => {
+            Message::SurfaceOn(wid, w, h) => {
+                self.real_window = Some(wid);
                 self.monitors.surface_on(w, h);
             }
         }
@@ -86,7 +94,7 @@ pub fn subscription() -> Subscription<Message> {
     // so at full idle this fires rarely and the readout drops toward zero. It
     // climbs to the real refresh rate during interaction and while the monitor
     // graphs are repainting. That's honest — it measures frames actually drawn.
-    cosmic::iced::window::wayland_frames().map(|_| Message::FpsTick)
+    monitors::redraws_subscription().map(Message::FpsTick)
 }
 
 /// Monitor census subscription — kept OUT of the visibility-gated batch.
@@ -104,3 +112,4 @@ pub fn monitors_subscription() -> Subscription<Message> {
 // view(): delegates to view::view() :: done
 // HISTORY constant shared with fps.rs :: done
 // monitors.rs: census + size-join active output + live fps fan-in :: done (concern three)
+// tick source: per-window RedrawRequested, dummy filtered by Id :: done (concern four)
