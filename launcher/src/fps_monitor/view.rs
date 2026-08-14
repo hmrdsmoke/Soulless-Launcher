@@ -17,15 +17,8 @@ use crate::fps_monitor::{
 
 /// Renders the FPS monitor into a 140×90 widget box.
 ///
-/// Layout (measured):
-///   padding-top:  4px
-///   graph:       28px
-///   spacing:      4px
-///   label row:   ~11px
-///   spacing:      2px
-///   value row:   ~11px  (big fps = size 14, rest size 9)
-///   padding-bot:  4px
-///   total:       ~64px → use 90px to match hardware monitor
+/// Layout: frametime sparkline on top, then one census cell per
+/// connected display — connector name / configured Hz / live fps.
 pub fn view(state: &FpsMonitorState) -> Element<'_, Message> {
     let fps = &state.fps;
 
@@ -36,9 +29,6 @@ pub fn view(state: &FpsMonitorState) -> Element<'_, Message> {
     .width(Length::Fill)
     .height(Length::Fixed(28.0))
     .into();
-
-    // ── Live FPS — colour-coded big number ────────────────────────────────────
-    let live_color = fps_color(fps.fps);
 
     // ── Per-monitor cells (concern two: shell from the census) ────────────────
     // One column per connected display: connector name on top, configured
@@ -70,14 +60,8 @@ pub fn view(state: &FpsMonitorState) -> Element<'_, Message> {
         }
     }
 
-    // ── Big FPS bottom line ───────────────────────────────────────────────────
-    let fps_row = row![
-        text("fps").size(sc(9.0)).color(live_color),
-        text(fmt_fps(fps.fps)).size(sc(14.0)).color(live_color),
-    ].spacing(4).align_y(cosmic::iced::alignment::Vertical::Bottom);
-
     container(
-        column![graph, stats, fps_row].spacing(2)
+        column![graph, stats].spacing(2)
     )
     .width(Length::Fill)
     .height(Length::Fill)
@@ -99,7 +83,7 @@ fn fmt_hz(mhz: i32) -> String {
 // === DONE ===
 // Fixed: container height bumped 70 → 90px to fit graph + 2-row stats :: done
 // Fixed: graph height reduced 28px to match hardware monitor :: done
-// Live FPS: size 14, colour-coded green/blue/orange/red :: done
+// big fps control line: cut after per-monitor cells validated against it :: done
 // per-monitor cells: name / cfg Hz / live fps via size-join :: done (concern three)
 // Both widgets now 140×90 — consistent with each other :: done
 
