@@ -34,34 +34,40 @@ pub fn view(state: &FpsMonitorState) -> Element<'_, Message> {
     // One column per connected display: connector name on top, configured
     // Hz from the census below, live per-screen fps as a dash until the
     // tagged frame ticks land (concern three).
-    let mut stats = row![].spacing(2);
+    // Cells wrap two per row: below ~70px a cell's text clips, and the
+    // box is 140 wide. 1-2 monitors = one row (unchanged look); 3-4 =
+    // two rows. Verified via layout dummies before landing.
+    let mut stats = column![].spacing(2);
     if state.monitors.monitors.is_empty() {
-        stats = stats.push(
-            column![
-                text("outputs").size(sc(9.0)).color(AVG_COLOR),
-                text("—").size(sc(9.0)).color(AVG_COLOR),
-            ]
-            .spacing(1)
-            .width(Length::Fill),
-        );
+        stats = stats.push(row![column![
+            text("outputs").size(sc(9.0)).color(AVG_COLOR),
+            text("—").size(sc(9.0)).color(AVG_COLOR),
+        ]
+        .spacing(1)
+        .width(Length::Fill)]);
     } else {
-        for m in &state.monitors.monitors {
-            let live = m.live_fps.map(fmt_fps).unwrap_or_else(|| "—".into());
-            let live_color = m.live_fps.map(fps_color).unwrap_or(LOW_COLOR);
-            stats = stats.push(
-                column![
-                    text(m.name.clone()).size(sc(9.0)).color(AVG_COLOR),
-                    text(fmt_hz(m.refresh_mhz)).size(sc(9.0)).color(FPS_COLOR),
-                    text(live).size(sc(9.0)).color(live_color),
-                ]
-                .spacing(1)
-                .width(Length::Fill),
-            );
+        for pair in state.monitors.monitors.chunks(2) {
+            let mut r = row![].spacing(2);
+            for m in pair {
+                let live = m.live_fps.map(fmt_fps).unwrap_or_else(|| "—".into());
+                let live_color = m.live_fps.map(fps_color).unwrap_or(LOW_COLOR);
+                r = r.push(
+                    column![
+                        text(m.name.clone()).size(sc(8.0)).color(AVG_COLOR),
+                        text(fmt_hz(m.refresh_mhz)).size(sc(8.0)).color(FPS_COLOR),
+                        text(live).size(sc(8.0)).color(live_color),
+                    ]
+                    .spacing(1)
+                    .width(Length::Fill),
+                );
+            }
+            stats = stats.push(r);
         }
     }
 
     container(
-        column![graph, stats].spacing(2)
+        // Air between the sparkline and the cells -- the tall box affords it.
+        column![graph, stats].spacing(8)
     )
     .width(Length::Fill)
     .height(Length::Fill)
@@ -84,7 +90,7 @@ fn fmt_hz(mhz: i32) -> String {
 // Fixed: container height bumped 70 → 90px to fit graph + 2-row stats :: done
 // Fixed: graph height reduced 28px to match hardware monitor :: done
 // big fps control line: cut after per-monitor cells validated against it :: done
-// per-monitor cells: name / cfg Hz / live fps via size-join :: done (concern three)
+// per-monitor cells: name / cfg Hz / live fps, wrapped 2-per-row :: done
 // Both widgets now 140×90 — consistent with each other :: done
 
 // === DONE ===
