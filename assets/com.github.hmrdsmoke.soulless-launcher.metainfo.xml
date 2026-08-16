@@ -27,7 +27,7 @@
       name. Stash your sensitive files and apps behind an encrypted vault so they
       vanish from every menu on the system. Sort your tools into custom drawers
       that make sense to you. And keep an eye on your hardware with live network,
-      CPU, GPU, RAM, and FPS readouts while you work.
+      CPU, GPU, RAM, and per-monitor FPS readouts while you work.
     </p>
     <p>What's in the box:</p>
     <ul>
@@ -37,7 +37,7 @@
       <li>CLI tools that launch their man pages, so a command is actually useful and not just a name</li>
       <li>Custom drawers to organize your tools the way your brain works, not the way a menu thinks it should</li>
       <li>Encrypted vault that pulls sensitive files and apps off every system menu</li>
-      <li>Live hardware monitors — network, CPU, GPU, RAM, FPS</li>
+      <li>Live hardware monitors — network, CPU, GPU, RAM, per-monitor FPS</li>
       <li>Your own backgrounds from ~/.config/soulless/backgrounds/</li>
       <li>Disk-cached index so it opens the instant you hit the key</li>
       <li>Full keyboard navigation — Tab, S, V, arrows, no mouse required</li>
@@ -83,6 +83,30 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="2.0.0" date="2026-08-16">
+      <description>
+        <p>
+          Version 2.0. A hundred and twenty-three commits since 1.0 — the
+          Flatpak fought back and lost, the FPS widget learned to count
+          every screen honestly, and the prototype era is over. Everything
+          below is in the git log; nothing here is aspirational.
+        </p>
+        <ul>
+          <li>Flatpak works for real — the window opens in-sandbox via the compositor's privileged-socket handoff, the indexer reads the host system under /run/host, and launches route through the host, so store users get the same launcher as source builds</li>
+          <li>Per-monitor FPS widget — a live census of every connected display with connector name, configured Hz, and true per-screen fps from filtered compositor ticks; plug a monitor in and its cell appears, pull the cable and it leaves</li>
+          <li>Search overhaul — virtualized uncapped results, smart queries answer first ("game" means games, "new" means recently installed), folders split from files, and the per-keystroke allocation storm is dead</li>
+          <li>Right-click uninstall for Steam, Flatpak, and AppImage entries</li>
+          <li>A real CLI — the soulless wrapper, a man page, --help and --version, and soulless-launcher toggle routed to the warm daemon</li>
+          <li>Indexes stay fresh — re-index on activation, caches watch the Steam and AppImage dirs, no more ghost tiles or invisible new installs</li>
+          <li>Runtime theming — theme.ron with hex colors and partial overrides, every bare color swept to tokens, zero corner radii enforced launcher-wide, widget heights split short and tall</li>
+          <li>Honest hardware stats — a shared NVML handle with a sysfs fallback for non-NVIDIA boxes, a dash instead of a fake 0%, ping moved off the UI executor</li>
+          <li>Organizer doctrine — types only: extensions are facts, filenames are claims; Skip is remembered, and pruned when the file disappears</li>
+          <li>Vault — hide apps from any source by name identity; the twin-door identity leak is closed</li>
+          <li>Widget pages — dot-selected pages with a scratch terminal box</li>
+          <li>Placement — the launcher follows its applet, click-away dismisses, blur scoped to the launcher region</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-06-27">
       <description>
         <p>

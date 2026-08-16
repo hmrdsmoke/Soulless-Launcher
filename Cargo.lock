@@ -5269,7 +5269,7 @@ dependencies = [
 
 [[package]]
 name = "soulless-applet"
-version = "0.1.2"
+version = "2.0.0"
 dependencies = [
  "futures-util",
  "i18n-embed",
@@ -5284,7 +5284,7 @@ dependencies = [
 
 [[package]]
 name = "soulless-launcher"
-version = "1.1.0"
+version = "2.0.0"
 dependencies = [
  "argon2",
  "bincode",
@@ -5319,7 +5319,7 @@ dependencies = [
 
 [[package]]
 name = "soulless-organizer"
-version = "1.1.0"
+version = "2.0.0"
 dependencies = [
  "dirs 5.0.1",
  "libcosmic",
