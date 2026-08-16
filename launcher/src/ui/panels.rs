@@ -157,11 +157,12 @@ pub fn monitor_grid<'a, M: 'static + Clone + Send>(
     // Widgets sit side by side in a single row under the steel panel
     // Each widget takes half the toolbox width with a small gap
     let widget_height = Length::Fixed(theme::get().widget_height);
+    let widget_height_tall = Length::Fixed(theme::get().widget_height_tall);
 
     let net = container(net).width(Length::Fill).height(widget_height).style(widget_style);
     let sys = container(sys).width(Length::Fill).height(widget_height).style(widget_style);
-    let hw  = container(hw).width(Length::Fill).height(widget_height).style(widget_style);
-    let fps = container(fps).width(Length::Fill).height(widget_height).style(widget_style);
+    let hw  = container(hw).width(Length::Fill).height(widget_height_tall).style(widget_style);
+    let fps = container(fps).width(Length::Fill).height(widget_height_tall).style(widget_style);
 
     column![
         row![net, sys].spacing(theme::get().widget_spacing),
@@ -179,7 +180,7 @@ pub fn monitor_grid<'a, M: 'static + Clone + Send>(
 pub fn terminal_frame<'a, M: 'static + Clone + Send>(
     inner: Element<'a, M>,
 ) -> Element<'a, M> {
-    let full_height = theme::get().widget_height * 2.0 + 4.0;
+    let full_height = theme::get().widget_height + theme::get().widget_height_tall + 4.0;
     container(
         container(inner)
             .width(Length::Fill)

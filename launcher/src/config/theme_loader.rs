@@ -46,6 +46,7 @@ struct ThemeFile {
     widget_corner_radius: Option<f32>,
     widget_scale: Option<f32>,
     widget_height: Option<f32>,
+    widget_height_tall: Option<f32>,
     widget_spacing: Option<u16>,
     drawer_btn_bg: Option<String>,
     drawer_btn_hover: Option<String>,
@@ -143,6 +144,7 @@ pub fn load() -> ThemeColors {
     apply_f32(&mut theme.widget_corner_radius, &file.widget_corner_radius);
     apply_f32(&mut theme.widget_scale, &file.widget_scale);
     apply_f32(&mut theme.widget_height, &file.widget_height);
+    apply_f32(&mut theme.widget_height_tall, &file.widget_height_tall);
     if let Some(v) = file.widget_spacing {
         theme.widget_spacing = v;
     }

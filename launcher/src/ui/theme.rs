@@ -59,6 +59,8 @@ pub struct ThemeColors {
     pub widget_corner_radius: f32,
     pub widget_scale: f32,
     pub widget_height: f32,
+    /// Height for the dense bottom pair (hardware, fps).
+    pub widget_height_tall: f32,
     pub widget_spacing: u16,
     // ── Drawer buttons ──
     pub drawer_btn_bg: Color,
@@ -102,7 +104,8 @@ impl Default for ThemeColors {
             widget_border: Color { r: 0.3, g: 0.3, b: 0.3, a: 0.4 },
             widget_corner_radius: 0.0,
             widget_scale: 1.0,
-            widget_height: 122.0,
+            widget_height: 100.0,
+            widget_height_tall: 144.0,
             widget_spacing: 4,
 
             drawer_btn_bg: Color { r: 0.08, g: 0.08, b: 0.09, a: 1.0 },
