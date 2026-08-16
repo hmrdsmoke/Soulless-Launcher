@@ -569,8 +569,6 @@ fn drawer_contents_view<'a>(
         cosmic::widget::column![
             cosmic::widget::text(drawer_name).size(22)
                 .class(cosmic::theme::Text::Color(crate::ui::theme::get().drawer_title)),
-            cosmic::widget::text(if is_file_hover { "Drop to add" } else { "Drop files here" }).size(12)
-                .class(cosmic::theme::Text::Color(crate::ui::theme::get().drawer_hint)),
         ]
         .spacing(4)
         .padding([12, 16])
@@ -627,7 +625,6 @@ fn drawer_contents_view<'a>(
                             text("📂").size(48),
                             space::vertical().height(Length::Fixed(8.0)),
                             text("This drawer is empty.").size(16).color(crate::ui::theme::get().drawer_hint),
-                            text("Drop files here.").size(13).color(crate::ui::theme::get().text_steel),
                         ]
                         .spacing(8)
                         .align_x(Horizontal::Center)
