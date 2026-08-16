@@ -26,9 +26,15 @@ pub fn strip_desktop_placeholders(exec: &str) -> String {
 }
 
 /// Decode a percent-encoded URI path (e.g. file:// drag and drop payloads).
+///
+/// Decodes into a BYTE buffer, not a String. A percent-encoded non-ASCII
+/// character is multiple bytes (é is %C3%A9); pushing each decoded byte as a
+/// `char` treats it as a Latin-1 codepoint and yields mojibake, so the path
+/// never matches a real file and the drop is silently discarded. Reassembling
+/// at the end lets UTF-8 sequences come back out whole.
 pub fn percent_decode_uri(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
     let bytes = input.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
     let mut i = 0;
 
     while i < bytes.len() {
@@ -37,15 +43,15 @@ pub fn percent_decode_uri(input: &str) -> String {
                 hex_nibble(bytes[i + 1]),
                 hex_nibble(bytes[i + 2]),
             ) {
-                out.push((hi << 4 | lo) as char);
+                out.push(hi << 4 | lo);
                 i += 3;
                 continue;
             }
-        out.push(bytes[i] as char);
+        out.push(bytes[i]);
         i += 1;
     }
 
-    out
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 fn hex_nibble(b: u8) -> Option<u8> {
