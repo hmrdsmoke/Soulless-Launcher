@@ -12,7 +12,7 @@ This is the toolbox you need to organize the tools you use.
 ## Features
 
 - **Universal search** — apps, files, directories, CLI tools, Steam games, Flatpaks, AppImages, Wine, JetBrains IDEs
-- **Custom drawers** — organize apps, files, and directories your way, up to 5 drawers with drag and drop
+- **Custom drawers** — organize apps, files, and directories your way, up to 5 drawers
 - **Encrypted vault** — AES-256 encrypted storage for sensitive files
 - **File organizer** — background watcher that detects misplaced files and suggests moves system-wide
 - **Stable app IDs** — apps pinned to drawers survive renames and reinstalls via UUID registry
