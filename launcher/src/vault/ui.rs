@@ -15,12 +15,6 @@ use cosmic::iced::widget::{
 use cosmic::iced::alignment::{Horizontal, Vertical};
 use cosmic::iced::{Color, Element, Length, Theme};
 
-// dnd_destination lives in cosmic::widget and uses cosmic::Theme.
-// Themer bridges a cosmic::Theme subtree into our cosmic::iced::Theme tree:
-//   Themer::new(None, cosmic_element) → cosmic::iced::Element
-// None = inherit theme from parent, no override needed.
-use cosmic::widget::dnd_destination;
-use cosmic::iced::widget::Themer;
 
 pub fn view<'a>(vault: &'a Vault, cursor_pos: cosmic::iced::Point) -> Element<'a, SearchMessage> {
     match vault.lock_state {
@@ -363,79 +357,6 @@ fn files_view<'a>(vault: &'a Vault, cursor_pos: cosmic::iced::Point) -> Element<
             space::vertical().height(Length::Fixed(0.0)).into()
         };
 
-    // ── Drop zone ─────────────────────────────────────────────────────────────
-    let (drop_bg, drop_border_color) = if vault.drag_hover {
-        (
-            Color::from_rgba8(80, 120, 255, 0.12),
-            Color::from_rgb8(80, 120, 255),
-        )
-    } else {
-        (
-            Color::from_rgba8(255, 255, 255, 0.03),
-            Color::from_rgba8(255, 255, 255, 0.08),
-        )
-    };
-
-    let drop_label = if vault.drag_hover {
-        "Drop to add to vault"
-    } else {
-        "Drag files here to add them to your vault"
-    };
-
-    // Step 1: build inner visual as cosmic::Element
-    let drop_inner: cosmic::Element<'_, SearchMessage> =
-        cosmic::widget::container(
-            cosmic::widget::text(drop_label).size(13),
-        )
-        .width(Length::Fill)
-        .padding(16)
-        .into();
-
-    // Step 2: wrap with dnd_destination — still cosmic::Element.
-    // This registers the widget bounds with the Wayland compositor as a
-    // drop target, which is what makes Event::Dnd events actually arrive.
-    let drop_dest: cosmic::Element<'_, SearchMessage> = dnd_destination(
-        drop_inner,
-        vec![std::borrow::Cow::Borrowed("text/uri-list")],
-    )
-    .on_enter(|_x, _y, _mimes| SearchMessage::VaultDragHover(true))
-    .on_leave(|| SearchMessage::VaultDragHover(false))
-    .on_finish(|_mime, data, _action, _x, _y| {
-        let payload = String::from_utf8_lossy(&data);
-        let paths = payload
-            .lines()
-            .map(str::trim)
-            .filter(|l| l.starts_with("file://"))
-            .filter_map(|l| {
-                let raw = l.trim_start_matches("file://");
-                let decoded = crate::utils::percent_decode_uri(raw);
-                let p = std::path::PathBuf::from(decoded);
-                if p.exists() { Some(p) } else { None }
-            })
-            .collect::<Vec<_>>();
-        SearchMessage::VaultFilesDropped(paths)
-    })
-    .into();
-
-    // Step 3: Themer bridges cosmic::Theme → cosmic::iced::Theme.
-    // None = inherit theme from parent (no visual override).
-    // The outer iced container applies the hover styling on top.
-    let drop_zone: Element<'_, SearchMessage> =
-        container(
-            Themer::new(None::<cosmic::Theme>, drop_dest),
-        )
-        .width(Length::Fill)
-        .style(move |_: &Theme| container::Style {
-            background: Some(drop_bg.into()),
-            border: cosmic::iced::Border {
-                color: drop_border_color,
-                width: if vault.drag_hover { 1.5 } else { 1.0 },
-                radius: cosmic::iced::border::rounded(0).radius,
-            },
-            ..Default::default()
-        })
-        .into();
-
     // ── File list ─────────────────────────────────────────────────────────────
 
     let file_list: Element<'a, SearchMessage> = if vault.entries.is_empty() {
@@ -443,8 +364,6 @@ fn files_view<'a>(vault: &'a Vault, cursor_pos: cosmic::iced::Point) -> Element<
             column![
                 space::vertical().height(Length::Fixed(32.0)),
                 text("Your vault is empty.").size(15).center(),
-                space::vertical().height(Length::Fixed(8.0)),
-                text("Drag files in to get started.").size(12).center(),
             ]
             .align_x(Horizontal::Center),
         )
@@ -470,7 +389,6 @@ fn files_view<'a>(vault: &'a Vault, cursor_pos: cosmic::iced::Point) -> Element<
             header,
             status_bar,
             space::vertical().height(Length::Fixed(8.0)),
-            drop_zone,
             space::vertical().height(Length::Fixed(12.0)),
             hidden_grid,
             space::vertical().height(Length::Fixed(12.0)),
