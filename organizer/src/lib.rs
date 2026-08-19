@@ -34,6 +34,10 @@ pub struct OrganizerState {
 pub enum Message {
     /// A new file appeared in Downloads
     FileDetected(PathBuf),
+    /// A file left Downloads (deleted or moved away) before the user answered.
+    /// Drops the pending suggestion and any veto — a later file with the
+    /// same name is a new file and earns a fresh ask.
+    FileRemoved(PathBuf),
     /// User approved a move suggestion — see issue #20
     #[allow(dead_code)]
     ApproveSuggestion(usize),
@@ -45,6 +49,9 @@ pub enum Message {
 impl OrganizerState {
     pub fn new() -> Self {
         let mut pending = load_pending();
+        // Filesystem is ground truth for pending too — a suggestion whose
+        // file left while we weren't running is moot.
+        pending.retain(|p| p.suggestion.from.exists());
         let mut dismissed = load_dismissed();
         // Prune vetoes whose file is gone — the filesystem is ground truth,
         // and the ledger must not grow forever.
@@ -77,6 +84,16 @@ impl OrganizerState {
                 if let Some(suggestion) = rules::suggest(&path) {
                     self.pending.push(PendingSuggestion { suggestion });
                     save_pending(&self.pending);
+                }
+            }
+            Message::FileRemoved(path) => {
+                let before = self.pending.len();
+                self.pending.retain(|p| p.suggestion.from != path);
+                if self.pending.len() != before {
+                    save_pending(&self.pending);
+                }
+                if self.dismissed.remove(&path) {
+                    save_dismissed(&self.dismissed);
                 }
             }
             Message::ApproveSuggestion(idx) => {
@@ -138,15 +155,35 @@ fn watcher_stream() -> impl cosmic::iced::futures::Stream<Item = Message> {
         }
 
         // Keep watcher alive and poll on a background thread
-        let (event_tx, event_rx) = std::sync::mpsc::channel::<std::path::PathBuf>();
+        let (event_tx, event_rx) = std::sync::mpsc::channel::<Message>();
         std::thread::spawn(move || {
             let _watcher = watcher;
             loop {
                 if let Ok(Ok(event)) = notify_rx.recv() {
-                    if matches!(event.kind, EventKind::Create(CreateKind::File) | EventKind::Create(CreateKind::Any) | EventKind::Modify(notify::event::ModifyKind::Name(notify::event::RenameMode::To))) {
-                        for path in event.paths {
-                            let _ = event_tx.send(path);
+                    match event.kind {
+                        EventKind::Create(CreateKind::File)
+                        | EventKind::Create(CreateKind::Any)
+                        | EventKind::Modify(notify::event::ModifyKind::Name(notify::event::RenameMode::To)) => {
+                            for path in event.paths {
+                                let _ = event_tx.send(Message::FileDetected(path));
+                            }
                         }
+                        EventKind::Remove(_)
+                        | EventKind::Modify(notify::event::ModifyKind::Name(notify::event::RenameMode::From)) => {
+                            for path in event.paths {
+                                let _ = event_tx.send(Message::FileRemoved(path));
+                            }
+                        }
+                        EventKind::Modify(notify::event::ModifyKind::Name(notify::event::RenameMode::Both)) => {
+                            let mut paths = event.paths.into_iter();
+                            if let Some(old) = paths.next() {
+                                let _ = event_tx.send(Message::FileRemoved(old));
+                            }
+                            if let Some(newp) = paths.next() {
+                                let _ = event_tx.send(Message::FileDetected(newp));
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -154,8 +191,8 @@ fn watcher_stream() -> impl cosmic::iced::futures::Stream<Item = Message> {
 
         loop {
             match event_rx.try_recv() {
-                Ok(path) => {
-                    let _ = tx.try_send(Message::FileDetected(path));
+                Ok(msg) => {
+                    let _ = tx.try_send(msg);
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {
                     tokio::time::sleep(std::time::Duration::from_millis(250)).await;
