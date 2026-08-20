@@ -5269,7 +5269,7 @@ dependencies = [
 
 [[package]]
 name = "soulless-applet"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-util",
  "i18n-embed",
@@ -5284,7 +5284,7 @@ dependencies = [
 
 [[package]]
 name = "soulless-launcher"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "argon2",
  "bincode",
@@ -5295,6 +5295,7 @@ dependencies = [
  "fs2",
  "futures-util",
  "image",
+ "libc",
  "libcosmic",
  "notify",
  "nucleo-matcher",
@@ -5314,12 +5315,13 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "zbus",
  "zeroize",
 ]
 
 [[package]]
 name = "soulless-organizer"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "dirs 5.0.1",
  "libcosmic",

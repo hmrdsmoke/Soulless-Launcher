@@ -83,6 +83,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="2.0.1" date="2026-08-20">
+      <description>
+        <p>Critical Flatpak fix: at login, two launcher daemons could race for the D-Bus name. The loser survived invisibly, holding a full-screen surface that ate every desktop click until logout. A kernel file lock now referees the race — one daemon wins, the loser delivers its activation and exits.</p>
+      </description>
+    </release>
     <release version="2.0.0" date="2026-08-16">
       <description>
         <p>
