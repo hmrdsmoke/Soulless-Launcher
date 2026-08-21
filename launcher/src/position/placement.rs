@@ -49,9 +49,22 @@ impl LauncherPosition {
     /// Fallback: used only when layer shell is unavailable.
 
     /// Read a single config value from a given bar ("Panel" or "Dock").
+    /// Two-path read: dirs::config_dir() first (native), then the HOST
+    /// config at $HOME/.config (flatpak). Inside the sandbox, flatpak
+    /// redirects XDG_CONFIG_HOME to ~/.var/app/<id>/config, so config_dir()
+    /// misses the panel's real files; --filesystem=home already grants the
+    /// host path, the code just has to look there. Native boxes hit the
+    /// first path and never reach the second.
     fn read_bar_str(bar: &str, key: &str) -> String {
-        dirs::config_dir()
-            .map(|p| p.join(format!("cosmic/com.system76.CosmicPanel.{bar}/v1/{key}")))
+        let rel = format!("cosmic/com.system76.CosmicPanel.{bar}/v1/{key}");
+        if let Some(s) = dirs::config_dir()
+            .map(|p| p.join(&rel))
+            .and_then(|p| std::fs::read_to_string(p).ok())
+        {
+            return s;
+        }
+        dirs::home_dir()
+            .map(|p| p.join(".config").join(&rel))
             .and_then(|p| std::fs::read_to_string(p).ok())
             .unwrap_or_default()
     }
