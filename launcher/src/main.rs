@@ -78,6 +78,28 @@ fn main() -> cosmic::iced::Result {
         }
     };
 
+    // ── Panel-birth guard ────────────────────────────────────────────────
+    // cosmic-panel execs every id listed in its applet config (plugins_wings /
+    // plugins_center) and stamps COSMIC_PANEL_* into each child's environment.
+    // If a user adds the MAIN app id to that list (one misclick in the applet
+    // picker), the panel births a raw launcher as a panel child at every
+    // login: it wins the flock, squats the D-Bus name, and every applet click
+    // then summons a half-alive resident that dismisses on mouse release and
+    // leaves a click-eating ghost surface (virgin-box finding, Aug 20 2026).
+    // The legitimate applet spawn ALSO inherits the fingerprint — the applet
+    // is itself a panel child — so the fingerprint alone cannot convict: the
+    // applet blesses its spawn with SOULLESS_SPAWN=applet, and residency is
+    // refused only on fingerprint-without-blessing. D-Bus activation,
+    // autostart, terminal, and flatpak-run births carry no fingerprint and
+    // pass untouched.
+    if std::env::var_os("COSMIC_PANEL_NAME").is_some()
+        && std::env::var("SOULLESS_SPAWN").as_deref() != Ok("applet")
+    {
+        eprintln!("[launcher] refusing residency: exec'd as a cosmic-panel child (COSMIC_PANEL_NAME set) without the applet's spawn blessing.");
+        eprintln!("[launcher] cure: remove 'com.github.hmrdsmoke.soulless-launcher' from the panel's applet list — only 'com.github.hmrdsmoke.soulless-launcher.Applet' belongs there.");
+        return Ok(());
+    }
+
     // Winner holds the flock for the whole process lifetime; the kernel
     // releases it on any exit, clean or not. Loser forwards and dies before
     // creating a single surface.
