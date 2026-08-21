@@ -69,7 +69,15 @@ impl LauncherPosition {
             .unwrap_or_default()
     }
 
-    const APPLET_ID: &'static str = "com.github.hmrdsmoke.soulless-applet";
+    /// Applet identities, one per install method. Native `make install`
+    /// ships soulless-applet.desktop; flatpak export renames desktop entries
+    /// to carry the app-id prefix, so the panel records
+    /// `...soulless-launcher.Applet` instead. The config holds whichever
+    /// identity the user added -- search for both.
+    const APPLET_IDS: [&'static str; 2] = [
+        "com.github.hmrdsmoke.soulless-applet",
+        "com.github.hmrdsmoke.soulless-launcher.Applet",
+    ];
 
     /// Find which bar + wing the soulless applet is in.
     /// Searches Panel first, then Dock. plugins_wings format is
@@ -80,9 +88,8 @@ impl LauncherPosition {
             let wings = Self::read_bar_str(bar, "plugins_wings");
             // Split the two wing arrays. The file has the left array first,
             // then the right. Find the boundary between `]` and the next `[`.
-            if wings.contains(Self::APPLET_ID) {
+            if let Some(pos) = Self::APPLET_IDS.iter().find_map(|id| wings.find(id)) {
                 // Locate applet position and the array boundary "], ["
-                let pos = wings.find(Self::APPLET_ID).unwrap();
                 let boundary = wings.find("], [").or_else(|| wings.find("],["));
                 let wing = match boundary {
                     Some(b) if pos < b => Wing::First,
@@ -92,7 +99,7 @@ impl LauncherPosition {
                 return (bar, wing);
             }
             let center = Self::read_bar_str(bar, "plugins_center");
-            if center.contains(Self::APPLET_ID) {
+            if Self::APPLET_IDS.iter().any(|id| center.contains(id)) {
                 return (bar, Wing::Center);
             }
         }
