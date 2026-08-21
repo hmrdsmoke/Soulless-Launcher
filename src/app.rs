@@ -273,6 +273,10 @@ pub fn spawn_launcher_once() {
 
     let mut cmd = std::process::Command::new(exe);
     cmd.env("WAYLAND_SOCKET", fd.to_string());
+    // Blessing for the launcher's panel-birth guard: the applet is itself a
+    // panel child, so this spawned daemon inherits COSMIC_PANEL_* — the
+    // marker tells the launcher that fingerprint is legitimate here.
+    cmd.env("SOULLESS_SPAWN", "applet");
     // The child must NOT also see WAYLAND_DISPLAY, or it may prefer the
     // unprivileged socket and land right back in the filtered registry.
     cmd.env_remove("WAYLAND_DISPLAY");
