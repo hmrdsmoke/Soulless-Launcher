@@ -38,12 +38,17 @@ fn main() -> cosmic::iced::Result {
             .try_init();
     }
 
-    // NOTE: removed the custom ensure_single_instance() flock check. cosmic's
-    // run_single_instance now provides single-instance behavior via D-Bus. The
-    // lockfile actively BREAKS that model: run_single_instance expects a second
-    // process to start, detect the running daemon over D-Bus, send an activation,
-    // and exit — but the exclusive flock would block that second process from ever
-    // reaching run_single_instance.
+    // Single-instance: kernel flock guard (see daemon_lock below), reinstated
+    // Aug 20 2026. cosmic's run_single_instance dedups over D-Bus and still
+    // provides the winner's activation machinery — but inside flatpak each
+    // instance sits behind its own xdg-dbus-proxy and the loser never learns
+    // the name is taken: at login the autostart daemon and the applet-spawned
+    // daemon BOTH fully initialize, and the loser's full-screen dismiss-catcher
+    // surface lives forever with no D-Bus reachability to tear it down —
+    // eating every click on the desktop (virgin-box sandbox finding). The old
+    // objection (flock blocks the forwarding) is solved: the loser now delivers
+    // the activation itself, then exits. The exit is the cure; the forward is
+    // courtesy.
 
     // ── CLI: `soulless-launcher toggle` ──────────────────────────────────
     // No clap — one subcommand, matched directly. run_single_instance does the
@@ -73,6 +78,21 @@ fn main() -> cosmic::iced::Result {
         }
     };
 
+    // Winner holds the flock for the whole process lifetime; the kernel
+    // releases it on any exit, clean or not. Loser forwards and dies before
+    // creating a single surface.
+    let _daemon_lock = match daemon_lock() {
+        DaemonLock::Won(file) => Some(file),
+        DaemonLock::Lost => {
+            forward_activation(matches!(
+                flags.subcommand,
+                Some(app::SoullessSubCommand::Toggle)
+            ));
+            return Ok(());
+        }
+        DaemonLock::Unavailable => None,
+    };
+
     let settings = cosmic::app::Settings::default()
         .size(cosmic::iced::Size::new(
             crate::position::layout::WINDOW_WIDTH,
@@ -84,6 +104,70 @@ fn main() -> cosmic::iced::Result {
         .no_main_window(true)
         .exit_on_close(false);
     cosmic::app::run_single_instance::<app::Soulless>(settings, flags)
+}
+
+enum DaemonLock {
+    /// We hold the lock — we are the daemon.
+    Won(std::fs::File),
+    /// Another live process holds it — forward and exit.
+    Lost,
+    /// Couldn't even try (no runtime dir, fs error). Availability beats
+    /// dedup: proceed as daemon rather than refuse to start.
+    Unavailable,
+}
+
+/// Exclusive, non-blocking flock on a file every instance can see.
+/// Natively that's $XDG_RUNTIME_DIR; in flatpak it's the per-app dir
+/// $XDG_RUNTIME_DIR/app/$FLATPAK_ID — the same host directory bind-mounted
+/// into every sandbox instance of this app id, which is exactly why the
+/// kernel can referee a race the proxied bus cannot.
+fn daemon_lock() -> DaemonLock {
+    use std::os::fd::AsRawFd;
+    let dir = match std::env::var_os("FLATPAK_ID") {
+        Some(id) => std::env::var_os("XDG_RUNTIME_DIR")
+            .map(|r| std::path::PathBuf::from(r).join("app").join(id)),
+        None => std::env::var_os("XDG_RUNTIME_DIR").map(std::path::PathBuf::from),
+    };
+    let Some(dir) = dir else { return DaemonLock::Unavailable };
+    let _ = std::fs::create_dir_all(&dir);
+    let Ok(file) = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(dir.join("soulless-launcher.lock"))
+    else {
+        return DaemonLock::Unavailable;
+    };
+    match unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } {
+        0 => DaemonLock::Won(file),
+        _ => DaemonLock::Lost,
+    }
+}
+
+/// Loser path: deliver the activation run_single_instance would have
+/// forwarded, then let main return. Retries briefly because at login the
+/// winner may hold the flock before it owns the D-Bus name.
+fn forward_activation(toggle: bool) {
+    let Ok(conn) = zbus::blocking::Connection::session() else { return };
+    let dest = "com.github.hmrdsmoke.SoullessLauncher";
+    let path = "/com/github/hmrdsmoke/SoullessLauncher";
+    let iface = "org.freedesktop.DbusActivation";
+    let platform: std::collections::HashMap<String, zbus::zvariant::Value> =
+        std::collections::HashMap::new();
+    for _ in 0..30 {
+        let res = if toggle {
+            conn.call_method(
+                Some(dest), path, Some(iface), "ActivateAction",
+                &("toggle", Vec::<String>::new(), platform.clone()),
+            )
+        } else {
+            conn.call_method(Some(dest), path, Some(iface), "Activate", &(platform.clone(),))
+        };
+        if res.is_ok() {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    eprintln!("[soulless] lock held but activation undeliverable — exiting anyway");
 }
 
 /// Usage text. Goes to stdout and exits 0, per convention.
