@@ -83,9 +83,11 @@
     </screenshot>
   </screenshots>
   <releases>
-    <release version="2.0.1" date="2026-08-20">
+    <release version="2.5.0" date="2026-08-21">
       <description>
-        <p>Critical Flatpak fix: at login, two launcher daemons could race for the D-Bus name. The loser survived invisibly, holding a full-screen surface that ate every desktop click until logout. A kernel file lock now referees the race — one daemon wins, the loser delivers its activation and exits.</p>
+        <p>Login race fixed: at login, two launcher daemons could race for the D-Bus name. The loser survived invisibly, holding a full-screen surface that ate every desktop click until logout. A kernel file lock now referees the race — one daemon wins, the loser delivers its activation and exits.</p>
+        <p>Panel-birth guard: if the launcher's main app id ends up in the panel's applet list, cosmic-panel execs a headless launcher at every panel start — an impostor that squatted the D-Bus name and ate clicks. The launcher now refuses residency when born as a panel child without the applet's blessing, and logs the cure.</p>
+        <p>Sandbox placement fixed: the Flatpak redirects XDG_CONFIG_HOME and renames the applet's desktop id, so the launcher could never find the panel config — store installs always opened dead center. The launcher now reads the host config and matches both applet identities; the window opens at the applet's corner, native and Flatpak alike.</p>
       </description>
     </release>
     <release version="2.0.0" date="2026-08-16">

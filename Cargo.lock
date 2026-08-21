@@ -5269,7 +5269,7 @@ dependencies = [
 
 [[package]]
 name = "soulless-applet"
-version = "2.0.1"
+version = "2.5.0"
 dependencies = [
  "futures-util",
  "i18n-embed",
@@ -5284,7 +5284,7 @@ dependencies = [
 
 [[package]]
 name = "soulless-launcher"
-version = "2.0.1"
+version = "2.5.0"
 dependencies = [
  "argon2",
  "bincode",
