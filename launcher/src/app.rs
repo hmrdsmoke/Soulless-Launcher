@@ -720,7 +720,7 @@ impl cosmic::Application for Soulless {
 
         // Read the applet position from LIVE config (dynamic, no hardcoding) and
         // derive the launcher placement: wing -> horizontal, bar edge -> vertical.
-        let (edge, wing, bar_px) = crate::position::placement::LauncherPosition::applet_position();
+        let (edge, wing, _bar_px) = crate::position::placement::LauncherPosition::applet_position();
         // Orientation-aware placement. Horizontal bar (Top/Bottom): wings run
         // left/right, edge is top/bottom. Vertical bar (Left/Right): wings run
         // top/bottom, edge is left/right. Map each axis accordingly.
@@ -752,25 +752,14 @@ impl cosmic::Application for Soulless {
             };
             (ax, ay)
         };
-        // Clear the bar on its edge using the bar's ACTUAL thickness (from config),
-        // small gap on the other edges. Launcher sits just past the panel/dock
-        // wherever it is and whatever size it is set to.
-        // Flush placement: zero gap puts the launcher touching the bar and the
-        // screen corner. MUST match placement::blur_rect's gap — blur region and
-        // cursor->zone conversion both derive from the same constant.
+        // Surface is inset past other layers' reserved zones by the
+        // compositor (exclusive_zone = 0 in placement::surface_settings), so
+        // the panel/dock's true rendered thickness — every size, padding
+        // included — is already carved out of this surface's geometry.
+        // Only window_gap remains. MUST match placement::blur_rect's padding
+        // — blur region and cursor->zone conversion derive from the same value.
         let gap = crate::ui::theme::get().window_gap;
-        let bar_pad = bar_px as f32 + gap;
-        let padding = match edge {
-            cosmic::iced::platform_specific::shell::commands::layer_surface::Anchor::TOP =>
-                cosmic::iced::Padding { top: bar_pad, right: gap, bottom: gap, left: gap },
-            cosmic::iced::platform_specific::shell::commands::layer_surface::Anchor::BOTTOM =>
-                cosmic::iced::Padding { top: gap, right: gap, bottom: bar_pad, left: gap },
-            cosmic::iced::platform_specific::shell::commands::layer_surface::Anchor::LEFT =>
-                cosmic::iced::Padding { top: gap, right: gap, bottom: gap, left: bar_pad },
-            cosmic::iced::platform_specific::shell::commands::layer_surface::Anchor::RIGHT =>
-                cosmic::iced::Padding { top: gap, right: bar_pad, bottom: gap, left: gap },
-            _ => cosmic::iced::Padding::from(gap),
-        };
+        let padding = cosmic::iced::Padding::from(gap);
 
         // Full-screen stack: background dismisses (click outside launcher zone),
         // launcher zone does not. Positioning via the vertical space + align_x.

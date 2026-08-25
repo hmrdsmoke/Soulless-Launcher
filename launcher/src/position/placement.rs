@@ -127,19 +127,12 @@ impl LauncherPosition {
         // Compositor-reported logical size of THIS surface, from its own
         // configure. No captured-output guesswork, no fallback constants.
         let (sw, sh) = surface_size;
-        let (edge, wing, bar_px) = Self::applet_position();
+        let (edge, wing, _bar_px) = Self::applet_position();
         let horizontal_bar = matches!(edge, Anchor::TOP | Anchor::BOTTOM);
 
         // MUST match view()'s gap in app.rs — see comment there.
         let gap = crate::ui::theme::get().window_gap;
-        let bar_pad = bar_px as f32 + gap;
-        let (pad_top, pad_right, pad_bottom, pad_left) = match edge {
-            Anchor::TOP    => (bar_pad, gap, gap, gap),
-            Anchor::BOTTOM => (gap, gap, bar_pad, gap),
-            Anchor::LEFT   => (gap, gap, gap, bar_pad),
-            Anchor::RIGHT  => (gap, bar_pad, gap, gap),
-            _              => (gap, gap, gap, gap),
-        };
+        let (pad_top, pad_right, pad_bottom, pad_left) = (gap, gap, gap, gap);
 
         // Same wing->alignment mapping as view(). Some(true) = Start,
         // Some(false) = End, None = Center, per axis.
@@ -218,7 +211,10 @@ impl LauncherPosition {
         surface.namespace = "launcher".to_string();
         surface.size = Some((None, None));
         surface.size_limits = Limits::NONE.min_width(1.0).min_height(1.0).max_width(600.0);
-        surface.exclusive_zone = -1;
+        // 0: respect reserved zones -- compositor insets this surface past
+        // the panel/dock, so their true thickness is geometry, not math.
+        // The dummy below keeps -1: invisible, inert, must never move.
+        surface.exclusive_zone = 0;
         surface
     }
 
