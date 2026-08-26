@@ -100,19 +100,53 @@ fn main() -> cosmic::iced::Result {
         return Ok(());
     }
 
+    // Sandbox residency guard. Inside flatpak, layer-shell only works on
+    // the privileged socket cosmic-comp hands the applet's spawn; any other
+    // sandbox birth -- the shortcut's `flatpak run ... toggle`, the store's
+    // Open button, a terminal run -- gets the filtered socket and would
+    // become a MUTE daemon: wins the flock, owns the D-Bus name, can never
+    // create a surface, and wedges the applet button until pkill (test-box
+    // finding, Aug 26 2026). Same disease as the panel-birth ghost, third
+    // birth canal. Unblessed sandbox births stay clients: forward if a
+    // daemon exists (Lost arm below), refuse residency if none does.
+    // Native is untouched: autostart and terminal runs there are fully
+    // capable daemons by design.
+    let sandbox_unblessed = std::path::Path::new("/.flatpak-info").exists()
+        && std::env::var("SOULLESS_SPAWN").as_deref() != Ok("applet");
+
     // Winner holds the flock for the whole process lifetime; the kernel
     // releases it on any exit, clean or not. Loser forwards and dies before
     // creating a single surface.
     let _daemon_lock = match daemon_lock() {
-        DaemonLock::Won(file) => Some(file),
+        DaemonLock::Won(file) => {
+            if sandbox_unblessed {
+                drop(file); // free the flock for the next blessed birth
+                eprintln!("[launcher] refusing residency: sandbox birth without the applet's spawn blessing -- this socket cannot create layer surfaces.");
+                eprintln!("[launcher] the daemon starts from the panel applet; click the Soulless applet once (or re-log) and the shortcut will work.");
+                return Ok(());
+            }
+            Some(file)
+        }
         DaemonLock::Lost => {
+            // Warm-up twin (applet init-birth): daemon already exists, and
+            // nobody clicked -- exit silently instead of forwarding a
+            // visible open.
+            if std::env::var_os("SOULLESS_WARM").is_some() {
+                return Ok(());
+            }
             forward_activation(matches!(
                 flags.subcommand,
                 Some(app::SoullessSubCommand::Toggle)
             ));
             return Ok(());
         }
-        DaemonLock::Unavailable => None,
+        DaemonLock::Unavailable => {
+            if sandbox_unblessed {
+                eprintln!("[launcher] refusing residency: sandbox birth without the applet's spawn blessing (lock unavailable).");
+                return Ok(());
+            }
+            None
+        }
     };
 
     let settings = cosmic::app::Settings::default()
