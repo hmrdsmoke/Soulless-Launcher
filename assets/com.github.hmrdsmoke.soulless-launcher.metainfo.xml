@@ -83,11 +83,18 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="2.5.1" date="2026-08-26">
+      <description>
+        <p>Keyboard shortcut works from the first keypress: the launcher daemon previously started only on the first applet click, so a shortcut pressed before any click found nothing to talk to -- and its own process became a mute daemon that wedged the applet button until logout. The applet now starts the daemon the moment the panel loads, and the stray instance problem is gone.</p>
+        <p>Residency guard for the sandbox: launching Soulless any way other than the panel applet (the store's Open button, a terminal run, the shortcut) lands on a Wayland socket that cannot create the launcher's window. Such launches now step aside with a logged explanation instead of silently taking over and breaking the applet button.</p>
+      </description>
+    </release>
     <release version="2.5.0" date="2026-08-21">
       <description>
         <p>Login race fixed: at login, two launcher daemons could race for the D-Bus name. The loser survived invisibly, holding a full-screen surface that ate every desktop click until logout. A kernel file lock now referees the race — one daemon wins, the loser delivers its activation and exits.</p>
         <p>Panel-birth guard: if the launcher's main app id ends up in the panel's applet list, cosmic-panel execs a headless launcher at every panel start — an impostor that squatted the D-Bus name and ate clicks. The launcher now refuses residency when born as a panel child without the applet's blessing, and logs the cure.</p>
         <p>Sandbox placement fixed: the Flatpak redirects XDG_CONFIG_HOME and renames the applet's desktop id, so the launcher could never find the panel config — store installs always opened dead center. The launcher now reads the host config and matches both applet identities; the window opens at the applet's corner, native and Flatpak alike.</p>
+        <p>Window placement is now exact at every panel size: instead of estimating the panel's thickness from its config, the launcher asks the compositor to carve the panel and dock out of its surface -- placement inherits their true rendered size, XS through XL, padding included.</p>
       </description>
     </release>
     <release version="2.0.0" date="2026-08-16">
