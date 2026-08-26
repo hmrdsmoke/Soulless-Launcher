@@ -40,6 +40,31 @@ fn main() -> cosmic::iced::Result {
     }
     let _ = PRIVILEGED_FD.set(fd);
 
+    // Flatpak warm-up: birth the blessed daemon at panel start, not first
+    // click, so a keyboard shortcut pressed before any applet click finds a
+    // live daemon to forward to (shortcut-first wedge, Aug 26 2026). Probe
+    // with NameHasOwner -- NOT Activate -- so nothing flashes open at login.
+    // SOULLESS_WARM makes a flock-losing twin exit silently instead of
+    // forwarding a visible open (panel + dock applets both warm; one wins).
+    // Native skips: autostart owns login there.
+    if std::path::Path::new("/.flatpak-info").exists() {
+        let owned = zbus::blocking::Connection::session()
+            .ok()
+            .and_then(|c| {
+                zbus::blocking::fdo::DBusProxy::new(&c).ok().and_then(|p| {
+                    p.name_has_owner("com.github.hmrdsmoke.SoullessLauncher".try_into().ok()?)
+                        .ok()
+                })
+            })
+            .unwrap_or(false);
+        if !owned {
+            eprintln!("[applet] warm: no daemon on the bus at panel birth -- spawning blessed");
+            app::spawn_launcher_once(true);
+        } else {
+            eprintln!("[applet] warm: daemon already on the bus");
+        }
+    }
+
     // Get the system's preferred languages.
     let requested_languages = i18n_embed::DesktopLanguageRequester::requested_languages();
 

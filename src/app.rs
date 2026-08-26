@@ -194,7 +194,7 @@ impl cosmic::Application for AppModel {
                                     // so it inherits the CosmicPanel security-context and
                                     // can actually see zwlr_layer_shell_v1. Spawned ONCE
                                     // (guarded), and reaped so no zombie is left behind.
-                                    crate::app::spawn_launcher_once();
+                                    crate::app::spawn_launcher_once(false);
                                 }
                             }
                         }
@@ -241,7 +241,7 @@ static SPAWNED: AtomicBool = AtomicBool::new(false);
 /// 35 globals instead of 56, no layer-shell, and its window never maps.
 ///
 /// The fd must have CLOEXEC cleared or exec() closes it out from under the child.
-pub fn spawn_launcher_once() {
+pub fn spawn_launcher_once(warm: bool) {
     if SPAWNED.swap(true, Ordering::SeqCst) {
         eprintln!("[applet] spawn: already spawned once this session, skipping");
         return;
@@ -277,6 +277,11 @@ pub fn spawn_launcher_once() {
     // panel child, so this spawned daemon inherits COSMIC_PANEL_* — the
     // marker tells the launcher that fingerprint is legitimate here.
     cmd.env("SOULLESS_SPAWN", "applet");
+    if warm {
+        // Init-birth: a flock-losing twin must exit silently, not forward a
+        // visible Activate -- nobody clicked anything.
+        cmd.env("SOULLESS_WARM", "1");
+    }
     // The child must NOT also see WAYLAND_DISPLAY, or it may prefer the
     // unprivileged socket and land right back in the filtered registry.
     cmd.env_remove("WAYLAND_DISPLAY");
@@ -287,7 +292,12 @@ pub fn spawn_launcher_once() {
             // Reap in the background — no zombies (the defunct-process bug).
             std::thread::spawn(move || {
                 let _ = child.wait();
-                eprintln!("[applet] spawn: launcher exited");
+                // Re-arm: the guard means "one live child at a time", not
+                // "once per applet lifetime". Without this, a daemon that
+                // dies mid-session leaves the click fallback permanently
+                // fused -- dead button until re-log (stale-guard wedge).
+                SPAWNED.store(false, Ordering::SeqCst);
+                eprintln!("[applet] spawn: launcher exited; spawn guard re-armed");
             });
         }
         Err(e) => {
