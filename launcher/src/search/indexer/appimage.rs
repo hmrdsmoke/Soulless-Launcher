@@ -46,7 +46,7 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
             apps.push(AppEntry {
                 id: format!("appimage:{}", path.display()),
                 name: name.clone(),
-                exec: path.display().to_string(),
+                exec: crate::utils::shell_escape(&path.display().to_string()),
                 icon_path,
                 source: AppSource::AppImage,
                 desktop_path: None,

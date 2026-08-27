@@ -102,6 +102,14 @@ pub fn parse_uri_list(data: &[u8]) -> Vec<std::path::PathBuf> {
 /// Args are passed as separate argv entries, so no shell re-quoting happens.
 /// The child is reaped on a detached thread — the launcher is a long-lived
 /// daemon and must not accumulate zombies.
+/// Minimal shell escaping: wraps a string in single quotes and escapes any
+/// embedded single quotes. Inside single quotes the shell treats `, $(), ;, |,
+/// and whitespace as literal — so a path wrapped this way can never inject when
+/// it reaches `sh -c`. Use on any filesystem path spliced into an exec string.
+pub fn shell_escape(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
+}
+
 pub fn spawn_exec(exec: &str) {
     let clean = strip_desktop_placeholders(exec);
 

@@ -74,7 +74,7 @@ fn scan_shortcuts(dir: &Path, apps: &mut Vec<AppEntry>) {
         apps.push(AppEntry {
             id: format!("wine:{}", path.display()),
             name: name.clone(),
-            exec: format!("wine start /unix \"{}\"", path.display()),
+            exec: format!("wine start /unix {}", crate::utils::shell_escape(&path.display().to_string())),
             icon_path: super::icon::fallback_icon(),
             source: AppSource::Wine,
             desktop_path: None,

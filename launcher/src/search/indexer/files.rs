@@ -110,7 +110,7 @@ fn push_entry(
     apps.push(AppEntry {
         id: format!("file:{}", path.display()),
         name: name.clone(),
-        exec: format!("xdg-open {}", path.display()),
+        exec: format!("xdg-open {}", crate::utils::shell_escape(&path.display().to_string())),
         icon_path: if is_dir { folder_icon.to_string() } else { file_icon.to_string() },
         source: if is_dir { AppSource::Folder } else { AppSource::File },
         desktop_path: None,
