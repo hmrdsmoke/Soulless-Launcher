@@ -121,19 +121,31 @@ impl MonitorsState {
     }
 
     /// Road-B join: the surface was just configured at width x height —
-    /// mark the census row whose logical size matches as the active one.
+    /// mark the census row it best fits as the active one. Exact equality
+    /// died with exclusive_zone = 0 (dc7aae1): reserved zones are carved
+    /// out of the surface geometry, so on a panel-bearing output the
+    /// surface configures at output-minus-zones and never equals a full
+    /// logical size again. Best fit instead: among outputs the surface
+    /// fits inside, take the one with the least slack. Ties (two
+    /// identical outputs) take census order — accepted limitation.
     pub fn surface_on(&mut self, w: i32, h: i32) {
         let hit = self
             .monitors
             .iter()
-            .find(|m| m.logical_size == Some((w, h)))
-            .map(|m| m.key.clone());
+            .filter_map(|m| {
+                let (mw, mh) = m.logical_size?;
+                (w <= mw && h <= mh)
+                    .then(|| ((mw - w) + (mh - h), m.name.clone(), m.key.clone()))
+            })
+            .min_by_key(|(slack, _, _)| *slack);
         match &hit {
-            Some(k) => eprintln!("[MONITORS] surface  {w}x{h} -> key={k}"),
+            Some((slack, name, k)) => eprintln!(
+                "[MONITORS] surface  {w}x{h} -> {name} (slack {slack}) key={k}"
+            ),
             None => eprintln!("[MONITORS] surface  {w}x{h} -> no census match"),
         }
-        if hit.is_some() {
-            self.active_key = hit;
+        if let Some((_, _, k)) = hit {
+            self.active_key = Some(k);
         }
     }
 
