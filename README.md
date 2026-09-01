@@ -28,7 +28,8 @@ This is the toolbox you need to organize the tools you use.
 
 ## Requirements
 
-- Pop!_OS or any Linux distro with the COSMIC desktop
+- Pop!_OS or any Linux distro with the COSMIC desktop (the full experience, with the panel applet)
+- Or any other Wayland compositor that supports wlr-layer-shell, as a keyboard-summoned launcher — tested on KDE Plasma and Bazzite. See [Other desktops](#other-desktops). GNOME is not supported.
 
 ## Install
 
@@ -96,6 +97,30 @@ you — sandboxed apps aren't permitted to write compositor keybindings
 | Shortcut | Super+Space                                              |
 
 `toggle` shows the launcher if hidden and hides it if visible.
+
+## Other desktops
+
+Soulless does not need COSMIC. It needs a Wayland compositor that supports
+wlr-layer-shell — tested on KDE Plasma and on Bazzite. GNOME is not supported
+(no layer-shell). Off COSMIC there is no panel applet, so the window opens
+centered and you summon it with a key.
+
+**From source:** the Install steps above work unchanged. The `apt` line is
+Pop!_OS-specific — on other distros install the equivalents (git, a C
+toolchain, pkg-config, libxkbcommon development headers, rustup), then clone
+with `--recurse-submodules` and `sudo make install`. The applet binary gets
+built and installed but simply never runs, and the COSMIC Settings steps do
+not apply.
+
+**Prebuilt binary:** the [latest release](https://github.com/hmrdsmoke/Soulless-Launcher/releases/latest)
+carries a launcher-only tarball. Verify the sha256 and follow `INSTALL.txt`
+inside it.
+
+Either way, bind a key to `soulless-launcher toggle`. The first press starts
+the resident daemon and opens the window; every press after that toggles it.
+
+Known limitation: CLI tool tiles open in cosmic-term, so install it or those
+tiles will not launch.
 
 ## License
 
