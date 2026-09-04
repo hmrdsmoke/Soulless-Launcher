@@ -91,7 +91,13 @@ pub fn index(icons: &mut IconCache) -> Vec<AppEntry> {
                 id: format!("binary:{}", path.display()),
                 name: name.to_string(),
                 // CLI tools open their --help in a terminal pager on click.
-                exec: format!("cosmic-term -e sh -c {}", crate::utils::shell_escape(&crate::utils::shell_escape(&format!("{name} --help 2>&1 | less")))),
+                // Two shells: spawn_exec's `sh -c` tokenizes the exec string
+                // (one escape around the whole inner command), then cosmic-term
+                // execs `sh -c <inner>`, which parses it as shell code. So the
+                // untrusted name gets its own escape (backticks inert) while the
+                // pipeline stays bare so it still runs. Escaping the whole thing
+                // twice quoted the pipeline into one literal word: safe, and dead.
+                exec: format!("cosmic-term -e sh -c {}", crate::utils::shell_escape(&format!("{} --help 2>&1 | less", crate::utils::shell_escape(&name)))),
                 // CLI tools all share the utilities (wrench) icon instead of a
                 // mostly-failing per-command name lookup.
                 icon_path: icons.resolve(Some("applications-utilities")),
