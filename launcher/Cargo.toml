@@ -5,7 +5,7 @@
 
 [package]
 name = "soulless-launcher"
-version = "2.5.1"
+version = "2.5.2"
 edition = "2024"
 authors = ["Michael Van Auker (HMRDSmoke)"]
 description = "The replacement app launcher for Cosmic"

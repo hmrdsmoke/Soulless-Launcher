@@ -83,6 +83,12 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="2.5.2" date="2026-09-04">
+      <description>
+        <p>CLI tool tiles launch again. 2.5.1 hardened the launcher against hostile file names by shell-escaping the commands it builds, but the CLI tiles were escaped one layer too far: the terminal received the whole help-pager command as a single quoted word, reported it as not found, and closed before it could be seen. The tool name is now escaped on its own and the command runs as intended. A hostile name still cannot execute.</p>
+        <p>Also in 2.5.1, previously unannounced: file, AppImage, Wine and CLI tiles no longer execute shell metacharacters found in file names. A downloaded file named with backticks could run commands when clicked, and under Flatpak that ran on the host. And the FPS monitor once again reports the live number under the display the launcher is actually on.</p>
+      </description>
+    </release>
     <release version="2.5.1" date="2026-08-26">
       <description>
         <p>Keyboard shortcut works from the first keypress: the launcher daemon previously started only on the first applet click, so a shortcut pressed before any click found nothing to talk to -- and its own process became a mute daemon that wedged the applet button until logout. The applet now starts the daemon the moment the panel loads, and the stray instance problem is gone.</p>

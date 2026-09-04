@@ -5284,7 +5284,7 @@ dependencies = [
 
 [[package]]
 name = "soulless-launcher"
-version = "2.5.1"
+version = "2.5.2"
 dependencies = [
  "argon2",
  "bincode",
