@@ -1,0 +1,83 @@
+# =========================
+# Rust
+# =========================
+
+/target
+/debug
+/release
+
+# Keep Cargo.lock for applications
+# Remove this line ONLY if publishing a library
+# Cargo.lock
+
+.cargo/
+
+# =========================
+# Backups / Temp
+# =========================
+
+*.rs.bk
+*.bak
+*.tmp
+*.temp
+*~
+.DS_Store
+
+# =========================
+# Debug / Crash
+# =========================
+
+*.log
+*.pdb
+
+# =========================
+# Vault / Encryption
+# =========================
+
+*.vault
+*.enc
+*.key
+*.secret
+*.db
+*.sqlite
+*.sqlite3
+
+# Runtime secure storage
+vault/
+secure/
+runtime/
+
+# =========================
+# Vendor / Packaging
+# =========================
+
+vendor/
+vendor.tar
+
+# =========================
+# Debian Packaging
+# =========================
+
+debian/*
+!debian/changelog
+!debian/control
+!debian/copyright
+!debian/install
+!debian/rules
+!debian/source
+
+# =========================
+# Editors / IDEs
+# =========================
+
+.vscode/
+.idea/
+
+# =========================
+# Build Artifacts
+# =========================
+
+*.o
+*.so
+*.a
+*.rlib
