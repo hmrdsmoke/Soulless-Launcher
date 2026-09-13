@@ -3,6 +3,10 @@
   <id>com.github.hmrdsmoke.soulless-applet</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
+  <developer_name>HMRDSmoke Software LLC</developer_name>
+  <developer id="com.github.hmrdsmoke">
+    <name>HMRDSmoke Software LLC</name>
+  </developer>
   <name>Soulless Applet</name>
   <summary>launcher button</summary>
   <icon type="remote" width="64" height="64" scale="1">
