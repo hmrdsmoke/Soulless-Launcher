@@ -41,10 +41,10 @@ sudo apt install -y git build-essential pkg-config libxkbcommon-dev rustup
 rustup default stable
 ```
 
-The panel applet lives in a git submodule, so clone with `--recurse-submodules`:
+Clone and install:
 
 ```bash
-git clone --recurse-submodules https://github.com/hmrdsmoke/Soulless-Launcher
+git clone https://github.com/hmrdsmoke/Soulless-Launcher
 cd Soulless-Launcher
 sudo make install
 ```
@@ -56,8 +56,6 @@ permission errors, `sudo chown -R $USER:$USER ~/.cargo` fixes it.)
 
 Then open COSMIC Settings → Desktop → Panel (or Dock) → Applets and add **Soulless**.
 **Reboot once after installing** — the autostart entry is read by systemd's xdg-autostart generator, which only re-scans at boot; logging out and back in is not enough. (Or start it right away for the current session: run `soulless-launcher`.) After that, Super+Space and the panel button both open Soulless.
-
-Already cloned without submodules? Run `git submodule update --init` before building.
 
 To remove everything:
 
@@ -108,7 +106,7 @@ centered and you summon it with a key.
 **From source:** the Install steps above work unchanged. The `apt` line is
 Pop!_OS-specific — on other distros install the equivalents (git, a C
 toolchain, pkg-config, libxkbcommon development headers, rustup), then clone
-with `--recurse-submodules` and `sudo make install`. The applet binary gets
+and `sudo make install`. The applet binary gets
 built and installed but simply never runs, and the COSMIC Settings steps do
 not apply.
 
