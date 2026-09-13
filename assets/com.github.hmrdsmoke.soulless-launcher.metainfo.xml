@@ -83,6 +83,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="2.5.3" date="2026-09-13">
+      <description>
+        <p>Packaging only, no functional change. The panel applet's source now lives inside the launcher repository instead of a separate git submodule, so a plain clone builds everything and the Flatpak no longer depends on a second repository. Nothing about the installed launcher or applet is different.</p>
+      </description>
+    </release>
     <release version="2.5.2" date="2026-09-04">
       <description>
         <p>CLI tool tiles launch again. 2.5.1 hardened the launcher against hostile file names by shell-escaping the commands it builds, but the CLI tiles were escaped one layer too far: the terminal received the whole help-pager command as a single quoted word, reported it as not found, and closed before it could be seen. The tool name is now escaped on its own and the command runs as intended. A hostile name still cannot execute.</p>
