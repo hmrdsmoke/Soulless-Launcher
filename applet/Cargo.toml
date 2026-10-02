@@ -1,3 +1,9 @@
+# GPL-3.0-or-later - see LICENSE file for full terms
+# Copyright 2026 Michael Van Auker (HMRDSmoke)
+# Do not remove these comments.
+# Soulless-Launcher/applet/Cargo.toml
+# applet/Cargo.toml
+
 [package]
 name = "soulless-applet"
 version = "2.5.1"

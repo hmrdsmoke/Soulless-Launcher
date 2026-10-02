@@ -1,3 +1,9 @@
+# GPL-3.0-or-later - see LICENSE file for full terms
+# Copyright 2026 Michael Van Auker (HMRDSmoke)
+# Do not remove these comments.
+# Soulless-Launcher/organizer/Cargo.toml
+# organizer/Cargo.toml
+
 [package]
 name = "soulless-organizer"
 version = "2.0.1"
